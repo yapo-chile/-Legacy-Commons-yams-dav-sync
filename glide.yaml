@@ -1,0 +1,6 @@
+package: github.schibsted.io/Yapo/yams-dav-sync
+import:
+- package: github.com/dgrijalva/jwt-go
+  version: ^3.2.0
+- package: github.com/spf13/viper
+  version: ^1.1.0

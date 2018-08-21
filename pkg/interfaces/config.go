@@ -23,7 +23,7 @@ func NewConfig() (Config, error) {
 
 	config := Config{
 		MgmtURL:        viper.GetString("yams.mgmtURL"),
-		AccessKeyID:    viper.GetString("yams.accessID"),
+		AccessKeyID:    viper.GetString("yams.accessKeyID"),
 		TenantID:       viper.GetString("yams.tenantID"),
 		PrivateKeyFile: viper.GetString("yams.privateKey"),
 	}

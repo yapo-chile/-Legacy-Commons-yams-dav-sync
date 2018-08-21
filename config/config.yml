@@ -1,5 +1,5 @@
 yams:
   mgmtURL: mgmt-us-east-1-yams.schibsted.com
-  accessID: 17c82c157c50a0c4
+  accessKeyID: 17c82c157c50a0c4
   tenantID: e5ce1008-0145-4b91-9670-390db782ed9c
   privateKey: private.key
