@@ -1,6 +1,8 @@
 package interfaces
 
-import "testing"
+import (
+	"testing"
+)
 
 type TestLogger struct {
 	t *testing.T
@@ -14,9 +16,12 @@ func (logger TestLogger) Error(msg string) { logger.t.Log("Error:", msg) }
 func TestGetImages(t *testing.T) {
 	logger := TestLogger{t: t}
 	localRepo := LocalRepo{
-		Path:   ".",
+		Path:   "../..",
 		Logger: logger,
 	}
 
-	localRepo.GetImages()
+	images := localRepo.GetImages()
+	for _, image := range images {
+		logger.Debug("Image: " + image.FilePath)
+	}
 }
