@@ -17,6 +17,7 @@ func main() {
 		MgmtURL:     config.MgmtURL,
 		AccessKeyID: config.AccessKeyID,
 		TenantID:    config.TenantID,
+		DomainID:    config.DomainID,
 	}
 	syncUC := usecases.SyncUseCase{
 		YamsRepo: yamsRepo,

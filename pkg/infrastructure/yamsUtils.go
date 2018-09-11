@@ -9,8 +9,19 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
-func getRSAKey() interface{} {
-	mySigningKey, _ := ioutil.ReadFile("config/private.key")
+type JWTSigner struct {
+	privateKeyFile string
+}
+
+func NewJWTSigner(privateKetyFile string) JWTSigner {
+	signer := JWTSigner{
+		privateKeyFile: privateKetyFile,
+	}
+	return signer
+}
+
+func (signer *JWTSigner) getRSAKey() interface{} {
+	mySigningKey, _ := ioutil.ReadFile(signer.privateKeyFile)
 	block, _ := pem.Decode(mySigningKey)
 
 	rsaKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
@@ -22,13 +33,13 @@ func getRSAKey() interface{} {
 	return rsaKey
 }
 
-func GenerateTokenString(claims jwt.Claims) string {
+func (signer *JWTSigner) GenerateTokenString(claims jwt.Claims) string {
 	// Create a new token object, specifying signing method and the claims
 	// you would like it to contain.
 	token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
 
 	// Sign and get the complete encoded token as a string using the secret
-	tokenString, _ := token.SignedString(getRSAKey())
+	tokenString, _ := token.SignedString(signer.getRSAKey())
 
 	return tokenString
 }

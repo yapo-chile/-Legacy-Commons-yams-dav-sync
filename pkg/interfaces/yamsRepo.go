@@ -1,20 +1,25 @@
 package interfaces
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
 	infra "github.schibsted.io/Yapo/yams-dav-sync/pkg/infrastructure"
 )
 
 type YamsRepo struct {
+	JWTSigner   infra.JWTSigner
 	MgmtURL     string
 	AccessKeyID string
 	TenantID    string
+	DomainID    string
 }
 
 func (repo YamsRepo) GetDomains() string {
@@ -36,7 +41,7 @@ func (repo YamsRepo) GetDomains() string {
 		Metadata{},
 	}
 
-	tokenString := infra.GenerateTokenString(claims)
+	tokenString := repo.JWTSigner.GenerateTokenString(claims)
 
 	requestURI := "https://" + repo.MgmtURL + "/api/v1/tenants/" + repo.TenantID + "/domains?jwt=" + tokenString + "&AccessKeyId=" + repo.AccessKeyID
 	fmt.Println(requestURI)
@@ -51,11 +56,7 @@ func (repo YamsRepo) GetDomains() string {
 	return ""
 }
 
-const MgmtYamsHost = "mgmt-us-east-1-yams.schibsted.com"
-const AccessKeyID = "17c82c157c50a0c4"
-const TenantID = "e5ce1008-0145-4b91-9670-390db782ed9c"
-
-func putImage(filename string) {
+func (repo YamsRepo) PutImage(bucketID string, image domain.Image) error {
 
 	type Metadata struct {
 		ObjectId string `json:"oid"`
@@ -72,24 +73,40 @@ func putImage(filename string) {
 		jwt.StandardClaims{
 			IssuedAt: time.Now().Unix(),
 		},
-		"POST\\/tenants/" + TenantID + "/domains/fa5881b0-3092-4c80-b37b-0ab08519951f/buckets/465a8c49-cdb8-4fe4-8ce2-204860780391/objects",
+		stringConcat("POST\\/tenants/", repo.TenantID, "/domains/", repo.DomainID, "/buckets/", bucketID, "/objects"),
 		Metadata{
-			ObjectId: filename,
+			ObjectId: image.Metadata.ImageName,
 		},
 	}
 
-	tokenString := infra.GenerateTokenString(claims)
+	tokenString := repo.JWTSigner.GenerateTokenString(claims)
 
-	requestURI := "https://" + MgmtYamsHost + "/api/v1/tenants/" + TenantID + "/domains/fa5881b0-3092-4c80-b37b-0ab08519951f/buckets/465a8c49-cdb8-4fe4-8ce2-204860780391/objects?jwt=" + tokenString + "&AccessKeyId=" + AccessKeyID
+	requestURI := stringConcat("https://", repo.MgmtURL, "/api/v1/tenants/", repo.TenantID, "/domains/", repo.DomainID,
+		"/buckets/", bucketID, "/objects?jwt=", tokenString, "&AccessKeyId=", repo.AccessKeyID)
 	fmt.Println(requestURI)
 
-	image, _ := os.Open(filename)
-	defer image.Close()
+	imageFile, err := os.Open(image.FilePath)
+	if err != nil {
+		return errors.New("Unable to open image file. Detail: " + err.Error())
+	}
+	defer imageFile.Close()
 
-	resp, err := http.Post(requestURI, "image/jpg", image)
+	resp, err := http.Post(requestURI, "images/jpg", imageFile)
+	if err != nil {
+		return errors.New("Failed post resquest to Yams. Detail: " + err.Error())
+	}
 	defer resp.Body.Close()
 
 	body, _ := ioutil.ReadAll(resp.Body)
 
 	fmt.Println("  Response: ", resp, "\n  Body: ", string(body), "\n  Error: ", err)
+	return nil
+}
+
+func stringConcat(args ...string) string {
+	sb := strings.Builder{}
+	for _, arg := range args {
+		sb.WriteString(arg)
+	}
+	return sb.String()
 }
