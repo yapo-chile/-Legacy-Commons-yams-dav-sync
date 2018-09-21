@@ -12,10 +12,6 @@ type SyncUseCase struct {
 	LocalRepo LocalImageRepository
 }
 
-type YamsRepository interface {
-	PutImage(domain.Image) error
-}
-
 type LocalImageRepository interface {
 	GetImages() []domain.Image
 }
