@@ -78,24 +78,24 @@ func (repo *YamsRepository) GetDomains() string {
 
 func (repo *YamsRepository) PutImage(bucketID string, image domain.Image) *usecases.YamsRepositoryError {
 
-	type Metadata struct {
-		ObjectId string `json:"oid"`
+	type PutMetadata struct {
+		ObjectID string `json:"oid"`
 	}
 
-	type MyCustomClaims struct {
+	type PutClaims struct {
 		jwt.StandardClaims
-		Rqs      string   `json:"rqs"`
-		Metadata Metadata `json:"metadata"`
+		Rqs      string      `json:"rqs"`
+		Metadata PutMetadata `json:"metadata"`
 	}
 
 	// Create the Claims
-	claims := MyCustomClaims{
+	claims := PutClaims{
 		jwt.StandardClaims{
 			IssuedAt: time.Now().Unix(),
 		},
 		stringConcat("POST\\/tenants/", repo.tenantID, "/domains/", repo.domainID, "/buckets/", bucketID, "/objects"),
-		Metadata{
-			ObjectId: image.Metadata.ImageName,
+		PutMetadata{
+			ObjectID: image.Metadata.ImageName,
 		},
 	}
 
@@ -121,6 +121,11 @@ func (repo *YamsRepository) PutImage(bucketID string, image domain.Image) *useca
 	}
 	defer resp.Body.Close()
 
+	body, _ := ioutil.ReadAll(resp.Body)
+	if repo.Debug {
+		fmt.Println("  Response: ", resp, "\n  Body: ", string(body), "\n  Error: ", err)
+	}
+
 	switch resp.StatusCode {
 	case 400: // Bad Request
 		return usecases.ErrYamsInternal
@@ -136,12 +141,75 @@ func (repo *YamsRepository) PutImage(bucketID string, image domain.Image) *useca
 		return usecases.ErrYamsInternal
 	}
 
+	return nil
+}
+
+func (repo *YamsRepository) DeleteImage(bucketID, imageName string, immediateRemoval bool) *usecases.YamsRepositoryError {
+
+	type DeleteMetadata struct {
+		ForceImmediateRemoval bool `json:"force"`
+	}
+
+	type DeleteClaims struct {
+		jwt.StandardClaims
+		Rqs      string         `json:"rqs"`
+		Metadata DeleteMetadata `json:"metadata"`
+	}
+
+	// Create the Claims
+	claims := DeleteClaims{
+		jwt.StandardClaims{
+			IssuedAt: time.Now().Unix(),
+		},
+		stringConcat("DELETE\\/tenants/", repo.tenantID, "/domains/", repo.domainID, "/buckets/", bucketID, "/objects"),
+		DeleteMetadata{
+			ForceImmediateRemoval: false,
+		},
+	}
+
+	tokenString := repo.jwtSigner.GenerateTokenString(claims)
+
+	requestURI := stringConcat("https://", repo.mgmtURL, "/api/v1/tenants/", repo.tenantID, "/domains/", repo.domainID,
+		"/buckets/", bucketID, "/objects?jwt=", tokenString, "&AccessKeyId=", repo.accessKeyID)
+
+	if repo.Debug {
+		fmt.Println(requestURI)
+	}
+
+	// TODO: Use connection pull with keepalive
+	httpClient := &http.Client{}
+	req, err := http.NewRequest("DELETE", requestURI, nil)
+	if err != nil {
+		return usecases.ErrYamsConnection
+	}
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return usecases.ErrYamsConnection
+	}
+	defer resp.Body.Close()
 	body, _ := ioutil.ReadAll(resp.Body)
+
 	if repo.Debug {
 		fmt.Println("  Response: ", resp, "\n  Body: ", string(body), "\n  Error: ", err)
 	}
 
-	return nil
+	switch resp.StatusCode {
+	case 202: // All good, object deleted
+		return nil
+	case 400: // Bad Request
+		return usecases.ErrYamsInternal
+	case 403:
+		return usecases.ErrYamsUnauthorized
+	case 404:
+		return usecases.ErrYamsObjectNotFound
+	case 500: // Server error
+		return usecases.ErrYamsInternal
+	case 503: // Service temporarily unavailable
+		return usecases.ErrYamsInternal
+	default: // Unkown error
+		return usecases.ErrYamsInternal
+	}
 }
 
 func stringConcat(args ...string) string {

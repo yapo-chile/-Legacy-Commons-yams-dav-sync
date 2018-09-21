@@ -33,6 +33,10 @@ var (
 	// ErrYamsBucketNotFound is returned by any method of YamsRepository
 	// implementations to indicate that it failed to locate the bucket.
 	ErrYamsBucketNotFound = &YamsRepositoryError{"bucket not found"}
+
+	// ErrYamsObjectNotFound is returned by any method of YamsRepository
+	// implementations to indicate that it failed to locate the object.
+	ErrYamsObjectNotFound = &YamsRepositoryError{"object not found"}
 )
 
 type YamsRepository interface {
