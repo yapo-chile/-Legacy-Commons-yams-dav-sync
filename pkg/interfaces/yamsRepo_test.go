@@ -18,11 +18,11 @@ func TestPutImages(t *testing.T) {
 	testImage := domain.Image{
 		FilePath: "../../5768222092.jpg",
 		Metadata: domain.ImageMetadata{
-			ImageName: "5768222000.jpg",
+			ImageName: "5768222092.jpg",
 		},
 	}
 
-	yamsRepo.PutImage("465a8c49-cdb8-4fe4-8ce2-204860780391", testImage)
+	yamsRepo.PutImage("71464924-d0a4-41c9-b9c9-09d3c8a9456b", testImage)
 
 }
 
@@ -34,6 +34,6 @@ func TestDeleteImages(t *testing.T) {
 		"e5ce1008-0145-4b91-9670-390db782ed9c", "fa5881b0-3092-4c80-b37b-0ab08519951f")
 	yamsRepo.Debug = true
 
-	yamsRepo.DeleteImage("465a8c49-cdb8-4fe4-8ce2-204860780391", "5768222000.jpg", false)
+	yamsRepo.DeleteImage("71464924-d0a4-41c9-b9c9-09d3c8a9456b", "5768222092.jpg", false)
 
 }

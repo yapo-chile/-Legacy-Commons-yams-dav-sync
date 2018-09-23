@@ -147,7 +147,8 @@ func (repo *YamsRepository) PutImage(bucketID string, image domain.Image) *useca
 func (repo *YamsRepository) DeleteImage(bucketID, imageName string, immediateRemoval bool) *usecases.YamsRepositoryError {
 
 	type DeleteMetadata struct {
-		ForceImmediateRemoval bool `json:"force"`
+		ObjectID              string `json:"oid"`
+		ForceImmediateRemoval bool   `json:"force"`
 	}
 
 	type DeleteClaims struct {
@@ -156,21 +157,23 @@ func (repo *YamsRepository) DeleteImage(bucketID, imageName string, immediateRem
 		Metadata DeleteMetadata `json:"metadata"`
 	}
 
+	urlPath := stringConcat("/tenants/", repo.tenantID, "/domains/", repo.domainID, "/buckets/", bucketID, "/objects/", imageName)
+
 	// Create the Claims
 	claims := DeleteClaims{
 		jwt.StandardClaims{
 			IssuedAt: time.Now().Unix(),
 		},
-		stringConcat("DELETE\\/tenants/", repo.tenantID, "/domains/", repo.domainID, "/buckets/", bucketID, "/objects"),
+		stringConcat("DELETE\\", urlPath),
 		DeleteMetadata{
 			ForceImmediateRemoval: false,
+			ObjectID:              imageName,
 		},
 	}
 
 	tokenString := repo.jwtSigner.GenerateTokenString(claims)
 
-	requestURI := stringConcat("https://", repo.mgmtURL, "/api/v1/tenants/", repo.tenantID, "/domains/", repo.domainID,
-		"/buckets/", bucketID, "/objects?jwt=", tokenString, "&AccessKeyId=", repo.accessKeyID)
+	requestURI := stringConcat("https://", repo.mgmtURL, "/api/v1", urlPath, "?jwt=", tokenString, "&AccessKeyId=", repo.accessKeyID)
 
 	if repo.Debug {
 		fmt.Println(requestURI)
