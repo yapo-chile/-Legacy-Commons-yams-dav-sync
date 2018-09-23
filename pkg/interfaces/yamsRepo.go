@@ -166,7 +166,7 @@ func (repo *YamsRepository) DeleteImage(bucketID, imageName string, immediateRem
 		},
 		stringConcat("DELETE\\", urlPath),
 		DeleteMetadata{
-			ForceImmediateRemoval: false,
+			ForceImmediateRemoval: immediateRemoval,
 			ObjectID:              imageName,
 		},
 	}
@@ -204,6 +204,63 @@ func (repo *YamsRepository) DeleteImage(bucketID, imageName string, immediateRem
 		return usecases.ErrYamsInternal
 	case 403:
 		return usecases.ErrYamsUnauthorized
+	case 404:
+		return usecases.ErrYamsObjectNotFound
+	case 500: // Server error
+		return usecases.ErrYamsInternal
+	case 503: // Service temporarily unavailable
+		return usecases.ErrYamsInternal
+	default: // Unkown error
+		return usecases.ErrYamsInternal
+	}
+}
+
+func (repo *YamsRepository) HeadImage(bucketID, imageName string) *usecases.YamsRepositoryError {
+
+	type InfoClaims struct {
+		jwt.StandardClaims
+		Rqs string `json:"rqs"`
+	}
+
+	urlPath := stringConcat("/tenants/", repo.tenantID, "/domains/", repo.domainID, "/buckets/", bucketID, "/objects/", imageName)
+
+	// Create the Claims
+	claims := InfoClaims{
+		jwt.StandardClaims{
+			IssuedAt: time.Now().Unix(),
+		},
+		stringConcat("HEAD\\", urlPath),
+	}
+
+	tokenString := repo.jwtSigner.GenerateTokenString(claims)
+
+	requestURI := stringConcat("https://", repo.mgmtURL, "/api/v1", urlPath, "?jwt=", tokenString, "&AccessKeyId=", repo.accessKeyID)
+
+	if repo.Debug {
+		fmt.Println(requestURI)
+	}
+
+	// TODO: Use connection pull with keepalive
+	httpClient := &http.Client{}
+	req, err := http.NewRequest("HEAD", requestURI, nil)
+	if err != nil {
+		return usecases.ErrYamsConnection
+	}
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return usecases.ErrYamsConnection
+	}
+	defer resp.Body.Close()
+	body, _ := ioutil.ReadAll(resp.Body)
+
+	if repo.Debug {
+		fmt.Println("  Response: ", resp, "\n  Body: ", string(body), "\n  Error: ", err)
+	}
+
+	switch resp.StatusCode {
+	case 200: // Headers are set and returned
+		return nil
 	case 404:
 		return usecases.ErrYamsObjectNotFound
 	case 500: // Server error
