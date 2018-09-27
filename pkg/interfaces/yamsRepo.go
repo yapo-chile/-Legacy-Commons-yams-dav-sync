@@ -21,19 +21,29 @@ type YamsRepository struct {
 	accessKeyID string
 	tenantID    string
 	domainID    string
+	bucketID    string
+	httpClient  *http.Client
 }
 
-func NewYamsRepository(jwtSigner infra.JWTSigner, mgmtURL, accessKeyID, tenantID, domainID string) *YamsRepository {
+func NewYamsRepository(jwtSigner infra.JWTSigner, mgmtURL, accessKeyID, tenantID, domainID, bucketID string) *YamsRepository {
 	yamsRepo := &YamsRepository{
 		jwtSigner:   jwtSigner,
 		mgmtURL:     mgmtURL,
 		accessKeyID: accessKeyID,
 		tenantID:    tenantID,
 		domainID:    domainID,
+		bucketID:    bucketID,
 	}
 
 	// Disable debug by default
 	yamsRepo.Debug = false
+
+	tr := &http.Transport{
+		MaxIdleConnsPerHost: 10,
+		MaxConnsPerHost:     10,
+		TLSHandshakeTimeout: 0 * time.Second,
+	}
+	yamsRepo.httpClient = &http.Client{Transport: tr}
 
 	return yamsRepo
 }
@@ -76,7 +86,7 @@ func (repo *YamsRepository) GetDomains() string {
 	return ""
 }
 
-func (repo *YamsRepository) PutImage(bucketID string, image domain.Image) *usecases.YamsRepositoryError {
+func (repo *YamsRepository) PutImage(image domain.Image) *usecases.YamsRepositoryError {
 
 	type PutMetadata struct {
 		ObjectID string `json:"oid"`
@@ -93,7 +103,7 @@ func (repo *YamsRepository) PutImage(bucketID string, image domain.Image) *useca
 		jwt.StandardClaims{
 			IssuedAt: time.Now().Unix(),
 		},
-		stringConcat("POST\\/tenants/", repo.tenantID, "/domains/", repo.domainID, "/buckets/", bucketID, "/objects"),
+		stringConcat("POST\\/tenants/", repo.tenantID, "/domains/", repo.domainID, "/buckets/", repo.bucketID, "/objects"),
 		PutMetadata{
 			ObjectID: image.Metadata.ImageName,
 		},
@@ -102,7 +112,7 @@ func (repo *YamsRepository) PutImage(bucketID string, image domain.Image) *useca
 	tokenString := repo.jwtSigner.GenerateTokenString(claims)
 
 	requestURI := stringConcat("https://", repo.mgmtURL, "/api/v1/tenants/", repo.tenantID, "/domains/", repo.domainID,
-		"/buckets/", bucketID, "/objects?jwt=", tokenString, "&AccessKeyId=", repo.accessKeyID)
+		"/buckets/", repo.bucketID, "/objects?jwt=", tokenString, "&AccessKeyId=", repo.accessKeyID)
 
 	if repo.Debug {
 		fmt.Println(requestURI)
@@ -114,8 +124,7 @@ func (repo *YamsRepository) PutImage(bucketID string, image domain.Image) *useca
 	}
 	defer imageFile.Close()
 
-	// TODO: Use connection pull with keepalive
-	resp, err := http.Post(requestURI, "images/jpg", imageFile)
+	resp, err := repo.httpClient.Post(requestURI, "images/jpg", imageFile)
 	if err != nil {
 		return usecases.ErrYamsConnection
 	}
@@ -144,7 +153,7 @@ func (repo *YamsRepository) PutImage(bucketID string, image domain.Image) *useca
 	return nil
 }
 
-func (repo *YamsRepository) DeleteImage(bucketID, imageName string, immediateRemoval bool) *usecases.YamsRepositoryError {
+func (repo *YamsRepository) DeleteImage(imageName string, immediateRemoval bool) *usecases.YamsRepositoryError {
 
 	type DeleteMetadata struct {
 		ObjectID              string `json:"oid"`
@@ -157,7 +166,7 @@ func (repo *YamsRepository) DeleteImage(bucketID, imageName string, immediateRem
 		Metadata DeleteMetadata `json:"metadata"`
 	}
 
-	urlPath := stringConcat("/tenants/", repo.tenantID, "/domains/", repo.domainID, "/buckets/", bucketID, "/objects/", imageName)
+	urlPath := stringConcat("/tenants/", repo.tenantID, "/domains/", repo.domainID, "/buckets/", repo.bucketID, "/objects/", imageName)
 
 	// Create the Claims
 	claims := DeleteClaims{
@@ -179,14 +188,12 @@ func (repo *YamsRepository) DeleteImage(bucketID, imageName string, immediateRem
 		fmt.Println(requestURI)
 	}
 
-	// TODO: Use connection pull with keepalive
-	httpClient := &http.Client{}
 	req, err := http.NewRequest("DELETE", requestURI, nil)
 	if err != nil {
 		return usecases.ErrYamsConnection
 	}
 
-	resp, err := httpClient.Do(req)
+	resp, err := repo.httpClient.Do(req)
 	if err != nil {
 		return usecases.ErrYamsConnection
 	}
@@ -215,14 +222,14 @@ func (repo *YamsRepository) DeleteImage(bucketID, imageName string, immediateRem
 	}
 }
 
-func (repo *YamsRepository) HeadImage(bucketID, imageName string) *usecases.YamsRepositoryError {
+func (repo *YamsRepository) HeadImage(imageName string) *usecases.YamsRepositoryError {
 
 	type InfoClaims struct {
 		jwt.StandardClaims
 		Rqs string `json:"rqs"`
 	}
 
-	urlPath := stringConcat("/tenants/", repo.tenantID, "/domains/", repo.domainID, "/buckets/", bucketID, "/objects/", imageName)
+	urlPath := stringConcat("/tenants/", repo.tenantID, "/domains/", repo.domainID, "/buckets/", repo.bucketID, "/objects/", imageName)
 
 	// Create the Claims
 	claims := InfoClaims{
@@ -240,14 +247,12 @@ func (repo *YamsRepository) HeadImage(bucketID, imageName string) *usecases.Yams
 		fmt.Println(requestURI)
 	}
 
-	// TODO: Use connection pull with keepalive
-	httpClient := &http.Client{}
 	req, err := http.NewRequest("HEAD", requestURI, nil)
 	if err != nil {
 		return usecases.ErrYamsConnection
 	}
 
-	resp, err := httpClient.Do(req)
+	resp, err := repo.httpClient.Do(req)
 	if err != nil {
 		return usecases.ErrYamsConnection
 	}
