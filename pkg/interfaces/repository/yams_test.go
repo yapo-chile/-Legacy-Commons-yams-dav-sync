@@ -1,4 +1,4 @@
-package interfaces
+package repository
 
 import (
 	"fmt"
@@ -11,6 +11,7 @@ import (
 	infra "github.schibsted.io/Yapo/yams-dav-sync/pkg/infrastructure"
 )
 
+// TODO: FIX ALL OF THIS.
 func TestPutImages(t *testing.T) {
 
 	jwtSigner := infra.NewJWTSigner("../../config/private.key")

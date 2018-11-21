@@ -1,6 +1,7 @@
-package interfaces
+package repository
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -14,18 +15,29 @@ import (
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
 
+// YamsRepository is yams bucket representation that allows operations
+// execution using http requests
 type YamsRepository struct {
-	Debug       bool
-	jwtSigner   infra.JWTSigner
-	mgmtURL     string
+	// debug enables the debug messages
+	debug bool
+	// jwtSigner validates each request with jwt signature
+	jwtSigner infra.JWTSigner
+	// mgtURL contains the url of yams managment server
+	mgmtURL string
+	// accessKeyID is the user accesskey connected to yams server
 	accessKeyID string
-	tenantID    string
-	domainID    string
-	bucketID    string
-	httpClient  *http.Client
+	// tenantID is the yams tentant environment that contains domains
+	tenantID string
+	// domainID is the yams domain that contains buckets
+	domainID string
+	// bucketID is the yams bucket that contains images
+	bucketID string
+	// httpClient is the http client to connect to yams using http protocol
+	httpClient *http.Client
 }
 
-func NewYamsRepository(jwtSigner infra.JWTSigner, mgmtURL, accessKeyID, tenantID, domainID, bucketID string) *YamsRepository {
+// NewYamsRepository creates a new instance of YamsRepository
+func NewYamsRepository(jwtSigner infra.JWTSigner, mgmtURL, accessKeyID, tenantID, domainID, bucketID string, debug bool) *YamsRepository {
 	yamsRepo := &YamsRepository{
 		jwtSigner:   jwtSigner,
 		mgmtURL:     mgmtURL,
@@ -33,14 +45,12 @@ func NewYamsRepository(jwtSigner infra.JWTSigner, mgmtURL, accessKeyID, tenantID
 		tenantID:    tenantID,
 		domainID:    domainID,
 		bucketID:    bucketID,
+		debug:       debug,
 	}
-
-	// Disable debug by default
-	yamsRepo.Debug = false
 
 	tr := &http.Transport{
 		MaxIdleConnsPerHost: 10,
-		MaxConnsPerHost:     10,
+		MaxIdleConns:        10,
 		TLSHandshakeTimeout: 0 * time.Second,
 	}
 	yamsRepo.httpClient = &http.Client{Transport: tr}
@@ -48,6 +58,7 @@ func NewYamsRepository(jwtSigner infra.JWTSigner, mgmtURL, accessKeyID, tenantID
 	return yamsRepo
 }
 
+// GetDomains gets domains from yams, domains belongs to the repo tenant
 func (repo *YamsRepository) GetDomains() string {
 
 	type Metadata struct{}
@@ -70,7 +81,7 @@ func (repo *YamsRepository) GetDomains() string {
 	tokenString := repo.jwtSigner.GenerateTokenString(claims)
 
 	requestURI := "https://" + repo.mgmtURL + "/api/v1/tenants/" + repo.tenantID + "/domains?jwt=" + tokenString + "&AccessKeyId=" + repo.accessKeyID
-	if repo.Debug {
+	if repo.debug {
 		fmt.Println(requestURI)
 	}
 
@@ -79,13 +90,14 @@ func (repo *YamsRepository) GetDomains() string {
 
 	body, _ := ioutil.ReadAll(resp.Body)
 
-	if repo.Debug {
+	if repo.debug {
 		fmt.Println("  Response: ", resp, "\n  Body: ", string(body), "\n  Error: ", err)
 	}
 
 	return ""
 }
 
+// PutImage put a image in yams repository
 func (repo *YamsRepository) PutImage(image domain.Image) *usecases.YamsRepositoryError {
 
 	type PutMetadata struct {
@@ -114,7 +126,7 @@ func (repo *YamsRepository) PutImage(image domain.Image) *usecases.YamsRepositor
 	requestURI := stringConcat("https://", repo.mgmtURL, "/api/v1/tenants/", repo.tenantID, "/domains/", repo.domainID,
 		"/buckets/", repo.bucketID, "/objects?jwt=", tokenString, "&AccessKeyId=", repo.accessKeyID)
 
-	if repo.Debug {
+	if repo.debug {
 		fmt.Println(requestURI)
 	}
 
@@ -131,7 +143,7 @@ func (repo *YamsRepository) PutImage(image domain.Image) *usecases.YamsRepositor
 	defer resp.Body.Close()
 
 	body, _ := ioutil.ReadAll(resp.Body)
-	if repo.Debug {
+	if repo.debug {
 		fmt.Println("  Response: ", resp, "\n  Body: ", string(body), "\n  Error: ", err)
 	}
 
@@ -153,6 +165,7 @@ func (repo *YamsRepository) PutImage(image domain.Image) *usecases.YamsRepositor
 	return nil
 }
 
+// DeleteImage deletes a specific image of yams repository
 func (repo *YamsRepository) DeleteImage(imageName string, immediateRemoval bool) *usecases.YamsRepositoryError {
 
 	type DeleteMetadata struct {
@@ -184,7 +197,7 @@ func (repo *YamsRepository) DeleteImage(imageName string, immediateRemoval bool)
 
 	requestURI := stringConcat("https://", repo.mgmtURL, "/api/v1", urlPath, "?jwt=", tokenString, "&AccessKeyId=", repo.accessKeyID)
 
-	if repo.Debug {
+	if repo.debug {
 		fmt.Println(requestURI)
 	}
 
@@ -200,7 +213,7 @@ func (repo *YamsRepository) DeleteImage(imageName string, immediateRemoval bool)
 	defer resp.Body.Close()
 	body, _ := ioutil.ReadAll(resp.Body)
 
-	if repo.Debug {
+	if repo.debug {
 		fmt.Println("  Response: ", resp, "\n  Body: ", string(body), "\n  Error: ", err)
 	}
 
@@ -222,8 +235,8 @@ func (repo *YamsRepository) DeleteImage(imageName string, immediateRemoval bool)
 	}
 }
 
+// HeadImage gets an object metadata.
 func (repo *YamsRepository) HeadImage(imageName string) *usecases.YamsRepositoryError {
-
 	type InfoClaims struct {
 		jwt.StandardClaims
 		Rqs string `json:"rqs"`
@@ -243,7 +256,7 @@ func (repo *YamsRepository) HeadImage(imageName string) *usecases.YamsRepository
 
 	requestURI := stringConcat("https://", repo.mgmtURL, "/api/v1", urlPath, "?jwt=", tokenString, "&AccessKeyId=", repo.accessKeyID)
 
-	if repo.Debug {
+	if repo.debug {
 		fmt.Println(requestURI)
 	}
 
@@ -259,7 +272,7 @@ func (repo *YamsRepository) HeadImage(imageName string) *usecases.YamsRepository
 	defer resp.Body.Close()
 	body, _ := ioutil.ReadAll(resp.Body)
 
-	if repo.Debug {
+	if repo.debug {
 		fmt.Println("  Response: ", resp, "\n  Body: ", string(body), "\n  Error: ", err)
 	}
 
@@ -274,6 +287,67 @@ func (repo *YamsRepository) HeadImage(imageName string) *usecases.YamsRepository
 		return usecases.ErrYamsInternal
 	default: // Unkown error
 		return usecases.ErrYamsInternal
+	}
+}
+
+// GetImages gets a list of available images in yams repository
+func (repo *YamsRepository) GetImages() ([]usecases.YamsObject, *usecases.YamsRepositoryError) {
+
+	type InfoClaims struct {
+		jwt.StandardClaims
+		Rqs string `json:"rqs"`
+	}
+
+	urlPath := stringConcat("/tenants/", repo.tenantID, "/domains/", repo.domainID, "/buckets/", repo.bucketID, "/objects")
+
+	// Create the Claims
+	claims := InfoClaims{
+		jwt.StandardClaims{
+			IssuedAt: time.Now().Unix(),
+		},
+		stringConcat("GET\\", urlPath),
+	}
+
+	tokenString := repo.jwtSigner.GenerateTokenString(claims)
+
+	requestURI := stringConcat("https://", repo.mgmtURL, "/api/v1", urlPath, "?jwt=", tokenString, "&AccessKeyId=", repo.accessKeyID)
+
+	if repo.debug {
+		fmt.Println(requestURI)
+	}
+
+	req, err := http.NewRequest("GET", requestURI, nil)
+	if err != nil {
+		return nil, usecases.ErrYamsConnection
+	}
+
+	resp, err := repo.httpClient.Do(req)
+	if err != nil {
+		return nil, usecases.ErrYamsConnection
+	}
+	defer resp.Body.Close()
+	body, _ := ioutil.ReadAll(resp.Body)
+
+	var response usecases.YamsGetResponse
+
+	err = json.Unmarshal(body, &response)
+	if err != nil {
+		return nil, usecases.ErrYamsInternal
+	}
+	if repo.debug {
+		fmt.Println("  Response: ", resp, "\n  Body: ", string(body), "\n  Error: ", err)
+	}
+	switch resp.StatusCode {
+	case 200: // Headers are set and returned
+		return response.Images, nil
+	case 404:
+		return nil, usecases.ErrYamsObjectNotFound
+	case 500: // Server error
+		return nil, usecases.ErrYamsInternal
+	case 503: // Service temporarily unavailable
+		return nil, usecases.ErrYamsInternal
+	default: // Unkown error
+		return nil, usecases.ErrYamsInternal
 	}
 }
 

@@ -1,6 +1,0 @@
-yams:
-  mgmtURL: mgmt-us-east-1-yams.schibsted.com
-  accessKeyID: 17c82c157c50a0c4
-  tenantID: e5ce1008-0145-4b91-9670-390db782ed9c
-  domainID: fa5881b0-3092-4c80-b37b-0ab08519951f
-  privateKey: private.key

@@ -1,4 +1,4 @@
-package interfaces
+package repository
 
 import (
 	"log"
@@ -6,23 +6,28 @@ import (
 	"path"
 	"regexp"
 
+	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/logger"
+
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
 )
 
+// LocalRepo is a local storage representation
 type LocalRepo struct {
-	Path   string
-	Logger Logger
+	// Path is the path to get objects to send to yams
+	Path string
+	// Logger logs event messages
+	Logger logger.Logger
 }
 
-func NewLocalRepo(path string, logger Logger) LocalRepo {
+// NewLocalRepo returns a fresh instance of LocalRepo
+func NewLocalRepo(path string, logger logger.Logger) *LocalRepo {
 	localRepo := LocalRepo{
 		Path:   path,
 		Logger: logger,
 	}
-	return localRepo
+	return &localRepo
 }
 
-// TODO: Make supported images configurable
 var extRegex = regexp.MustCompile("(?i).(png|bmp|jpg)$")
 
 // GetImages returns all images inside the path defined, including inner directories.
@@ -45,7 +50,6 @@ func (repo *LocalRepo) GetImages() []domain.Image {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	return images
 }
 
@@ -68,6 +72,10 @@ func navigate(root string) ([]domain.Image, error) {
 			if extRegex.MatchString(file.Name()) {
 				image := domain.Image{
 					FilePath: filePath,
+					Metadata: domain.ImageMetadata{
+						ImageName: file.Name(),
+						Size:      file.Size(),
+					},
 				}
 				images = append(images, image)
 			}

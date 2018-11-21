@@ -4,31 +4,59 @@ import (
 	"fmt"
 	"os"
 
+	"github.schibsted.io/Yapo/yams-dav-sync/pkg/infrastructure"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces"
+	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/repository"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
 
 func main() {
-	config, _ := interfaces.NewConfig()
+
+	var conf infrastructure.Config
+	infrastructure.LoadFromEnv(&conf)
+
+	// Setting up logger
+	logger, err := infrastructure.MakeYapoLogger(&conf.LoggerConf)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(2)
+	}
 
 	opt := os.Args[1]
+	signer := infrastructure.NewJWTSigner(conf.YamsConf.PrivateKeyFile)
 
-	yamsRepo := interfaces.YamsRepo{
-		MgmtURL:     config.MgmtURL,
-		AccessKeyID: config.AccessKeyID,
-		TenantID:    config.TenantID,
-		DomainID:    config.DomainID,
-	}
-	syncUC := usecases.SyncUseCase{
-		YamsRepo: yamsRepo,
+	yamsRepo := repository.NewYamsRepository(
+		signer,
+		conf.YamsConf.MgmtURL,
+		conf.YamsConf.AccessKeyID,
+		conf.YamsConf.TenantID,
+		conf.YamsConf.DomainID,
+		conf.YamsConf.BucketID,
+		false,
+	)
+
+	localRepo := repository.NewLocalRepo(
+		conf.LocalStorageConf.Path,
+		logger,
+	)
+
+	sync := usecases.SyncUseCase{
+		YamsRepo:  yamsRepo,
+		LocalRepo: localRepo,
 	}
 	cliHandler := interfaces.CLIHandler{
-		SyncUseCase: syncUC,
+		SyncUseCase: sync,
 	}
 
-	if opt == "sync" {
+	switch opt {
+	case "sync":
 		cliHandler.Sync()
-	} else {
-		fmt.Printf("Options available are:\n\t* sync [folder]\n")
+	case "list":
+		cliHandler.List()
+	case "deleteAll":
+		cliHandler.DeleteAll()
+	default:
+		fmt.Printf("Make start command=[commmand]\nCommand list:\n- sync \n- list\n- deleteAll")
+
 	}
 }

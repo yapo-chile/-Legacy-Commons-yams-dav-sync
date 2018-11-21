@@ -1,11 +1,29 @@
 package usecases
 
-import "github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
+import (
+	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
+)
 
+// YamsRepositoryError erros that could happen in yams repo
 type YamsRepositoryError struct {
 	ErrorString string
 }
 
+// YamsGetResponse represents yams response for a list of objects
+type YamsGetResponse struct {
+	ContinuationToken string       `json:"continuation_token"`
+	Images            []YamsObject `json:"objects"`
+}
+
+// YamsObject is a representation of objects contained by yams bucket
+type YamsObject struct {
+	ID           string `json:"object_id"`
+	Md5          string `json:"md5"`
+	Size         int    `json:"size"`
+	LastModified int    `json:"last_modified"`
+}
+
+// Error parse the yams error response into string
 func (pe *YamsRepositoryError) Error() string { return pe.ErrorString }
 
 var (
@@ -39,6 +57,10 @@ var (
 	ErrYamsObjectNotFound = &YamsRepositoryError{"object not found"}
 )
 
+// YamsRepository interface that allows yams repository operations
 type YamsRepository interface {
+	GetImages() ([]YamsObject, *YamsRepositoryError)
 	PutImage(domain.Image) *YamsRepositoryError
+	HeadImage(imageName string) *YamsRepositoryError
+	DeleteImage(imageName string, immediateRemoval bool) *YamsRepositoryError
 }
