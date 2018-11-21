@@ -29,3 +29,5 @@ export YAMS_BUCKET_ID=b98f66eb-bd6b-47fa-b125-5da03b7534ab
 export YAMS_ACCESS_KEY_ID=b73145eec0bd48a2
 export YAMS_PRIVATE_KEY=writer-dev.rsa
 
+# Redis variables
+export REDIS_ADDRESS=10.15.1.221:9379

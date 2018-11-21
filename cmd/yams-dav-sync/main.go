@@ -32,6 +32,7 @@ func main() {
 
 	signer := infrastructure.NewJWTSigner(conf.YamsConf.PrivateKeyFile)
 
+	redisHandler := infrastructure.NewRedisHandler(conf.Redis.Address, logger)
 	yamsRepo := repository.NewYamsRepository(
 		signer,
 		conf.YamsConf.MgmtURL,
@@ -43,15 +44,17 @@ func main() {
 		HTTPHandler,
 	)
 
+	imageStatusRepo := repository.NewImageStatusRepository(redisHandler, "", 0)
 	localRepo := repository.NewLocalRepo(
 		conf.LocalStorageConf.Path,
 		logger,
 	)
 
 	syncInteractor := usecases.SyncInteractor{
-		YamsRepo:  yamsRepo,
-		LocalRepo: localRepo,
-		Logger:    loggers.MakeSyncLogger(logger),
+		YamsRepo:        yamsRepo,
+		LocalRepo:       localRepo,
+		ImageStatusRepo: imageStatusRepo,
+		Logger:          loggers.MakeSyncLogger(logger),
 	}
 	CLIYams := interfaces.CLIYams{
 		Interactor: syncInteractor,

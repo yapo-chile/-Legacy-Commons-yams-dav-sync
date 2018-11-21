@@ -28,11 +28,16 @@ type Config struct {
 	LoggerConf       LoggerConf   `env:"LOGGER_"`
 	LocalStorageConf LocalStorage `env:"LOCAL_"`
 	YamsConf         YamsConf     `env:"YAMS_"`
+	Redis            RedisConf    `env:"REDIS_"`
 }
 
 // LocalStorage hols all configuration for local storage
 type LocalStorage struct {
 	Path string `env:"PATH"`
+}
+
+type RedisConf struct {
+	Address string `env:"ADDRESS" envDefault:"10.15.1.221:9379"`
 }
 
 type YamsConf struct {
