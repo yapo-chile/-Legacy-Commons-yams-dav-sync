@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
@@ -17,7 +16,7 @@ import (
 type YamsRepository struct {
 	// jwtSigner validates each request with jwt signature
 	jwtSigner Signer
-	// mgtURL contains the url of yams managment server
+	// mgtURL contains the url of yams management server
 	mgmtURL string
 	// accessKeyID is the user accesskey connected to yams server
 	accessKeyID string
@@ -73,24 +72,32 @@ func (repo *YamsRepository) GetDomains() string {
 		Metadata Metadata `json:"metadata"`
 	}
 
+	path := "/tenants/" + repo.tenantID + "/domains"
+
 	// Create the Claims
 	claims := MyCustomClaims{
 		jwt.StandardClaims{
 			IssuedAt: time.Now().Unix(),
 		},
-		"GET\\/tenants/" + repo.tenantID + "/domains",
+		"GET\\" + path,
 		Metadata{},
 	}
 
 	tokenString := repo.jwtSigner.GenerateTokenString(claims)
 
-	requestURI := "https://" + repo.mgmtURL + "/api/v1/tenants/" + repo.tenantID + "/domains?jwt=" + tokenString + "&AccessKeyId=" + repo.accessKeyID
+	requestURI := repo.mgmtURL + path
 	repo.logger.LogRequestURI(requestURI)
+
+	queryParams := map[string]string{
+		"jwt":         tokenString,
+		"AccessKeyId": repo.accessKeyID,
+	}
 
 	request := repo.http.Handler.
 		NewRequest().
 		SetMethod("GET").
-		SetPath(requestURI)
+		SetPath(requestURI).
+		SetQueryParams(queryParams)
 	respJSON, statusCode, err := repo.http.Handler.Send(request)
 	repo.logger.LogStatus(statusCode)
 	response := fmt.Sprintf("%s", respJSON)
@@ -112,13 +119,16 @@ func (repo *YamsRepository) PutImage(image domain.Image) *usecases.YamsRepositor
 		Rqs      string      `json:"rqs"`
 		Metadata PutMetadata `json:"metadata"`
 	}
-
+	path := "/tenants/" + repo.tenantID +
+		"/domains/" + repo.domainID +
+		"/buckets/" + repo.bucketID +
+		"/objects"
 	// Create the Claims
 	claims := PutClaims{
 		jwt.StandardClaims{
 			IssuedAt: time.Now().Unix(),
 		},
-		stringConcat("POST\\/tenants/", repo.tenantID, "/domains/", repo.domainID, "/buckets/", repo.bucketID, "/objects"),
+		"POST\\" + path,
 		PutMetadata{
 			ObjectID: image.Metadata.ImageName,
 		},
@@ -126,8 +136,12 @@ func (repo *YamsRepository) PutImage(image domain.Image) *usecases.YamsRepositor
 
 	tokenString := repo.jwtSigner.GenerateTokenString(claims)
 
-	requestURI := stringConcat("https://", repo.mgmtURL, "/api/v1/tenants/", repo.tenantID, "/domains/", repo.domainID,
-		"/buckets/", repo.bucketID, "/objects?jwt=", tokenString, "&AccessKeyId=", repo.accessKeyID)
+	requestURI := repo.mgmtURL + path
+
+	queryParams := map[string]string{
+		"jwt":         tokenString,
+		"AccessKeyId": repo.accessKeyID,
+	}
 
 	repo.logger.LogRequestURI(requestURI)
 
@@ -141,7 +155,8 @@ func (repo *YamsRepository) PutImage(image domain.Image) *usecases.YamsRepositor
 		NewRequest().
 		SetMethod("POST").
 		SetPath(requestURI).
-		SetImgBody(imageFile)
+		SetImgBody(imageFile).
+		SetQueryParams(queryParams)
 
 	respJSON, statusCode, err := repo.http.Handler.Send(request)
 	response := fmt.Sprintf("%s", respJSON)
@@ -181,14 +196,17 @@ func (repo *YamsRepository) DeleteImage(imageName string, immediateRemoval bool)
 		Metadata DeleteMetadata `json:"metadata"`
 	}
 
-	urlPath := stringConcat("/tenants/", repo.tenantID, "/domains/", repo.domainID, "/buckets/", repo.bucketID, "/objects/", imageName)
+	path := "/tenants/" + repo.tenantID +
+		"/domains/" + repo.domainID +
+		"/buckets/" + repo.bucketID +
+		"/objects/" + imageName
 
 	// Create the Claims
 	claims := DeleteClaims{
 		jwt.StandardClaims{
 			IssuedAt: time.Now().Unix(),
 		},
-		stringConcat("DELETE\\", urlPath),
+		"DELETE\\" + path,
 		DeleteMetadata{
 			ForceImmediateRemoval: immediateRemoval,
 			ObjectID:              imageName,
@@ -197,14 +215,20 @@ func (repo *YamsRepository) DeleteImage(imageName string, immediateRemoval bool)
 
 	tokenString := repo.jwtSigner.GenerateTokenString(claims)
 
-	requestURI := stringConcat("https://", repo.mgmtURL, "/api/v1", urlPath, "?jwt=", tokenString, "&AccessKeyId=", repo.accessKeyID)
+	requestURI := repo.mgmtURL + path
 
 	repo.logger.LogRequestURI(requestURI)
+
+	queryParams := map[string]string{
+		"jwt":         tokenString,
+		"AccessKeyId": repo.accessKeyID,
+	}
 
 	request := repo.http.Handler.
 		NewRequest().
 		SetMethod("DELETE").
-		SetPath(requestURI)
+		SetPath(requestURI).
+		SetQueryParams(queryParams)
 
 	respJSON, statusCode, err := repo.http.Handler.Send(request)
 	response := fmt.Sprintf("%s", respJSON)
@@ -236,26 +260,35 @@ func (repo *YamsRepository) HeadImage(imageName string) *usecases.YamsRepository
 		Rqs string `json:"rqs"`
 	}
 
-	urlPath := stringConcat("/tenants/", repo.tenantID, "/domains/", repo.domainID, "/buckets/", repo.bucketID, "/objects/", imageName)
+	path := "/tenants/" + repo.tenantID +
+		"/domains/" + repo.domainID +
+		"/buckets/" + repo.bucketID +
+		"/objects/" + imageName
 
 	// Create the Claims
 	claims := InfoClaims{
 		jwt.StandardClaims{
 			IssuedAt: time.Now().Unix(),
 		},
-		stringConcat("HEAD\\", urlPath),
+		"HEAD\\" + path,
 	}
 
 	tokenString := repo.jwtSigner.GenerateTokenString(claims)
 
-	requestURI := stringConcat("https://", repo.mgmtURL, "/api/v1", urlPath, "?jwt=", tokenString, "&AccessKeyId=", repo.accessKeyID)
+	requestURI := repo.mgmtURL + path
 
 	repo.logger.LogRequestURI(requestURI)
+
+	queryParams := map[string]string{
+		"jwt":         tokenString,
+		"AccessKeyId": repo.accessKeyID,
+	}
 
 	request := repo.http.Handler.
 		NewRequest().
 		SetMethod("HEAD").
-		SetPath(requestURI)
+		SetPath(requestURI).
+		SetQueryParams(queryParams)
 
 	respJSON, statusCode, err := repo.http.Handler.Send(request)
 	response := fmt.Sprintf("%s", respJSON)
@@ -285,26 +318,35 @@ func (repo *YamsRepository) GetImages() ([]usecases.YamsObject, *usecases.YamsRe
 		Rqs string `json:"rqs"`
 	}
 
-	urlPath := stringConcat("/tenants/", repo.tenantID, "/domains/", repo.domainID, "/buckets/", repo.bucketID, "/objects")
+	path := "/tenants/" + repo.tenantID +
+		"/domains/" + repo.domainID +
+		"/buckets/" + repo.bucketID +
+		"/objects"
 
 	// Create the Claims
 	claims := InfoClaims{
 		jwt.StandardClaims{
 			IssuedAt: time.Now().Unix(),
 		},
-		stringConcat("GET\\", urlPath),
+		"GET\\" + path,
 	}
 
 	tokenString := repo.jwtSigner.GenerateTokenString(claims)
 
-	requestURI := stringConcat("https://", repo.mgmtURL, "/api/v1", urlPath, "?jwt=", tokenString, "&AccessKeyId=", repo.accessKeyID)
+	requestURI := repo.mgmtURL + path
 
 	repo.logger.LogRequestURI(requestURI)
+
+	queryParams := map[string]string{
+		"jwt":         tokenString,
+		"AccessKeyId": repo.accessKeyID,
+	}
 
 	request := repo.http.Handler.
 		NewRequest().
 		SetMethod("GET").
-		SetPath(requestURI)
+		SetPath(requestURI).
+		SetQueryParams(queryParams)
 
 	respJSON, statusCode, err := repo.http.Handler.Send(request)
 	respStr := fmt.Sprintf("%s", respJSON)
@@ -329,12 +371,4 @@ func (repo *YamsRepository) GetImages() ([]usecases.YamsObject, *usecases.YamsRe
 	default: // Unkown error
 		return nil, usecases.ErrYamsInternal
 	}
-}
-
-func stringConcat(args ...string) string {
-	sb := strings.Builder{}
-	for _, arg := range args {
-		sb.WriteString(arg)
-	}
-	return sb.String()
 }

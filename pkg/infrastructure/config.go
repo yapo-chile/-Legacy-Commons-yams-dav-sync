@@ -35,7 +35,7 @@ type LocalStorage struct {
 }
 
 type YamsConf struct {
-	MgmtURL        string `env:"MGMT_URL" envDefault:"mgmt-us-east-1-yams.schibsted.com"`
+	MgmtURL        string `env:"MGMT_URL" envDefault:"https://mgmt-us-east-1-yams.schibsted.com/api/v1"`
 	AccessKeyID    string `env:"ACCESS_KEY_ID"`
 	TenantID       string `env:"TENTAND_ID"`
 	DomainID       string `env:"DOMAIN_ID"`
