@@ -130,9 +130,8 @@ func (r *request) SetBody(body interface{}) repository.HTTPRequest {
 	return r
 }
 
-// SetImgBody will set a custom img body to the request, this body is the json representation of an interface{}
-// this method will also set the custom header Content-type to application-json
-// and will save the original body
+// SetImgBody will set a custom img body to the request.
+// this method will also set the custom header Content-type to images/jpg
 func (r *request) SetImgBody(body io.Reader) repository.HTTPRequest {
 	r.SetHeaders(map[string]string{"Content-type": "images/jpg"})
 	r.innerRequest.Body = ioutil.NopCloser(body)

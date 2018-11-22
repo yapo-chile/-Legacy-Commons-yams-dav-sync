@@ -33,11 +33,10 @@ func (i *SyncInteractor) Run() error {
 	images := i.LocalRepo.GetImages()
 	for _, image := range images {
 		i.Logger.LogSentImage(image)
-		err := i.YamsRepo.PutImage(image)
-		if err == nil {
+		if err := i.YamsRepo.PutImage(image); err == nil {
 			count++
 		}
-		// TODO: Make it smarter !
+		// TODO: Make it smarter!
 		if count == 1 {
 			return nil
 		}
@@ -59,8 +58,7 @@ func (i *SyncInteractor) DeleteAll() error {
 		return err
 	}
 	for _, img := range yamsResponse {
-		err := i.YamsRepo.DeleteImage(img.ID, true)
-		if err != nil {
+		if err := i.YamsRepo.DeleteImage(img.ID, true); err != nil {
 			i.Logger.LogErrorDeletingImage(img.ID, err)
 			return err
 		}

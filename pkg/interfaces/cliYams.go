@@ -10,11 +10,12 @@ type CLIYams struct {
 	Logger     CLIYamsLogger
 }
 
+// CLIYamsLogger logs CLI yams events
 type CLIYamsLogger interface {
 	LogImage(int, usecases.YamsObject)
 }
 
-// Sync synchornize images between local repository and yams repository
+// Sync synchornizes images between local repository and yams repository
 func (handler *CLIYams) Sync() error {
 	return handler.Interactor.Run()
 }
