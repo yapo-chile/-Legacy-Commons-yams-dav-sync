@@ -15,7 +15,8 @@ func (l *cliYamsLogger) LogImage(position int, img usecases.YamsObject) {
 		img.ID,
 		img.Md5,
 		img.Size,
-		img.LastModified)
+		img.LastModified,
+	)
 }
 
 // MakeCLIYamsLogger sets up a cliYamsLogger instrumented via the provided logger

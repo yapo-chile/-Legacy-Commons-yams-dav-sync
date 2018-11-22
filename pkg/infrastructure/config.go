@@ -30,8 +30,9 @@ type Config struct {
 	YamsConf         YamsConf     `env:"YAMS_"`
 }
 
+// LocalStorage hols all configuration for local storage
 type LocalStorage struct {
-	Path string `env:""`
+	Path string `env:"PATH"`
 }
 
 type YamsConf struct {

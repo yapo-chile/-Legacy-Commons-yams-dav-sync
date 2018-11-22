@@ -15,7 +15,7 @@ type CLIYamsLogger interface {
 	LogImage(int, usecases.YamsObject)
 }
 
-// Sync synchornizes images between local repository and yams repository
+// Sync synchronizes images between local repository and yams repository
 func (handler *CLIYams) Sync() error {
 	return handler.Interactor.Run()
 }
