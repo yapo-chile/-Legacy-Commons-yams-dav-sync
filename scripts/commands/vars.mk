@@ -18,7 +18,7 @@ export BASE_URL="http://${SERVICE_HOST}"
 export MAIN_FILE=cmd/${APPNAME}/main.go
 export LOGGER_SYSLOG_ENABLED=false
 export LOGGER_STDLOG_ENABLED=true
-export LOGGER_LOG_LEVEL=0
+export LOGGER_LOG_LEVEL=1
 
 # YAMS variables
 
