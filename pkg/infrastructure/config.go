@@ -36,10 +36,10 @@ type LocalStorage struct {
 
 type YamsConf struct {
 	MgmtURL        string `env:"MGMT_URL" envDefault:"mgmt-us-east-1-yams.schibsted.com"`
-	AccessKeyID    string `env:"ACCESS_KEY_ID" envDefault:""`
-	TenantID       string `env:"TENTAND_ID" envDefault:""`
-	DomainID       string `env:"DOMAIN_ID" envDefault:""`
-	BucketID       string `env:"BUCKET_ID" envDefault:""`
+	AccessKeyID    string `env:"ACCESS_KEY_ID"`
+	TenantID       string `env:"TENTAND_ID"`
+	DomainID       string `env:"DOMAIN_ID"`
+	BucketID       string `env:"BUCKET_ID"`
 	PrivateKeyFile string `env:"PRIVATE_KEY" envDefault:"writer-key.rsa"`
 }
 

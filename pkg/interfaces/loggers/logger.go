@@ -1,4 +1,4 @@
-package logger
+package loggers
 
 // Logger is an interface that allows the use of logger methods
 type Logger interface {

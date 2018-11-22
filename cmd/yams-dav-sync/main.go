@@ -1,11 +1,13 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/infrastructure"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces"
+	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/loggers"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/repository"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
@@ -22,7 +24,12 @@ func main() {
 		os.Exit(2)
 	}
 
-	opt := os.Args[1]
+	opt := flag.String("command", "list", "command to execute syncher script")
+	flag.Parse()
+
+	// Setting up insfrastructure
+	HTTPHandler := infrastructure.NewHTTPHandler()
+
 	signer := infrastructure.NewJWTSigner(conf.YamsConf.PrivateKeyFile)
 
 	yamsRepo := repository.NewYamsRepository(
@@ -32,7 +39,8 @@ func main() {
 		conf.YamsConf.TenantID,
 		conf.YamsConf.DomainID,
 		conf.YamsConf.BucketID,
-		false,
+		loggers.MakeYamsRepoLogger(logger),
+		HTTPHandler,
 	)
 
 	localRepo := repository.NewLocalRepo(
@@ -40,23 +48,25 @@ func main() {
 		logger,
 	)
 
-	sync := usecases.SyncUseCase{
+	syncInteractor := usecases.SyncInteractor{
 		YamsRepo:  yamsRepo,
 		LocalRepo: localRepo,
+		Logger:    loggers.MakeSyncLogger(logger),
 	}
-	cliHandler := interfaces.CLIHandler{
-		SyncUseCase: sync,
+	CLIYams := interfaces.CLIYams{
+		Interactor: syncInteractor,
+		Logger:     loggers.MakeCLIYamsLogger(logger),
 	}
 
-	switch opt {
+	switch *opt {
 	case "sync":
-		cliHandler.Sync()
+		CLIYams.Sync()
 	case "list":
-		cliHandler.List()
+		CLIYams.List()
 	case "deleteAll":
-		cliHandler.DeleteAll()
+		CLIYams.DeleteAll()
 	default:
-		fmt.Printf("Make start command=[commmand]\nCommand list:\n- sync \n- list\n- deleteAll")
+		fmt.Printf("Make start command=[commmand]\nCommand list:\n- sync \n- list\n- deleteAll\n")
 
 	}
 }

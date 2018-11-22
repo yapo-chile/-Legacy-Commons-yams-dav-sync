@@ -10,7 +10,7 @@ build:
 
 ## Execute the service
 run:
-	@./${APPNAME}  $(command)
+	@./${APPNAME}  -command=$(command)
 
 ## Compile and start the service
 start: build run

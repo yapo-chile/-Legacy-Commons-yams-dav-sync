@@ -2,15 +2,22 @@ package usecases
 
 import (
 	"errors"
-	"fmt"
 
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
 )
 
-// SyncUseCase executes operations for syncher between local storage and yams bucket
-type SyncUseCase struct {
+// SyncInteractor executes operations for syncher between local storage and yams bucket
+type SyncInteractor struct {
 	YamsRepo  YamsRepository
 	LocalRepo LocalImageRepository
+	Logger    SyncLogger
+}
+
+type SyncLogger interface {
+	LogSentImage(img domain.Image)
+	LogErrorGettingImages(err error)
+	LogErrorSendingImage(img domain.Image, err error)
+	LogErrorDeletingImage(imgID string, err error)
 }
 
 // LocalImageRepository allows local storage operations
@@ -21,39 +28,40 @@ type LocalImageRepository interface {
 var errImageNotFound = errors.New("Image Not Found")
 
 // Run executes the synchronization of images between local storage and yams bucket
-func (uc *SyncUseCase) Run() error {
-	fmt.Println("Sync Executed")
+func (i *SyncInteractor) Run() error {
 	count := 0
-	images := uc.LocalRepo.GetImages()
+	images := i.LocalRepo.GetImages()
 	for _, image := range images {
-		fmt.Printf("\n - SENDING %+v  .\n", image)
-		err := uc.YamsRepo.PutImage(image)
+		i.Logger.LogSentImage(image)
+		err := i.YamsRepo.PutImage(image)
 		if err == nil {
 			count++
 		}
+		// TODO: Make it smarter !
 		if count == 1 {
 			return nil
 		}
 	}
-	// TODO: Make it smarter !
 	// Consider case when image is in Yams' directory but not in local folder.
 	return nil
 }
 
 // List get a list of available images in yams bucket
-func (uc *SyncUseCase) List() ([]YamsObject, error) {
-	return uc.YamsRepo.GetImages()
+func (i *SyncInteractor) List() ([]YamsObject, error) {
+	return i.YamsRepo.GetImages()
 }
 
 // DeleteAll deletes all the images of yams bucket
-func (uc *SyncUseCase) DeleteAll() error {
-	images, err := uc.YamsRepo.GetImages()
+func (i *SyncInteractor) DeleteAll() error {
+	yamsResponse, err := i.YamsRepo.GetImages()
 	if err != nil {
+		i.Logger.LogErrorGettingImages(err)
 		return err
 	}
-	for _, img := range images {
-		err := uc.YamsRepo.DeleteImage(img.ID, true)
+	for _, img := range yamsResponse {
+		err := i.YamsRepo.DeleteImage(img.ID, true)
 		if err != nil {
+			i.Logger.LogErrorDeletingImage(img.ID, err)
 			return err
 		}
 	}

@@ -6,8 +6,6 @@ import (
 	"path"
 	"regexp"
 
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/logger"
-
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
 )
 
@@ -16,11 +14,11 @@ type LocalRepo struct {
 	// Path is the path to get objects to send to yams
 	Path string
 	// Logger logs event messages
-	Logger logger.Logger
+	Logger interface{}
 }
 
 // NewLocalRepo returns a fresh instance of LocalRepo
-func NewLocalRepo(path string, logger logger.Logger) *LocalRepo {
+func NewLocalRepo(path string, logger interface{}) *LocalRepo {
 	localRepo := LocalRepo{
 		Path:   path,
 		Logger: logger,

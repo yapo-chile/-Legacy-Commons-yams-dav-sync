@@ -7,17 +7,18 @@ import (
 	"io/ioutil"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/repository"
 )
 
 type JWTSigner struct {
 	privateKeyFile string
 }
 
-func NewJWTSigner(privateKetyFile string) JWTSigner {
+func NewJWTSigner(privateKetyFile string) repository.Signer {
 	signer := JWTSigner{
 		privateKeyFile: privateKetyFile,
 	}
-	return signer
+	return &signer
 }
 
 func (signer *JWTSigner) getRSAKey() interface{} {

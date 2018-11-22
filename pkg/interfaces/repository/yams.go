@@ -3,25 +3,20 @@ package repository
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"os"
 	"strings"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
-	infra "github.schibsted.io/Yapo/yams-dav-sync/pkg/infrastructure"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
 
 // YamsRepository is yams bucket representation that allows operations
 // execution using http requests
 type YamsRepository struct {
-	// debug enables the debug messages
-	debug bool
 	// jwtSigner validates each request with jwt signature
-	jwtSigner infra.JWTSigner
+	jwtSigner Signer
 	// mgtURL contains the url of yams managment server
 	mgmtURL string
 	// accessKeyID is the user accesskey connected to yams server
@@ -32,30 +27,39 @@ type YamsRepository struct {
 	domainID string
 	// bucketID is the yams bucket that contains images
 	bucketID string
-	// httpClient is the http client to connect to yams using http protocol
-	httpClient *http.Client
+	// http is the http client to connect to yams using http protocol
+	http *HTTPRepository
+	// logger logs yams repository events
+	logger YamsRepositoryLogger
+}
+
+// Signer allows methods to validate each request to yams server
+type Signer interface {
+	GenerateTokenString(claims jwt.Claims) string
 }
 
 // NewYamsRepository creates a new instance of YamsRepository
-func NewYamsRepository(jwtSigner infra.JWTSigner, mgmtURL, accessKeyID, tenantID, domainID, bucketID string, debug bool) *YamsRepository {
-	yamsRepo := &YamsRepository{
+func NewYamsRepository(jwtSigner Signer, mgmtURL, accessKeyID, tenantID,
+	domainID, bucketID string, logger YamsRepositoryLogger, handler HTTPHandler) *YamsRepository {
+	return &YamsRepository{
 		jwtSigner:   jwtSigner,
 		mgmtURL:     mgmtURL,
 		accessKeyID: accessKeyID,
 		tenantID:    tenantID,
 		domainID:    domainID,
 		bucketID:    bucketID,
-		debug:       debug,
+		logger:      logger,
+		http: &HTTPRepository{
+			Handler: handler,
+		},
 	}
+}
 
-	tr := &http.Transport{
-		MaxIdleConnsPerHost: 10,
-		MaxIdleConns:        10,
-		TLSHandshakeTimeout: 0 * time.Second,
-	}
-	yamsRepo.httpClient = &http.Client{Transport: tr}
-
-	return yamsRepo
+// YamsRepositoryLogger allows methods to log yams repository events
+type YamsRepositoryLogger interface {
+	LogRequestURI(url string)
+	LogStatus(statusCode int)
+	LogResponse(body string, err error)
 }
 
 // GetDomains gets domains from yams, domains belongs to the repo tenant
@@ -81,23 +85,22 @@ func (repo *YamsRepository) GetDomains() string {
 	tokenString := repo.jwtSigner.GenerateTokenString(claims)
 
 	requestURI := "https://" + repo.mgmtURL + "/api/v1/tenants/" + repo.tenantID + "/domains?jwt=" + tokenString + "&AccessKeyId=" + repo.accessKeyID
-	if repo.debug {
-		fmt.Println(requestURI)
-	}
+	repo.logger.LogRequestURI(requestURI)
 
-	resp, err := http.Get(requestURI)
-	defer resp.Body.Close()
+	request := repo.http.Handler.
+		NewRequest().
+		SetMethod("GET").
+		SetPath(requestURI)
+	respJSON, statusCode, err := repo.http.Handler.Send(request)
+	repo.logger.LogStatus(statusCode)
+	response := fmt.Sprintf("%s", respJSON)
 
-	body, _ := ioutil.ReadAll(resp.Body)
-
-	if repo.debug {
-		fmt.Println("  Response: ", resp, "\n  Body: ", string(body), "\n  Error: ", err)
-	}
+	repo.logger.LogResponse(response, err)
 
 	return ""
 }
 
-// PutImage put a image in yams repository
+// PutImage puts a image in yams repository
 func (repo *YamsRepository) PutImage(image domain.Image) *usecases.YamsRepositoryError {
 
 	type PutMetadata struct {
@@ -126,9 +129,7 @@ func (repo *YamsRepository) PutImage(image domain.Image) *usecases.YamsRepositor
 	requestURI := stringConcat("https://", repo.mgmtURL, "/api/v1/tenants/", repo.tenantID, "/domains/", repo.domainID,
 		"/buckets/", repo.bucketID, "/objects?jwt=", tokenString, "&AccessKeyId=", repo.accessKeyID)
 
-	if repo.debug {
-		fmt.Println(requestURI)
-	}
+	repo.logger.LogRequestURI(requestURI)
 
 	imageFile, err := os.Open(image.FilePath)
 	if err != nil {
@@ -136,18 +137,19 @@ func (repo *YamsRepository) PutImage(image domain.Image) *usecases.YamsRepositor
 	}
 	defer imageFile.Close()
 
-	resp, err := repo.httpClient.Post(requestURI, "images/jpg", imageFile)
-	if err != nil {
-		return usecases.ErrYamsConnection
-	}
-	defer resp.Body.Close()
+	request := repo.http.Handler.
+		NewRequest().
+		SetMethod("POST").
+		SetPath(requestURI).
+		SetImgBody(imageFile)
 
-	body, _ := ioutil.ReadAll(resp.Body)
-	if repo.debug {
-		fmt.Println("  Response: ", resp, "\n  Body: ", string(body), "\n  Error: ", err)
-	}
+	respJSON, statusCode, err := repo.http.Handler.Send(request)
+	response := fmt.Sprintf("%s", respJSON)
 
-	switch resp.StatusCode {
+	repo.logger.LogStatus(statusCode)
+	repo.logger.LogResponse(response, err)
+
+	switch statusCode {
 	case 400: // Bad Request
 		return usecases.ErrYamsInternal
 	case 403:
@@ -197,27 +199,19 @@ func (repo *YamsRepository) DeleteImage(imageName string, immediateRemoval bool)
 
 	requestURI := stringConcat("https://", repo.mgmtURL, "/api/v1", urlPath, "?jwt=", tokenString, "&AccessKeyId=", repo.accessKeyID)
 
-	if repo.debug {
-		fmt.Println(requestURI)
-	}
+	repo.logger.LogRequestURI(requestURI)
 
-	req, err := http.NewRequest("DELETE", requestURI, nil)
-	if err != nil {
-		return usecases.ErrYamsConnection
-	}
+	request := repo.http.Handler.
+		NewRequest().
+		SetMethod("DELETE").
+		SetPath(requestURI)
 
-	resp, err := repo.httpClient.Do(req)
-	if err != nil {
-		return usecases.ErrYamsConnection
-	}
-	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
+	respJSON, statusCode, err := repo.http.Handler.Send(request)
+	response := fmt.Sprintf("%s", respJSON)
 
-	if repo.debug {
-		fmt.Println("  Response: ", resp, "\n  Body: ", string(body), "\n  Error: ", err)
-	}
+	repo.logger.LogResponse(response, err)
 
-	switch resp.StatusCode {
+	switch statusCode {
 	case 202: // All good, object deleted
 		return nil
 	case 400: // Bad Request
@@ -256,27 +250,20 @@ func (repo *YamsRepository) HeadImage(imageName string) *usecases.YamsRepository
 
 	requestURI := stringConcat("https://", repo.mgmtURL, "/api/v1", urlPath, "?jwt=", tokenString, "&AccessKeyId=", repo.accessKeyID)
 
-	if repo.debug {
-		fmt.Println(requestURI)
-	}
+	repo.logger.LogRequestURI(requestURI)
 
-	req, err := http.NewRequest("HEAD", requestURI, nil)
-	if err != nil {
-		return usecases.ErrYamsConnection
-	}
+	request := repo.http.Handler.
+		NewRequest().
+		SetMethod("HEAD").
+		SetPath(requestURI)
 
-	resp, err := repo.httpClient.Do(req)
-	if err != nil {
-		return usecases.ErrYamsConnection
-	}
-	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
+	respJSON, statusCode, err := repo.http.Handler.Send(request)
+	response := fmt.Sprintf("%s", respJSON)
 
-	if repo.debug {
-		fmt.Println("  Response: ", resp, "\n  Body: ", string(body), "\n  Error: ", err)
-	}
+	repo.logger.LogStatus(statusCode)
+	repo.logger.LogResponse(response, err)
 
-	switch resp.StatusCode {
+	switch statusCode {
 	case 200: // Headers are set and returned
 		return nil
 	case 404:
@@ -312,32 +299,25 @@ func (repo *YamsRepository) GetImages() ([]usecases.YamsObject, *usecases.YamsRe
 
 	requestURI := stringConcat("https://", repo.mgmtURL, "/api/v1", urlPath, "?jwt=", tokenString, "&AccessKeyId=", repo.accessKeyID)
 
-	if repo.debug {
-		fmt.Println(requestURI)
-	}
+	repo.logger.LogRequestURI(requestURI)
 
-	req, err := http.NewRequest("GET", requestURI, nil)
-	if err != nil {
-		return nil, usecases.ErrYamsConnection
-	}
+	request := repo.http.Handler.
+		NewRequest().
+		SetMethod("GET").
+		SetPath(requestURI)
 
-	resp, err := repo.httpClient.Do(req)
-	if err != nil {
-		return nil, usecases.ErrYamsConnection
-	}
-	defer resp.Body.Close()
-	body, _ := ioutil.ReadAll(resp.Body)
+	respJSON, statusCode, err := repo.http.Handler.Send(request)
+	respStr := fmt.Sprintf("%s", respJSON)
+
+	repo.logger.LogStatus(statusCode)
+	repo.logger.LogResponse(respStr, err)
 
 	var response usecases.YamsGetResponse
-
-	err = json.Unmarshal(body, &response)
+	err = json.Unmarshal([]byte(respStr), &response)
 	if err != nil {
 		return nil, usecases.ErrYamsInternal
 	}
-	if repo.debug {
-		fmt.Println("  Response: ", resp, "\n  Body: ", string(body), "\n  Error: ", err)
-	}
-	switch resp.StatusCode {
+	switch statusCode {
 	case 200: // Headers are set and returned
 		return response.Images, nil
 	case 404:
