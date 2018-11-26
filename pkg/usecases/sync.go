@@ -36,11 +36,10 @@ type LocalImageRepository interface {
 var errImageNotFound = errors.New("Image Not Found")
 
 // Run executes the synchronization of images between local storage and yams bucket
-func (i *SyncInteractor) Run(limitPerExecution int) error {
+func (i *SyncInteractor) Run(limitPerExecution int, images []domain.Image) error {
 	sentImages := 0
 	processedImages := 0
 	skippedImages := 0
-	images := i.LocalRepo.GetImages()
 	for _, image := range images {
 		// Search the image status in database. Error check not being apply
 		// because registered checksum won't match with actual checksum

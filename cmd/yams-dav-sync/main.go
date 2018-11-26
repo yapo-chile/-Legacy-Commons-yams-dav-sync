@@ -37,11 +37,13 @@ func main() {
 
 	opt := flag.String("command", "list", "command to execute syncher script")
 	limitStr := flag.String("limit", "100", "images quantity limit to be synchronized with yams")
+	threadsStr := flag.String("threads", "5", "threads limit to be synchronized with yams")
+
 	object := flag.String("object", "", "image name to be deleted in yams")
 	flag.Parse()
 
 	limit, _ := strconv.Atoi(*limitStr)
-
+	threads, _ := strconv.Atoi(*threadsStr)
 	// Setting up insfrastructure
 	HTTPHandler := infrastructure.NewHTTPHandler()
 
@@ -79,6 +81,8 @@ func main() {
 	switch *opt {
 	case "sync":
 		CLIYams.Sync(limit)
+	case "gosync":
+		CLIYams.ConcurrentSync(limit, threads)
 	case "list":
 		CLIYams.List()
 	case "deleteAll":

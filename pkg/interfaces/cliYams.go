@@ -1,6 +1,10 @@
 package interfaces
 
 import (
+	"fmt"
+	"sync"
+
+	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
 
@@ -17,7 +21,36 @@ type CLIYamsLogger interface {
 
 // Sync synchronizes images between local repository and yams repository
 func (handler *CLIYams) Sync(limit int) error {
-	return handler.Interactor.Run(limit)
+	images := handler.Interactor.LocalRepo.GetImages()
+	return handler.Interactor.Run(limit, images)
+}
+
+var wg sync.WaitGroup
+
+func (handler *CLIYams) goSync(limit int, images []domain.Image) {
+	err := handler.Interactor.Run(limit, images)
+	if err != nil {
+		fmt.Printf("\n Error:  %+v", err)
+	}
+
+	fmt.Printf("\n Done")
+
+	defer wg.Done()
+
+}
+
+// ConcurrentSync synchronizes images between local repository and yams repository
+// using go concurrency
+func (handler *CLIYams) ConcurrentSync(limit, threads int) error {
+	images := handler.Interactor.LocalRepo.GetImages()
+	for i := 0; i < threads; i++ {
+		wg.Add(1)
+		// TODO: Improved
+		go handler.goSync(limit/threads, images[(i*threads):(i*threads+threads)])
+	}
+	wg.Wait()
+
+	return nil
 }
 
 // List prints a list of available images in yams repository
