@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
+	"time"
 
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/infrastructure"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces"
@@ -12,7 +14,15 @@ import (
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
 
+func elapsed(what string) func() {
+	start := time.Now()
+	return func() {
+		fmt.Printf("%s took %v\n", what, time.Since(start))
+	}
+}
+
 func main() {
+	defer elapsed("exec")()
 
 	var conf infrastructure.Config
 	infrastructure.LoadFromEnv(&conf)
@@ -25,7 +35,11 @@ func main() {
 	}
 
 	opt := flag.String("command", "list", "command to execute syncher script")
+	limitStr := flag.String("limit", "100", "images quantity limit to be synchronized with yams")
+	object := flag.String("object", "", "image name to be deleted in yams")
 	flag.Parse()
+
+	limit, _ := strconv.Atoi(*limitStr)
 
 	// Setting up insfrastructure
 	HTTPHandler := infrastructure.NewHTTPHandler()
@@ -63,11 +77,13 @@ func main() {
 
 	switch *opt {
 	case "sync":
-		CLIYams.Sync()
+		CLIYams.Sync(limit)
 	case "list":
 		CLIYams.List()
 	case "deleteAll":
 		CLIYams.DeleteAll()
+	case "delete":
+		CLIYams.Delete(*object)
 	default:
 		fmt.Printf("Make start command=[commmand]\nCommand list:\n- sync \n- list\n- deleteAll\n")
 

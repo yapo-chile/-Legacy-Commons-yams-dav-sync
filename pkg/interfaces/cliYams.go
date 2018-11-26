@@ -1,8 +1,6 @@
 package interfaces
 
 import (
-	"fmt"
-
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
 
@@ -18,23 +16,25 @@ type CLIYamsLogger interface {
 }
 
 // Sync synchronizes images between local repository and yams repository
-func (handler *CLIYams) Sync() error {
-	return handler.Interactor.Run()
+func (handler *CLIYams) Sync(limit int) error {
+	return handler.Interactor.Run(limit)
 }
 
 // List prints a list of available images in yams repository
 func (handler *CLIYams) List() error {
 	list, err := handler.Interactor.List()
-	fmt.Printf("\nIMAGES IN BUCKET\n")
-
 	for i, img := range list {
 		handler.Logger.LogImage(i+1, img)
 	}
-	fmt.Printf("\n\nDone\n")
 	return err
 }
 
 // DeleteAll deletes all the objects in yams repository
 func (handler *CLIYams) DeleteAll() error {
 	return handler.Interactor.DeleteAll()
+}
+
+// Delete deletes an object in yams repository
+func (handler *CLIYams) Delete(imageName string) error {
+	return handler.Interactor.Delete(imageName)
 }

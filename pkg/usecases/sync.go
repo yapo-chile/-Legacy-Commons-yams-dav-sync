@@ -2,7 +2,6 @@ package usecases
 
 import (
 	"errors"
-	"fmt"
 
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
 )
@@ -16,91 +15,93 @@ type SyncInteractor struct {
 }
 
 type SyncLogger interface {
-	LogSentImage(img domain.Image)
+	LogProcessImage(img domain.Image, sent, skipped, proccessed int)
+	LogUploadingImage(img domain.Image)
+	ErrorDuplicatedImage(img domain.Image)
+	ErrorDeletingImageInYams(imgID string, e error)
+	ErrorDeletingImageStatusInRepo(imgID string, e error)
+	ImageSuccessfullyDelete(img domain.Image)
+	MarkingAsSynchronized(img domain.Image)
+	PassingOver(img domain.Image)
 	LogErrorGettingImages(err error)
 	LogErrorSendingImage(img domain.Image, err error)
-	LogErrorDeletingImage(imgID string, err error)
 }
 
 // LocalImageRepository allows local storage operations
 type LocalImageRepository interface {
 	GetImages() []domain.Image
-	GetFileCheckSum(path string) (hash string, err error)
 }
 
 var errImageNotFound = errors.New("Image Not Found")
 
 // Run executes the synchronization of images between local storage and yams bucket
-func (i *SyncInteractor) Run() error {
+func (i *SyncInteractor) Run(limitPerExecution int) error {
 	sentImages := 0
+	processedImages := 0
+	skippedImages := 0
 	images := i.LocalRepo.GetImages()
 	for _, image := range images {
-		// Search the image status in database
+		// Search the image status in database. Error check not being apply
+		// because registered checksum won't match with actual checksum
 		registeredHash, _ := i.ImageStatusRepo.GetImageStatus(image.Metadata.ImageName)
+		i.Logger.LogProcessImage(image, sentImages, skippedImages, processedImages)
+		//	fmt.Printf("\n Processing %+v", image)
+		processedImages++
 
-		actualHash, err := i.LocalRepo.GetFileCheckSum(image.FilePath)
-		if err != nil {
-			fmt.Printf("Error getting image from local %+v", err)
-
-			// if error reading the file, continue next image
-			break
-		}
-		fmt.Printf("\nProccessing: %+v", image.Metadata.ImageName)
-		// if the actual image md5 hash does not match with the registered md5 hash
-		if actualHash != registeredHash {
-			fmt.Printf("\n... [Redis]: UPDATE IT!\n\n")
+		// if the actual image md5 checksum does not match with the registered checksum
+		if image.Metadata.Checksum != registeredHash {
+			i.Logger.LogUploadingImage(image)
 			// try to synchronize with yams
-			i.Logger.LogSentImage(image)
 			if err := i.YamsRepo.PutImage(image); err != nil {
 				switch err {
 				case ErrYamsDuplicate:
-					fmt.Printf("\n...[YAMS]: Duplicated \n")
+					i.Logger.ErrorDuplicatedImage(image)
 					externalHash, _ := i.YamsRepo.HeadImage(image.Metadata.ImageName)
-					//fmt.Printf("externalHash: %+v == %+v actualHash", externalHash, actualHash)
-					// Same name, different content
-					if externalHash != actualHash {
-						// replace image in bucket, because the name is the same but the content is different
-						fmt.Printf("\n..Forced update\n\n")
-						fmt.Printf("\n........deleting\n\n")
-
-						e := i.YamsRepo.DeleteImage(image.Metadata.ImageName, true)
-						if e != nil {
-							fmt.Printf("delete error: %+v", e)
-							break
+					// Check if the error is only because the name or the name and content
+					if externalHash != image.Metadata.Checksum {
+						// if the image content is different force to update the image
+						// TODO: force to update method.
+						// Actually yams does not have a method to force an update
+						// so the current solution is delete the image from yams
+						// and delete the image status from redis and the next execution of
+						// the script will upload the image
+						if e := i.YamsRepo.DeleteImage(image.Metadata.ImageName, true); e != nil {
+							i.Logger.ErrorDeletingImageInYams(image.Metadata.ImageName, e)
+							// anyways try to delete from imageStatusRepos, next execution it will try
+							// again
 						}
-						e2 := i.ImageStatusRepo.DelImageStatus(image.Metadata.ImageName)
-						if e2 != nil {
-							fmt.Printf("delete error: %+v", e)
-							break
+						if e := i.ImageStatusRepo.DelImageStatus(image.Metadata.ImageName); e != nil {
+							i.Logger.ErrorDeletingImageStatusInRepo(image.Metadata.ImageName, e)
 						}
-						fmt.Printf("\n[REDIS]............deleted\n\n")
+						i.Logger.ImageSuccessfullyDelete(image)
 
 					} else {
-						fmt.Printf("\n[Yams]...I already have this (MD5 validated)\n\n")
-						fmt.Printf("\n[Redis]...Marking as sent\n\n")
-						i.ImageStatusRepo.SetImageStatus(image.Metadata.ImageName, actualHash)
+						// the image already synchronized but not marked by redis
+						i.Logger.MarkingAsSynchronized(image)
+						i.ImageStatusRepo.SetImageStatus(image.Metadata.ImageName, image.Metadata.Checksum)
 					}
 
 				default:
+					continue
 					// with another kind of errors pass over the image
 				}
 				// continue with next image
-			} else {
-				// if the synchronization works then register in image status repository as sent
-				i.ImageStatusRepo.SetImageStatus(image.Metadata.ImageName, actualHash)
-				sentImages++
 			}
-		} else {
-			fmt.Printf("\n...[Redis] Image already synchronized (pass over - MD5 validated)\n\n")
-		}
+			// if the synchronization works then register in image status repository as sent
+			i.ImageStatusRepo.SetImageStatus(image.Metadata.ImageName, image.Metadata.Checksum)
+			sentImages++
 
-		// TODO: Make it smarter!
-		limitPerExecution := 25
+		} else {
+			// already marked in redis as synchronized
+			i.Logger.PassingOver(image)
+			skippedImages++
+		}
 		if sentImages == limitPerExecution {
 			return nil
 		}
 	}
-	// Consider case when image is in Yams' directory but not in local folder.
+
+	// TODO: Consider case when image is in Yams' directory but not in local folder.
 	return nil
 }
 
@@ -118,9 +119,18 @@ func (i *SyncInteractor) DeleteAll() error {
 	}
 	for _, img := range yamsResponse {
 		if err := i.YamsRepo.DeleteImage(img.ID, true); err != nil {
-			i.Logger.LogErrorDeletingImage(img.ID, err)
+			i.Logger.ErrorDeletingImageInYams(img.ID, err)
 			return err
 		}
+	}
+	return nil
+}
+
+// Delete deletes an the images of yams bucket
+func (i *SyncInteractor) Delete(imageName string) error {
+	if err := i.YamsRepo.DeleteImage(imageName, true); err != nil {
+		i.Logger.ErrorDeletingImageInYams(imageName, err)
+		return err
 	}
 	return nil
 }

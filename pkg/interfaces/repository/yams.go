@@ -107,9 +107,16 @@ func (repo *YamsRepository) GetDomains() string {
 	return ""
 }
 
+func elapsed(what string) func() {
+	start := time.Now()
+	return func() {
+		fmt.Printf("%s took %v\n", what, time.Since(start))
+	}
+}
+
 // PutImage puts a image in yams repository
 func (repo *YamsRepository) PutImage(image domain.Image) *usecases.YamsRepositoryError {
-
+	defer elapsed("Upload to yams")
 	type PutMetadata struct {
 		ObjectID string `json:"oid"`
 	}
