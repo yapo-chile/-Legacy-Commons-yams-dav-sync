@@ -6,23 +6,24 @@ import (
 	"time"
 
 	"github.com/go-redis/redis"
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/logger"
+	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/loggers"
+	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/repository"
 )
 
 // RedisHandler handler for the request made to Redis
 type RedisHandler struct {
 	Client *redis.Client
-	Logger logger.Logger
+	Logger loggers.Logger
 }
 
 // RedisResult result representing a result from a get
 type RedisResult struct {
 	Result *redis.StringCmd
-	Logger logger.Logger
+	Logger loggers.Logger
 }
 
 // NewRedisHandler constructor for RedisHandler
-func NewRedisHandler(address string, logger logger.Logger) *RedisHandler {
+func NewRedisHandler(address string, logger loggers.Logger) repository.RedisHandler {
 	client := redis.NewClient(&redis.Options{
 		Addr: address,
 	})
@@ -60,6 +61,12 @@ func (r RedisHandler) Set(key string, value interface{}, expiration time.Duratio
 	status := r.Client.Set(key, stringValue, expiration)
 	err = status.Err()
 	return err
+}
+
+// Exists determines if given key exists in redis
+func (r RedisHandler) Exists(key string) bool {
+	status := r.Client.Exists(key)
+	return status.Val() > 0
 }
 
 // Del deletes the given key from the database in redis

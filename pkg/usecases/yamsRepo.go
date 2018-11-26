@@ -61,6 +61,6 @@ var (
 type YamsRepository interface {
 	GetImages() ([]YamsObject, *YamsRepositoryError)
 	PutImage(domain.Image) *YamsRepositoryError
-	HeadImage(imageName string) *YamsRepositoryError
+	HeadImage(imageName string) (externalHash string, err *YamsRepositoryError)
 	DeleteImage(imageName string, immediateRemoval bool) *YamsRepositoryError
 }

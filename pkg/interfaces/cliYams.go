@@ -1,6 +1,8 @@
 package interfaces
 
 import (
+	"fmt"
+
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
 
@@ -23,9 +25,12 @@ func (handler *CLIYams) Sync() error {
 // List prints a list of available images in yams repository
 func (handler *CLIYams) List() error {
 	list, err := handler.Interactor.List()
+	fmt.Printf("\nIMAGES IN BUCKET\n")
+
 	for i, img := range list {
 		handler.Logger.LogImage(i+1, img)
 	}
+	fmt.Printf("\n\nDone\n")
 	return err
 }
 

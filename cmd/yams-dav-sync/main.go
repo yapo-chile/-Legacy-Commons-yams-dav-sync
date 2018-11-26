@@ -44,7 +44,7 @@ func main() {
 		HTTPHandler,
 	)
 
-	imageStatusRepo := repository.NewImageStatusRepository(redisHandler, "", 0)
+	imageStatusRepo := repository.NewImageStatusRepo(redisHandler, "", 0)
 	localRepo := repository.NewLocalRepo(
 		conf.LocalStorageConf.Path,
 		logger,

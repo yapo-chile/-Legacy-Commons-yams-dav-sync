@@ -1,6 +1,9 @@
 package repository
 
 import (
+	"crypto/md5"
+	"encoding/hex"
+	"io"
 	"log"
 	"os"
 	"path"
@@ -88,4 +91,21 @@ func navigate(root string) ([]domain.Image, error) {
 	}
 
 	return images, nil
+}
+
+func (repo *LocalRepo) GetFileCheckSum(filePath string) (md5CheckSum string, err error) {
+	//Open the passed argument and check for any error
+	file, err := os.Open(filePath)
+	if err != nil {
+		return md5CheckSum, err
+	}
+	defer file.Close()
+	hash := md5.New()
+	_, err = io.Copy(hash, file)
+	if err != nil {
+		return md5CheckSum, err
+	}
+	//Convert the bytes to a string
+	md5CheckSum = hex.EncodeToString(hash.Sum(nil))
+	return md5CheckSum, nil
 }

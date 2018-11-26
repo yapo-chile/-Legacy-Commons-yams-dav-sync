@@ -12,30 +12,35 @@ type RedisResult interface {
 // RedisHandler interface for a redis handler
 type RedisHandler interface {
 	Set(key string, values interface{}, expiration time.Duration) error
-	Get(key string) (RedisResult, error)
+	Get(key string) (interface{}, error)
 	Del(key string) error
+	Exists(key string) bool
 }
 
-// RedisRepo wrapper struct for the RedisHandler
-type RedisRepository struct {
-	Handler RedisHandler
+// redisRepository wrapper struct for the RedisHandler
+type redisRepository struct {
+	handler RedisHandler
 }
 
-// NewRedisFavoritesRepo constructor for a RedisFavoritesRepo
-func NewRedisRepo(redisHandler RedisHandler) *RedisRepository {
-	return &RedisRepository{
-		Handler: redisHandler,
+// NewRedisRepo constructor for a redis repository
+func NewRedisRepo(redisHandler RedisHandler) RedisHandler {
+	return &redisRepository{
+		handler: redisHandler,
 	}
 }
 
-func (repo *RedisRepository) Set(key string, values interface{}, expiration time.Duration) error {
-	return repo.Handler.Set(key, values, expiration)
+func (repo *redisRepository) Set(key string, values interface{}, expiration time.Duration) error {
+	return repo.handler.Set(key, values, expiration)
 }
 
-func (repo *RedisRepository) Get(key string) (RedisResult, error) {
-	return repo.Handler.Get(key)
+func (repo *redisRepository) Get(key string) (interface{}, error) {
+	return repo.handler.Get(key)
 }
 
-func (repo *RedisRepository) Del(key string) error {
-	return repo.Handler.Del(key)
+func (repo *redisRepository) Del(key string) error {
+	return repo.handler.Del(key)
+}
+
+func (repo *redisRepository) Exists(key string) bool {
+	return repo.handler.Exists(key)
 }

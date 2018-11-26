@@ -6,35 +6,45 @@ import (
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
 
-type imageStatusRepository struct {
-	handler        RedisHandler
+// imageStatusRepo repository to save current synchronization status of images.
+// If a image is synchronized this repository will keep a key with the image name
+// and the value will be the md5 checksum of the image. The image MD5 checksum
+// musts match with the checksum kept by imageStatus repository and Yams repository
+type imageStatusRepo struct {
+	redisHandler   RedisHandler
 	prefix         string
 	expirationTime time.Duration
 }
 
-func NewImageStatusRepository(handler RedisHandler, prefix string, expirationTime time.Duration) usecases.ImageStatusRepo {
-	return &imageStatusRepository{
-		handler:        handler,
+// NewImageStatusRepo makes a new ImageStatusRepo instance
+func NewImageStatusRepo(handler RedisHandler, prefix string, expirationTime time.Duration) usecases.ImageStatusRepository {
+	return &imageStatusRepo{
+		redisHandler:   handler,
 		prefix:         prefix,
 		expirationTime: expirationTime,
 	}
 }
 
-func (repo *imageStatusRepository) makeRedisKey(listID string) string {
-	return repo.prefix + listID
+func (repo *imageStatusRepo) makeRedisKey(key string) string {
+	return repo.prefix + key
 }
 
-// GetAdCache returns the status of a cached ad
-func (repo *imageStatusRepository) GetImageStatus(key string) (bool, error) {
-	var adCachedStatus bool
-	res, err := repo.handler.Get(repo.makeRedisKey(key))
+// GetImageStatus returns the status of a image in redis
+func (repo *imageStatusRepo) GetImageStatus(imageName string) (checksum string, err error) {
+	res, err := repo.redisHandler.Get(repo.makeRedisKey(imageName))
+	resp := res.(RedisResult)
 	if err == nil {
-		res.Scan(&adCachedStatus)
+		resp.Scan(&checksum)
 	}
-	return adCachedStatus, err
+	return checksum, err
 }
 
-// SetAdCache saves the status of the ad to redis
-func (repo *imageStatusRepository) SetImageStatus(listID string, adCachedStatus bool) error {
-	return repo.handler.Set(repo.makeRedisKey(listID), adCachedStatus, repo.expirationTime)
+// DelImageStatus deletes the image status from redis repo
+func (repo *imageStatusRepo) DelImageStatus(ImageName string) error {
+	return repo.redisHandler.Del(repo.makeRedisKey(ImageName))
+}
+
+// SetImageStatus saves the checksum of the image in redis repo
+func (repo *imageStatusRepo) SetImageStatus(imageName, checksum string) error {
+	return repo.redisHandler.Set(repo.makeRedisKey(imageName), checksum, -1)
 }

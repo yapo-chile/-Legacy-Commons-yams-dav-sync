@@ -30,7 +30,7 @@ func NewHTTPHandler() repository.HTTPHandler {
 
 // Send will execute the sending of a http request
 // a custom http client has been made to add a request timeout of 10 seconds
-func (*HTTPHandler) Send(req repository.HTTPRequest) (body interface{}, code int, err error) {
+func (*HTTPHandler) Send(req repository.HTTPRequest) (repository.HTTPResponse, error) {
 	logger.Debug("HTTP - %s - Sending HTTP request to: %+v", req.GetMethod(), req.GetPath())
 
 	// this makes a custom http client with a timeout in secs for each request
@@ -40,18 +40,30 @@ func (*HTTPHandler) Send(req repository.HTTPRequest) (body interface{}, code int
 	resp, err := httpClient.Do(&req.(*request).innerRequest)
 	if err != nil {
 		logger.Error("HTTP - %s - Error sending HTTP request: %+v", req.GetMethod(), err)
-		return nil, resp.StatusCode, fmt.Errorf("Found error: %+v", err)
+		return repository.HTTPResponse{
+				Code: resp.StatusCode,
+			},
+			fmt.Errorf("Found error: %+v", err)
 	}
 
 	response, err := ioutil.ReadAll(resp.Body)
 	if val, ok := errorCodes[resp.StatusCode]; ok {
 		logger.Error("HTTP - %s - Received an error response: %+v", req.GetMethod(), val)
-		return nil, resp.StatusCode, fmt.Errorf("%s", response)
+		return repository.HTTPResponse{
+				Code: resp.StatusCode,
+			},
+			fmt.Errorf("%s", response)
 	}
 	if err != nil {
 		logger.Error("HTTP - %s - Error reading response: %+v", req.GetMethod(), err)
 	}
-	return string(response), resp.StatusCode, nil
+
+	return repository.HTTPResponse{
+			Body:    string(response),
+			Code:    resp.StatusCode,
+			Headers: resp.Header,
+		},
+		nil
 }
 
 // request is a custom golang http.Request

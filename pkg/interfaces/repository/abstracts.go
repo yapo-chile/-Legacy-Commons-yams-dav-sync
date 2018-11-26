@@ -1,6 +1,9 @@
 package repository
 
-import "io"
+import (
+	"io"
+	"net/http"
+)
 
 // HTTPRequest implements HTTP request operations
 type HTTPRequest interface {
@@ -19,7 +22,7 @@ type HTTPRequest interface {
 
 // HTTPHandler implements HTTP handler operations
 type HTTPHandler interface {
-	Send(HTTPRequest) (body interface{}, code int, err error)
+	Send(HTTPRequest) (HTTPResponse, error)
 	NewRequest() HTTPRequest
 }
 
@@ -29,4 +32,11 @@ type HTTPRepository struct {
 	Handler HTTPHandler
 	Path    string
 	Headers map[string]string
+}
+
+// HTTPResponse struct that contains http response of
+type HTTPResponse struct {
+	Body    interface{}
+	Code    int
+	Headers http.Header
 }
