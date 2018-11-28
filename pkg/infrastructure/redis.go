@@ -86,7 +86,6 @@ func (r RedisResult) Scan(dest interface{}) error {
 		if e, ok := err.(*json.SyntaxError); ok {
 			return fmt.Errorf("syntax error at byte offset %d", e.Offset)
 		}
-		return err
 	}
 	return err
 }

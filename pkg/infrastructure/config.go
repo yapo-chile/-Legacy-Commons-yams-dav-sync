@@ -37,7 +37,7 @@ type LocalStorage struct {
 }
 
 type RedisConf struct {
-	Address string `env:"ADDRESS" envDefault:"10.15.1.221:9379"`
+	Address string `env:"ADDRESS" envDefault:"0.0.0.0:6379"`
 }
 
 type YamsConf struct {
