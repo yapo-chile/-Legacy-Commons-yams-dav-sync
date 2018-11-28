@@ -98,18 +98,17 @@ func (repo *YamsRepository) GetDomains() string {
 		SetMethod("GET").
 		SetPath(requestURI).
 		SetQueryParams(queryParams)
-	respJSON, statusCode, err := repo.http.Handler.Send(request)
-	repo.logger.LogStatus(statusCode)
-	response := fmt.Sprintf("%s", respJSON)
+	resp, err := repo.http.Handler.Send(request)
+	repo.logger.LogStatus(resp.Code)
+	body := fmt.Sprintf("%s", resp.Body)
 
-	repo.logger.LogResponse(response, err)
+	repo.logger.LogResponse(body, err)
 
 	return ""
 }
 
 // PutImage puts a image in yams repository
 func (repo *YamsRepository) PutImage(image domain.Image) *usecases.YamsRepositoryError {
-
 	type PutMetadata struct {
 		ObjectID string `json:"oid"`
 	}
@@ -143,8 +142,6 @@ func (repo *YamsRepository) PutImage(image domain.Image) *usecases.YamsRepositor
 		"AccessKeyId": repo.accessKeyID,
 	}
 
-	repo.logger.LogRequestURI(requestURI)
-
 	imageFile, err := os.Open(image.FilePath)
 	if err != nil {
 		return usecases.ErrYamsImage
@@ -158,13 +155,12 @@ func (repo *YamsRepository) PutImage(image domain.Image) *usecases.YamsRepositor
 		SetImgBody(imageFile).
 		SetQueryParams(queryParams)
 
-	respJSON, statusCode, err := repo.http.Handler.Send(request)
-	response := fmt.Sprintf("%s", respJSON)
+	resp, err := repo.http.Handler.Send(request)
+	repo.logger.LogStatus(resp.Code)
+	body := fmt.Sprintf("%s", resp.Body)
+	repo.logger.LogResponse(body, err)
 
-	repo.logger.LogStatus(statusCode)
-	repo.logger.LogResponse(response, err)
-
-	switch statusCode {
+	switch resp.Code {
 	case 400: // Bad Request
 		return usecases.ErrYamsInternal
 	case 403:
@@ -230,12 +226,13 @@ func (repo *YamsRepository) DeleteImage(imageName string, immediateRemoval bool)
 		SetPath(requestURI).
 		SetQueryParams(queryParams)
 
-	respJSON, statusCode, err := repo.http.Handler.Send(request)
-	response := fmt.Sprintf("%s", respJSON)
+	resp, err := repo.http.Handler.Send(request)
+	repo.logger.LogStatus(resp.Code)
+	body := fmt.Sprintf("%s", resp.Body)
 
-	repo.logger.LogResponse(response, err)
+	repo.logger.LogResponse(body, err)
 
-	switch statusCode {
+	switch resp.Code {
 	case 202: // All good, object deleted
 		return nil
 	case 400: // Bad Request
@@ -254,7 +251,7 @@ func (repo *YamsRepository) DeleteImage(imageName string, immediateRemoval bool)
 }
 
 // HeadImage gets an object metadata.
-func (repo *YamsRepository) HeadImage(imageName string) *usecases.YamsRepositoryError {
+func (repo *YamsRepository) HeadImage(imageName string) (string, *usecases.YamsRepositoryError) {
 	type InfoClaims struct {
 		jwt.StandardClaims
 		Rqs string `json:"rqs"`
@@ -290,23 +287,25 @@ func (repo *YamsRepository) HeadImage(imageName string) *usecases.YamsRepository
 		SetPath(requestURI).
 		SetQueryParams(queryParams)
 
-	respJSON, statusCode, err := repo.http.Handler.Send(request)
-	response := fmt.Sprintf("%s", respJSON)
+	resp, err := repo.http.Handler.Send(request)
+	repo.logger.LogStatus(resp.Code)
+	body := fmt.Sprintf("%s", resp.Body)
 
-	repo.logger.LogStatus(statusCode)
-	repo.logger.LogResponse(response, err)
+	hashResponse := resp.Headers.Get("Content-Md5")
 
-	switch statusCode {
+	repo.logger.LogResponse(body, err)
+
+	switch resp.Code {
 	case 200: // Headers are set and returned
-		return nil
+		return hashResponse, nil
 	case 404:
-		return usecases.ErrYamsObjectNotFound
+		return hashResponse, usecases.ErrYamsObjectNotFound
 	case 500: // Server error
-		return usecases.ErrYamsInternal
+		return hashResponse, usecases.ErrYamsInternal
 	case 503: // Service temporarily unavailable
-		return usecases.ErrYamsInternal
+		return hashResponse, usecases.ErrYamsInternal
 	default: // Unkown error
-		return usecases.ErrYamsInternal
+		return hashResponse, usecases.ErrYamsInternal
 	}
 }
 
@@ -348,18 +347,18 @@ func (repo *YamsRepository) GetImages() ([]usecases.YamsObject, *usecases.YamsRe
 		SetPath(requestURI).
 		SetQueryParams(queryParams)
 
-	respJSON, statusCode, err := repo.http.Handler.Send(request)
-	respStr := fmt.Sprintf("%s", respJSON)
+	resp, err := repo.http.Handler.Send(request)
 
-	repo.logger.LogStatus(statusCode)
-	repo.logger.LogResponse(respStr, err)
+	body := fmt.Sprintf("%s", resp.Body)
+
+	repo.logger.LogResponse(body, err)
 
 	var response usecases.YamsGetResponse
-	err = json.Unmarshal([]byte(respStr), &response)
+	err = json.Unmarshal([]byte(body), &response)
 	if err != nil {
 		return nil, usecases.ErrYamsInternal
 	}
-	switch statusCode {
+	switch resp.Code {
 	case 200: // Headers are set and returned
 		return response.Images, nil
 	case 404:

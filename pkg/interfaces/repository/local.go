@@ -1,6 +1,9 @@
 package repository
 
 import (
+	"crypto/md5"
+	"encoding/hex"
+	"io"
 	"log"
 	"os"
 	"path"
@@ -65,17 +68,26 @@ func navigate(root string) ([]domain.Image, error) {
 
 	var images []domain.Image
 	for _, file := range fileInfo {
+
 		filePath := path.Join(root, file.Name())
 		if !file.IsDir() {
 			if extRegex.MatchString(file.Name()) {
+				f, e := os.Open(filePath)
+				if e != nil {
+					continue
+				}
+				hash := md5.New()
+				io.Copy(hash, f)
 				image := domain.Image{
 					FilePath: filePath,
 					Metadata: domain.ImageMetadata{
 						ImageName: file.Name(),
 						Size:      file.Size(),
+						Checksum:  hex.EncodeToString(hash.Sum(nil)),
 					},
 				}
 				images = append(images, image)
+				f.Close()
 			}
 		} else {
 			innerImages, err := navigate(filePath)

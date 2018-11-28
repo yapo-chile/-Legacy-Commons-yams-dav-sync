@@ -13,4 +13,5 @@ type ImageMetadata struct {
 	ImageName string
 	Size      int64
 	ModTime   time.Time
+	Checksum  string
 }

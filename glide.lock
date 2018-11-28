@@ -1,49 +1,32 @@
 hash: 7812702a7be3fe433d43122526a38c1b3da4850a02573a27157296f4b997154e
-updated: 2018-11-15T18:30:58.345798361-03:00
+updated: 2018-11-21T15:41:12.123138754-03:00
 imports:
 - name: github.com/dgrijalva/jwt-go
   version: 06ea1031745cb8b3dab3f6a236daf2b0aa468b7e
-- name: github.com/fsnotify/fsnotify
-  version: ccc981bf80385c528a65fbfdd49bf2d8da22aa23
-- name: github.com/hashicorp/hcl
-  version: 65a6292f0157eff210d03ed1bf6c59b190b8b906
+- name: github.com/go-redis/redis
+  version: 78a66f0e5fd787d5d0ba6ef4cc442895288229ad
   subpackages:
-  - hcl/ast
-  - hcl/parser
-  - hcl/printer
-  - hcl/scanner
-  - hcl/strconv
-  - hcl/token
-  - json/parser
-  - json/scanner
-  - json/token
-- name: github.com/magiconair/properties
-  version: c2353362d570a7bfa228149c62842019201cfb71
-- name: github.com/mitchellh/mapstructure
-  version: 3536a929edddb9a5b34bd6861dc4a9647cb459fe
-- name: github.com/pelletier/go-toml
-  version: aa79e12a973495d00b01f2353330e5275d084731
-- name: github.com/spf13/afero
-  version: d40851caa0d747393da1ffb28f7f9d8b4eeffebd
-  subpackages:
-  - mem
-- name: github.com/spf13/cast
-  version: 8c9545af88b134710ab1cd196795e7f2388358d7
-- name: github.com/spf13/jwalterweatherman
-  version: 94f6ae3ed3bceceafa716478c5fbf8d29ca601a1
-- name: github.com/spf13/pflag
-  version: aea12ed6721610dc6ed40141676d7ab0a1dac9e9
+  - internal
+  - internal/consistenthash
+  - internal/hashtag
+  - internal/pool
+  - internal/proto
+  - internal/singleflight
+  - internal/util
 - name: github.com/spf13/viper
   version: 2c12c60302a5a0e62ee102ca9bc996277c2f64f5
-- name: golang.org/x/sys
-  version: 66b7b1311ac80bbafcd2daeef9a5e6e2cd1e2399
+- name: github.com/Yapo/logger
+  version: 91855e974718b8c68dd00e63817568f1f512a4cc
+testImports:
+- name: github.com/davecgh/go-spew
+  version: d8f796af33cc11cb798c1aaeb27a4ebc5099927d
   subpackages:
-  - unix
-- name: golang.org/x/text
-  version: 6f44c5a2ea40ee3593d98cdcc905cc1fdaa660e2
+  - spew
+- name: github.com/pmezard/go-difflib
+  version: 792786c7400a136282c1664665ae0a8db921c6c2
   subpackages:
-  - transform
-  - unicode/norm
-- name: gopkg.in/yaml.v2
-  version: 5420a8b6744d3b0345ab293f6fcba19c978f1183
-testImports: []
+  - difflib
+- name: github.com/stretchr/testify
+  version: f35b8ab0b5a2cef36673838d662e249dd9c94686
+  subpackages:
+  - assert

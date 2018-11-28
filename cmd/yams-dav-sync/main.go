@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
+	"time"
 
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/infrastructure"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces"
@@ -12,7 +14,16 @@ import (
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
 
+// elapsed estimated execution processing time since a defer elapsed is placed
+func elapsed(process string) func() {
+	start := time.Now()
+	return func() {
+		fmt.Printf("%s took %v\n", process, time.Since(start))
+	}
+}
+
 func main() {
+	defer elapsed("exec")()
 
 	var conf infrastructure.Config
 	infrastructure.LoadFromEnv(&conf)
@@ -25,13 +36,18 @@ func main() {
 	}
 
 	opt := flag.String("command", "list", "command to execute syncher script")
+	limitStr := flag.String("limit", "100", "images quantity limit to be synchronized with yams")
+	object := flag.String("object", "", "image name to be deleted in yams")
 	flag.Parse()
+
+	limit, _ := strconv.Atoi(*limitStr)
 
 	// Setting up insfrastructure
 	HTTPHandler := infrastructure.NewHTTPHandler()
 
 	signer := infrastructure.NewJWTSigner(conf.YamsConf.PrivateKeyFile)
 
+	redisHandler := infrastructure.NewRedisHandler(conf.Redis.Address, logger)
 	yamsRepo := repository.NewYamsRepository(
 		signer,
 		conf.YamsConf.MgmtURL,
@@ -43,15 +59,17 @@ func main() {
 		HTTPHandler,
 	)
 
+	imageStatusRepo := repository.NewImageStatusRepo(redisHandler, "", 0)
 	localRepo := repository.NewLocalRepo(
 		conf.LocalStorageConf.Path,
 		logger,
 	)
 
 	syncInteractor := usecases.SyncInteractor{
-		YamsRepo:  yamsRepo,
-		LocalRepo: localRepo,
-		Logger:    loggers.MakeSyncLogger(logger),
+		YamsRepo:        yamsRepo,
+		LocalRepo:       localRepo,
+		ImageStatusRepo: imageStatusRepo,
+		Logger:          loggers.MakeSyncLogger(logger),
 	}
 	CLIYams := interfaces.CLIYams{
 		Interactor: syncInteractor,
@@ -60,11 +78,13 @@ func main() {
 
 	switch *opt {
 	case "sync":
-		CLIYams.Sync()
+		CLIYams.Sync(limit)
 	case "list":
 		CLIYams.List()
 	case "deleteAll":
 		CLIYams.DeleteAll()
+	case "delete":
+		CLIYams.Delete(*object)
 	default:
 		fmt.Printf("Make start command=[commmand]\nCommand list:\n- sync \n- list\n- deleteAll\n")
 
