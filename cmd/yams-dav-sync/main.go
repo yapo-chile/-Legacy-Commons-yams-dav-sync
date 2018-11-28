@@ -87,6 +87,8 @@ func main() {
 		CLIYams.List()
 	case "deleteAll":
 		CLIYams.DeleteAll()
+	case "goDeleteAll":
+		CLIYams.ConcurrentDeleteAll(threads)
 	case "delete":
 		CLIYams.Delete(*object)
 	default:

@@ -1,7 +1,6 @@
 package interfaces
 
 import (
-	"fmt"
 	"sync"
 
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
@@ -25,21 +24,8 @@ func (handler *CLIYams) Sync(limit int) error {
 	return handler.Interactor.Run(limit, images)
 }
 
-var wg sync.WaitGroup
-
-func (handler *CLIYams) goSync(limit int, images []domain.Image) {
-	runner := handler.Interactor
-	err := runner.Run(limit, images)
-	// TODO: better error control
-	if err != nil {
-		fmt.Printf("\n Error:  %+v", err)
-	}
-	fmt.Printf("\n Done\n")
-
-	defer wg.Done()
-
-}
-
+// getImages gets images from local repository. The images are validated by
+// image status repository to be uploaded to yams repository
 func (handler *CLIYams) getImages(limit int) []domain.Image {
 	localFiles := handler.Interactor.LocalRepo.GetImages()
 	images := []domain.Image{}
@@ -62,37 +48,40 @@ func (handler *CLIYams) getImages(limit int) []domain.Image {
 // ConcurrentSync synchronizes images between local repository and yams repository
 // using go concurrency
 func (handler *CLIYams) ConcurrentSync(limit, threads int) error {
-	images := handler.getImages(limit)
 	if threads > limit {
-		return fmt.Errorf("limit can't be lower than threads quantity")
+		limit = threads
 	}
+
+	images := handler.getImages(limit)
+
 	if limit > len(images) {
 		limit = len(images)
 	}
-	interval := limit / threads
-	offset := limit - (interval * threads)
-	min, max, increment := 0, interval, 0
 
-	for i := 0; i < threads; i++ {
-		wg.Add(1)
-		go handler.goSync(interval+increment, images[min:max])
-		fmt.Println(min, max)
-		offset, increment = offsetDistribution(offset)
-		min = max
-		max = max + interval + increment
+	jobs := make(chan domain.Image)
+	var waitGroup sync.WaitGroup
 
+	for w := 0; w < threads; w++ {
+		go handler.sendWorker(w, jobs, &waitGroup)
 	}
-	wg.Wait()
+
+	for _, image := range images {
+		jobs <- image
+	}
+
+	close(jobs)
+	waitGroup.Wait()
 
 	return nil
 }
 
-func offsetDistribution(offset int) (newOffset int, increment int) {
-	if offset > 0 {
-		return offset - 1, 1
+// sendWorker sends every image to yams repository
+func (handler *CLIYams) sendWorker(id int, jobs <-chan domain.Image, wg *sync.WaitGroup) {
+	wg.Add(1)
+	defer wg.Done()
+	for j := range jobs {
+		handler.Interactor.Send(j)
 	}
-	return offset, 0
-
 }
 
 // List prints a list of available images in yams repository
@@ -112,4 +101,36 @@ func (handler *CLIYams) DeleteAll() error {
 // Delete deletes an object in yams repository
 func (handler *CLIYams) Delete(imageName string) error {
 	return handler.Interactor.Delete(imageName)
+}
+
+// ConcurrentDeleteAll deletes every imagen in yams repository and redis
+func (handler *CLIYams) ConcurrentDeleteAll(threads int) error {
+
+	images, _ := handler.Interactor.YamsRepo.GetImages()
+
+	jobs := make(chan string)
+	var waitGroup sync.WaitGroup
+
+	for w := 0; w < threads; w++ {
+		go handler.deleteWorker(w, jobs, &waitGroup)
+	}
+
+	for _, image := range images {
+		jobs <- image.ID
+	}
+
+	close(jobs)
+	waitGroup.Wait()
+
+	return nil
+}
+
+// worker sends every image to yams repository
+func (handler *CLIYams) deleteWorker(id int, jobs <-chan string, wg *sync.WaitGroup) {
+	wg.Add(1)
+	defer wg.Done()
+	for j := range jobs {
+		handler.Interactor.Delete(j)
+		handler.Interactor.ImageStatusRepo.DelImageStatus(j)
+	}
 }
