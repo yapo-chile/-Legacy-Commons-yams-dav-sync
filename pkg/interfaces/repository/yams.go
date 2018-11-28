@@ -153,7 +153,8 @@ func (repo *YamsRepository) PutImage(image domain.Image) *usecases.YamsRepositor
 		SetMethod("POST").
 		SetPath(requestURI).
 		SetImgBody(imageFile).
-		SetQueryParams(queryParams)
+		SetQueryParams(queryParams).
+		SetTimeOut(30)
 
 	resp, err := repo.http.Handler.Send(request)
 	repo.logger.LogStatus(resp.Code)

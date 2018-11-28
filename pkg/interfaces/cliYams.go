@@ -28,29 +28,71 @@ func (handler *CLIYams) Sync(limit int) error {
 var wg sync.WaitGroup
 
 func (handler *CLIYams) goSync(limit int, images []domain.Image) {
-	err := handler.Interactor.Run(limit, images)
+	runner := handler.Interactor
+	err := runner.Run(limit, images)
+	// TODO: better error control
 	if err != nil {
 		fmt.Printf("\n Error:  %+v", err)
 	}
-
-	fmt.Printf("\n Done")
+	fmt.Printf("\n Done\n")
 
 	defer wg.Done()
 
 }
 
+func (handler *CLIYams) getImages(limit int) []domain.Image {
+	localFiles := handler.Interactor.LocalRepo.GetImages()
+	images := []domain.Image{}
+	imagesToProcess := 0
+	for i := range localFiles {
+		md5Checksume, _ := handler.Interactor.ImageStatusRepo.GetImageStatus(
+			localFiles[i].Metadata.ImageName,
+		)
+		if md5Checksume != localFiles[i].Metadata.Checksum {
+			images = append(images, localFiles[i])
+			imagesToProcess++
+		}
+		if imagesToProcess >= limit {
+			return images
+		}
+	}
+	return images
+}
+
 // ConcurrentSync synchronizes images between local repository and yams repository
 // using go concurrency
 func (handler *CLIYams) ConcurrentSync(limit, threads int) error {
-	images := handler.Interactor.LocalRepo.GetImages()
+	images := handler.getImages(limit)
+	if threads > limit {
+		return fmt.Errorf("limit can't be lower than threads quantity")
+	}
+	if limit > len(images) {
+		limit = len(images)
+	}
+	interval := limit / threads
+	offset := limit - (interval * threads)
+	min, max, increment := 0, interval, 0
+
 	for i := 0; i < threads; i++ {
 		wg.Add(1)
-		// TODO: Improved
-		go handler.goSync(limit/threads, images[(i*threads):(i*threads+threads)])
+		go handler.goSync(interval+increment, images[min:max])
+		fmt.Println(min, max)
+		offset, increment = offsetDistribution(offset)
+		min = max
+		max = max + interval + increment
+
 	}
 	wg.Wait()
 
 	return nil
+}
+
+func offsetDistribution(offset int) (newOffset int, increment int) {
+	if offset > 0 {
+		return offset - 1, 1
+	}
+	return offset, 0
+
 }
 
 // List prints a list of available images in yams repository

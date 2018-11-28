@@ -3,6 +3,7 @@ package repository
 import (
 	"io"
 	"net/http"
+	"time"
 )
 
 // HTTPRequest implements HTTP request operations
@@ -18,6 +19,8 @@ type HTTPRequest interface {
 	GetQueryParams() map[string][]string
 	SetQueryParams(map[string]string) HTTPRequest
 	SetImgBody(body io.Reader) HTTPRequest
+	GetTimeOut() time.Duration
+	SetTimeOut(timeout int) HTTPRequest
 }
 
 // HTTPHandler implements HTTP handler operations

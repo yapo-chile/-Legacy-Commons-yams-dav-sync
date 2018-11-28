@@ -35,13 +35,13 @@ func (*HTTPHandler) Send(req repository.HTTPRequest) (repository.HTTPResponse, e
 
 	// this makes a custom http client with a timeout in secs for each request
 	var httpClient = &http.Client{
-		Timeout: time.Second * time.Duration(10),
+		Timeout: time.Second * req.(*request).timeOut,
 	}
 	resp, err := httpClient.Do(&req.(*request).innerRequest)
 	if err != nil {
 		logger.Error("HTTP - %s - Error sending HTTP request: %+v", req.GetMethod(), err)
 		return repository.HTTPResponse{
-				Code: resp.StatusCode,
+				Code: http.StatusBadRequest,
 			},
 			fmt.Errorf("Found error: %+v", err)
 	}
@@ -58,6 +58,7 @@ func (*HTTPHandler) Send(req repository.HTTPRequest) (repository.HTTPResponse, e
 		logger.Error("HTTP - %s - Error reading response: %+v", req.GetMethod(), err)
 	}
 
+	defer resp.Body.Close()
 	return repository.HTTPResponse{
 			Body:    string(response),
 			Code:    resp.StatusCode,
@@ -70,6 +71,7 @@ func (*HTTPHandler) Send(req repository.HTTPRequest) (repository.HTTPResponse, e
 type request struct {
 	innerRequest http.Request
 	body         interface{}
+	timeOut      time.Duration
 }
 
 // NewRequest returns an initialized struct that can be used to make a http request
@@ -78,6 +80,7 @@ func (*HTTPHandler) NewRequest() repository.HTTPRequest {
 		innerRequest: http.Request{
 			Header: make(http.Header),
 		},
+		timeOut: time.Duration(10),
 	}
 }
 
@@ -170,4 +173,15 @@ func (r *request) SetQueryParams(queryParams map[string]string) repository.HTTPR
 // GetQueryParams will retrieve the query parameters of the request
 func (r *request) GetQueryParams() map[string][]string {
 	return r.innerRequest.URL.Query()
+}
+
+// GetTimeout will retrieve the timeout of the request
+func (r *request) GetTimeOut() time.Duration {
+	return r.timeOut
+}
+
+// SetTimeout will set the timeout to the request
+func (r *request) SetTimeOut(timeout int) repository.HTTPRequest {
+	r.timeOut = time.Duration(timeout)
+	return r
 }

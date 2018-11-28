@@ -100,7 +100,6 @@ func (i *SyncInteractor) Run(limitPerExecution int, images []domain.Image) error
 			return nil
 		}
 	}
-
 	// TODO: Consider case when image is in Yams' directory but not in local folder.
 	return nil
 }
@@ -122,6 +121,7 @@ func (i *SyncInteractor) DeleteAll() error {
 			i.Logger.ErrorDeletingImageInYams(img.ID, err)
 			return err
 		}
+		i.ImageStatusRepo.DelImageStatus(img.ID)
 	}
 	return nil
 }
