@@ -32,8 +32,8 @@ func (repo *imageStatusRepo) makeRedisKey(key string) string {
 // GetImageStatus returns the status of a image in redis
 func (repo *imageStatusRepo) GetImageStatus(imageName string) (checksum string, err error) {
 	res, err := repo.redisHandler.Get(repo.makeRedisKey(imageName))
-	resp := res.(RedisResult)
-	if err == nil {
+	if err == nil && res != nil {
+		resp := res.(RedisResult)
 		resp.Scan(&checksum)
 	}
 	return checksum, err

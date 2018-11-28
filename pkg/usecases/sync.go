@@ -14,6 +14,7 @@ type SyncInteractor struct {
 	Logger          SyncLogger
 }
 
+// SyncLogger logs synchronization events
 type SyncLogger interface {
 	LogProcessImage(img domain.Image, sent, skipped, proccessed int)
 	LogUploadingImage(img domain.Image)

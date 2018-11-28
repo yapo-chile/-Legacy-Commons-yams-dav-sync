@@ -14,10 +14,11 @@ import (
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
 
-func elapsed(what string) func() {
+// elapsed estimated execution processing time since a defer elapsed is placed
+func elapsed(process string) func() {
 	start := time.Now()
 	return func() {
-		fmt.Printf("%s took %v\n", what, time.Since(start))
+		fmt.Printf("%s took %v\n", process, time.Since(start))
 	}
 }
 
