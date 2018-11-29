@@ -80,19 +80,22 @@ func main() {
 
 	switch *opt {
 	case "sync":
-		CLIYams.Sync(limit)
-	case "gosync":
-		CLIYams.ConcurrentSync(limit, threads)
+		if limit > 0 && threads > 0 {
+			CLIYams.Sync(limit, threads)
+		} else {
+			fmt.Println("make start command=sync threads=[number] limit=[number]")
+		}
 	case "list":
 		CLIYams.List()
 	case "deleteAll":
-		CLIYams.DeleteAll()
-	case "goDeleteAll":
-		CLIYams.ConcurrentDeleteAll(threads)
+		if threads > 0 {
+			CLIYams.DeleteAll(threads)
+		} else {
+			fmt.Println("make start command=deleteAll threads=[number]")
+		}
 	case "delete":
 		CLIYams.Delete(*object)
 	default:
 		fmt.Printf("Make start command=[commmand]\nCommand list:\n- sync \n- list\n- deleteAll\n")
-
 	}
 }

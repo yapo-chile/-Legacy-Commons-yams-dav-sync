@@ -18,12 +18,6 @@ type CLIYamsLogger interface {
 	LogImage(int, usecases.YamsObject)
 }
 
-// Sync synchronizes images between local repository and yams repository
-func (handler *CLIYams) Sync(limit int) error {
-	images := handler.Interactor.LocalRepo.GetImages()
-	return handler.Interactor.Run(limit, images)
-}
-
 // getImages gets images from local repository. The images are validated by
 // image status repository to be uploaded to yams repository
 func (handler *CLIYams) getImages(limit int) []domain.Image {
@@ -45,11 +39,11 @@ func (handler *CLIYams) getImages(limit int) []domain.Image {
 	return images
 }
 
-// ConcurrentSync synchronizes images between local repository and yams repository
+// Sync synchronizes images between local repository and yams repository
 // using go concurrency
-func (handler *CLIYams) ConcurrentSync(limit, threads int) error {
+func (handler *CLIYams) Sync(limit, threads int) error {
 	if threads > limit {
-		limit = threads
+		threads = limit
 	}
 
 	images := handler.getImages(limit)
@@ -79,8 +73,11 @@ func (handler *CLIYams) ConcurrentSync(limit, threads int) error {
 func (handler *CLIYams) sendWorker(id int, jobs <-chan domain.Image, wg *sync.WaitGroup) {
 	wg.Add(1)
 	defer wg.Done()
-	for j := range jobs {
-		handler.Interactor.Send(j)
+	for image := range jobs {
+		validChecksum := handler.Interactor.ValidateChecksum(image)
+		if !validChecksum {
+			handler.Interactor.Send(image)
+		}
 	}
 }
 
@@ -93,19 +90,13 @@ func (handler *CLIYams) List() error {
 	return err
 }
 
-// DeleteAll deletes all the objects in yams repository
-func (handler *CLIYams) DeleteAll() error {
-	return handler.Interactor.DeleteAll()
-}
-
 // Delete deletes an object in yams repository
 func (handler *CLIYams) Delete(imageName string) error {
 	return handler.Interactor.Delete(imageName)
 }
 
-// ConcurrentDeleteAll deletes every imagen in yams repository and redis
-func (handler *CLIYams) ConcurrentDeleteAll(threads int) error {
-
+// DeleteAll deletes every imagen in yams repository and redis using concurency
+func (handler *CLIYams) DeleteAll(threads int) error {
 	images, _ := handler.Interactor.YamsRepo.GetImages()
 
 	jobs := make(chan string)
@@ -125,7 +116,7 @@ func (handler *CLIYams) ConcurrentDeleteAll(threads int) error {
 	return nil
 }
 
-// worker sends every image to yams repository
+// deleteWorker deletes every image to yams repository
 func (handler *CLIYams) deleteWorker(id int, jobs <-chan string, wg *sync.WaitGroup) {
 	wg.Add(1)
 	defer wg.Done()
