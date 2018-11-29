@@ -119,9 +119,9 @@ func (handler *CLIYams) DeleteAll(threads int) error {
 // deleteWorker deletes every image to yams repository
 func (handler *CLIYams) deleteWorker(id int, jobs <-chan string, wg *sync.WaitGroup) {
 	wg.Add(1)
-	defer wg.Done()
 	for j := range jobs {
 		handler.Interactor.Delete(j)
 		handler.Interactor.ImageStatusRepo.DelImageStatus(j)
 	}
+	wg.Done()
 }

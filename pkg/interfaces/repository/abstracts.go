@@ -35,6 +35,7 @@ type HTTPRepository struct {
 	Handler HTTPHandler
 	Path    string
 	Headers map[string]string
+	TimeOut int
 }
 
 // HTTPResponse struct that contains http response of

@@ -59,6 +59,7 @@ func main() {
 		conf.YamsConf.BucketID,
 		loggers.MakeYamsRepoLogger(logger),
 		HTTPHandler,
+		conf.YamsConf.TimeOut,
 	)
 
 	imageStatusRepo := repository.NewImageStatusRepo(redisHandler, "", 0)
