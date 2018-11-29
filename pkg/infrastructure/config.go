@@ -47,6 +47,7 @@ type YamsConf struct {
 	DomainID       string `env:"DOMAIN_ID"`
 	BucketID       string `env:"BUCKET_ID"`
 	PrivateKeyFile string `env:"PRIVATE_KEY" envDefault:"writer-key.rsa"`
+	TimeOut        int    `env:"TiMEOUT" envDefault:30`
 }
 
 // LoadFromEnv loads the config data from the environment variables

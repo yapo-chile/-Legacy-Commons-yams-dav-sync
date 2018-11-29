@@ -39,7 +39,8 @@ type Signer interface {
 
 // NewYamsRepository creates a new instance of YamsRepository
 func NewYamsRepository(jwtSigner Signer, mgmtURL, accessKeyID, tenantID,
-	domainID, bucketID string, logger YamsRepositoryLogger, handler HTTPHandler) *YamsRepository {
+	domainID, bucketID string, logger YamsRepositoryLogger, handler HTTPHandler,
+	timeOut int) *YamsRepository {
 	return &YamsRepository{
 		jwtSigner:   jwtSigner,
 		mgmtURL:     mgmtURL,
@@ -50,6 +51,7 @@ func NewYamsRepository(jwtSigner Signer, mgmtURL, accessKeyID, tenantID,
 		logger:      logger,
 		http: &HTTPRepository{
 			Handler: handler,
+			TimeOut: timeOut,
 		},
 	}
 }
@@ -153,7 +155,8 @@ func (repo *YamsRepository) PutImage(image domain.Image) *usecases.YamsRepositor
 		SetMethod("POST").
 		SetPath(requestURI).
 		SetImgBody(imageFile).
-		SetQueryParams(queryParams)
+		SetQueryParams(queryParams).
+		SetTimeOut(repo.http.TimeOut)
 
 	resp, err := repo.http.Handler.Send(request)
 	repo.logger.LogStatus(resp.Code)
@@ -346,7 +349,6 @@ func (repo *YamsRepository) GetImages() ([]usecases.YamsObject, *usecases.YamsRe
 		SetMethod("GET").
 		SetPath(requestURI).
 		SetQueryParams(queryParams)
-
 	resp, err := repo.http.Handler.Send(request)
 
 	body := fmt.Sprintf("%s", resp.Body)
