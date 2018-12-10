@@ -20,6 +20,19 @@ export LOGGER_SYSLOG_ENABLED=false
 export LOGGER_STDLOG_ENABLED=true
 export LOGGER_LOG_LEVEL=1
 
+#DATABASE variables
+export DATABASE_NAME=postgres
+export DATABASE_HOST=localhost
+export DATABASE_PORT=5432
+export DATABASE_USER=pgdb
+export DATABASE_PASSWORD=postgres
+export DATABASE_SSL_MODE=disable
+export DATABASE_MAX_IDLE=10
+export DATABASE_MAX_OPEN=100
+export DATABASE_BASE_URL="psql -h "${DATABASE_HOST}" -p "${DATABASE_PORT}" "${DATABASE_NAME}
+export DATABASE_MIGRATIONS_FOLDER=migrations
+export DATABASE_CONN_RETRIES=10
+
 # YAMS variables
 
 export YAMS_MGMT_URL=https://mgmt-us-east-1-yams.schibsted.com/api/v1
@@ -30,8 +43,14 @@ export YAMS_BUCKET_ID=8c2ab775-a9a5-48fb-966f-b1a1b154af13
 export YAMS_ACCESS_KEY_ID=b73145eec0bd48a2
 export YAMS_PRIVATE_KEY=writer-dev.rsa
 
+export YAMS_IMAGES_LIST_FILE=dump_$(shell date -u '+%Y%m%dT%H%M%S').yams
+export YAMS_MAX_CONCURRENT_CONN=100
+export YAMS_TiMEOUT=30
+
+export ERRORS_MAX_RETRIES_PER_ERROR=3
+export ERRORS_MAX_RESULTS_PER_PAGE=10000
 
 # Redis variables
-export REDIS_ADDRESS=10.15.1.221:9379
+export REDIS_ADDRESS=0.0.0.0:6379
 
-export LOCAL_PATH=/opt/images/
+export IMAGES_PATH=/opt/images/

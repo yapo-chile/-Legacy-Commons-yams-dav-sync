@@ -3,6 +3,7 @@ package repository
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -30,6 +31,35 @@ func NewLocalRepo(path string, logger interface{}) *LocalRepo {
 }
 
 var extRegex = regexp.MustCompile("(?i).(png|bmp|jpg)$")
+
+// GetImage gets a single image from local repository
+func (repo *LocalRepo) GetImage(imagePath string) (domain.Image, error) {
+	if len(imagePath) < 2 {
+		return domain.Image{}, fmt.Errorf("ImagePath too short: %+v", imagePath)
+	}
+	filePath := path.Join(repo.Path, imagePath[:2], imagePath)
+	f, err := os.Open(filePath)
+	if err != nil {
+		return domain.Image{}, err
+	}
+	fileInfo, err := f.Stat()
+	if err != nil {
+		return domain.Image{}, err
+	}
+	hash := md5.New()
+	io.Copy(hash, f)
+	image := domain.Image{
+		FilePath: filePath,
+		Metadata: domain.ImageMetadata{
+			ImageName: fileInfo.Name(),
+			Size:      fileInfo.Size(),
+			Checksum:  hex.EncodeToString(hash.Sum(nil)),
+			ModTime:   fileInfo.ModTime(),
+		},
+	}
+	f.Close()
+	return image, nil
+}
 
 // GetImages returns all images inside the path defined, including inner directories.
 func (repo *LocalRepo) GetImages() []domain.Image {

@@ -1,10 +1,10 @@
-hash: 7812702a7be3fe433d43122526a38c1b3da4850a02573a27157296f4b997154e
-updated: 2018-11-21T15:41:12.123138754-03:00
+hash: 822ce61a48b15b12294497234196ea2943549af1604aa5ab706121807a6858e2
+updated: 2018-12-05T14:32:39.063447501-03:00
 imports:
 - name: github.com/dgrijalva/jwt-go
   version: 06ea1031745cb8b3dab3f6a236daf2b0aa468b7e
 - name: github.com/go-redis/redis
-  version: 78a66f0e5fd787d5d0ba6ef4cc442895288229ad
+  version: 1d1269e0cf72355a7731eb8aea9ecf3192266bb2
   subpackages:
   - internal
   - internal/consistenthash
@@ -13,8 +13,21 @@ imports:
   - internal/proto
   - internal/singleflight
   - internal/util
-- name: github.com/spf13/viper
-  version: 2c12c60302a5a0e62ee102ca9bc996277c2f64f5
+- name: github.com/jinzhu/gorm
+  version: 472c70caa40267cb89fd8facb07fe6454b578626
+  subpackages:
+  - dialects/postgres
+- name: github.com/lib/pq
+  version: 9eb73efc1fcc404148b56765b0d3f61d9a5ef8ee
+  subpackages:
+  - hstore
+  - oid
+- name: github.com/mattes/migrate
+  version: 4768a648fbd9e04389a73a21139d14a4ccb1a61a
+  subpackages:
+  - database
+  - database/postgres
+  - source
 - name: github.com/Yapo/logger
   version: 91855e974718b8c68dd00e63817568f1f512a4cc
 testImports:

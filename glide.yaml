@@ -1,6 +1,15 @@
 package: github.schibsted.io/Yapo/yams-dav-sync
 import:
+- package: github.com/Yapo/logger
 - package: github.com/dgrijalva/jwt-go
-  version: ^3.2.0
-- package: github.com/spf13/viper
-  version: ^1.1.0
+- package: github.com/go-redis/redis
+- package: github.com/jinzhu/gorm
+  subpackages:
+  - dialects/postgres
+- package: github.com/mattes/migrate
+  subpackages:
+  - database/postgres
+testImport:
+- package: github.com/stretchr/testify
+  subpackages:
+  - assert

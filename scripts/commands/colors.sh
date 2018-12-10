@@ -14,7 +14,7 @@ EC='\033[0;31m'
 NC='\033[0m'
 
 echoHeader() {
-    if [ -z "$1" ]                           # Is parameter #1 zero length?
+    if [ -z "$1" ]
     then
         return
     fi
@@ -23,7 +23,7 @@ echoHeader() {
     then
         echo "${1}"
     else
-        echo -e "${HC}${1}${NC}"
+        echo "${HC}${1}${NC}"
     fi
 }
 
@@ -37,7 +37,7 @@ echoTitle() {
     then
         echo "${1}"
     else
-        echo -e "${TC}${1}${NC}"
+        echo "${TC}${1}${NC}"
     fi
 }
 
