@@ -24,7 +24,7 @@ func (handler *PgsqlHandler) Healthcheck() bool {
 // Close closes an open connection
 func (handler *PgsqlHandler) Close() error {
 	if err := handler.Conn.Close(); err != nil {
-		fmt.Println(err)
+		handler.Logger.Error("Error closing connection: %+v", err)
 		return err
 	}
 	return nil
@@ -46,7 +46,7 @@ func (handler *PgsqlHandler) Update(statement string) error {
 func (handler *PgsqlHandler) Query(statement string) (repository.DbResult, error) {
 	rows, err := handler.Conn.Query(statement)
 	if err != nil {
-		fmt.Println(err)
+		handler.Logger.Error("Query error: %+v", err)
 		return new(PgsqlRow), err
 	}
 	return PgsqlRow{
