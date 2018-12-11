@@ -46,7 +46,6 @@ func (repo *errorControlRepo) GetErrorSync(nPage int) (result []string, err erro
 	var imgPath string
 	for rows.Next() {
 		rows.Scan(&imgPath)
-		fmt.Println(imgPath)
 		result = append(result, imgPath)
 	}
 	rows.Close()
@@ -114,8 +113,7 @@ func (repo *errorControlRepo) SetErrorCounter(imagePath string, count int) (err 
 		))
 
 	if err != nil {
-		err = fmt.Errorf("There was an error creating errors sync")
-		return
+		return fmt.Errorf("There was an error creating errors sync: %+v", err)
 	}
 	row.Close()
 	return
@@ -137,8 +135,7 @@ func (repo *errorControlRepo) AddErrorSync(imagePath string) (err error) {
 		))
 
 	if err != nil {
-		err = fmt.Errorf("There was an error creating errors sync")
-		return
+		return fmt.Errorf("There was an error creating errors sync: %+v", err)
 	}
 	row.Close()
 	return
