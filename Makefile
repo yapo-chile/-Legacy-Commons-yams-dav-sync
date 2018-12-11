@@ -8,6 +8,10 @@ setup:
 build:
 	@scripts/commands/build.sh
 
+## Sort sorts images by date from local dir generating a list dump
+sort:
+	@scripts/commands/sort.sh
+
 ## Execute the service
 run:
 	@./${APPNAME}  -command=$(command) -limit=$(limit) -object=$(object) -threads=$(threads)
