@@ -8,13 +8,9 @@ setup:
 build:
 	@scripts/commands/build.sh
 
-## Sort sorts images generatin yams file
+## Sort sorts images by date from local dir generating a list dump
 sort:
-	@scripts/commands/sortGNU.sh
-
-## Sort sorts images generatin yams file
-sortmac:
-	@scripts/commands/sortMacOS.sh
+	@scripts/commands/sort.sh
 
 ## Execute the service
 run:
