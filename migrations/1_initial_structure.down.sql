@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS last_sync;
+DROP TABLE IF EXISTS sync_error;

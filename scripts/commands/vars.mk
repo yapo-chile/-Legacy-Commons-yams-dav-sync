@@ -20,6 +20,19 @@ export LOGGER_SYSLOG_ENABLED=false
 export LOGGER_STDLOG_ENABLED=true
 export LOGGER_LOG_LEVEL=1
 
+#DATABASE variables
+export DATABASE_NAME=postgres
+export DATABASE_HOST=localhost
+export DATABASE_PORT=5432
+export DATABASE_USER=pgdb
+export DATABASE_PASSWORD=postgres
+export DATABASE_SSL_MODE=disable
+export DATABASE_MAX_IDLE=10
+export DATABASE_MAX_OPEN=100
+export DATABASE_BASE_URL="psql -h "${DATABASE_HOST}" -p "${DATABASE_PORT}" "${DATABASE_NAME}
+export DATABASE_MIGRATIONS_FOLDER=migrations
+export DATABASE_CONN_RETRIES=10
+
 # YAMS variables
 
 export YAMS_MGMT_URL=https://mgmt-us-east-1-yams.schibsted.com/api/v1
