@@ -44,6 +44,11 @@ export YAMS_ACCESS_KEY_ID=b73145eec0bd48a2
 export YAMS_PRIVATE_KEY=writer-dev.rsa
 
 export YAMS_IMAGES_LIST_FILE=dump_$(shell date -u '+%Y%m%dT%H%M%S').yams
+export YAMS_MAX_CONCURRENT_CONN=100
+export YAMS_TiMEOUT=30
+
+export ERRORS_MAX_RETRIES_PER_ERROR=3
+export ERRORS_MAX_RESULTS_PER_PAGE=10000
 
 # Redis variables
 export REDIS_ADDRESS=10.15.1.221:9379
