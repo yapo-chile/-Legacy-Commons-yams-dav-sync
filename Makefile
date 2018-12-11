@@ -18,21 +18,8 @@ sortmac:
 
 ## Execute the service
 run:
-	@./${APPNAME}  -command=$(command)  -object=$(object) -threads=$(threads)
+	@./${APPNAME}  -command=$(command) -limit=$(limit) -object=$(object) -threads=$(threads)
 
-runsync:
-	@./${APPNAME}  -command=sync -dumpfile=${YAMS_IMAGES_LIST_FILE} -threads=100
-
-## sync starts dav-yams synchornization using macOS
-syncmac: build sortmac runsync
-
-## sync starts dav-yams synchornization using GNU
-sync: build sort runsync
-
-## deleteall the images from yams
-deleteall:
- @./${APPNAME}  -command=deleteAll -threads=100
-	
 ## Compile and start the service
 start: build run
 
