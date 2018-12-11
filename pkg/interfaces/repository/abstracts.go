@@ -25,7 +25,7 @@ type DbRepo struct {
 // to ensure that the database connection used to perform the query
 // returns to the connection pool to be used again
 type DbResult interface {
-	Scan(dest ...interface{})
+	Scan(dest ...interface{}) error
 	Next() bool
 	io.Closer
 }

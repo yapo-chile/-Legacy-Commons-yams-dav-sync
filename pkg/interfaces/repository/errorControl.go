@@ -39,15 +39,18 @@ func (repo *errorControlRepo) GetErrorSync(nPage int) (result []string, err erro
 		nPage,
 	))
 
-	imgPath := ""
+	if err != nil {
+		return result, fmt.Errorf("Error getting synchronization marks: %+v", err)
+	}
+
+	var imgPath string
 	for rows.Next() {
 		rows.Scan(&imgPath)
 		fmt.Println(imgPath)
 		result = append(result, imgPath)
 	}
-
 	rows.Close()
-	return result, err
+	return result, nil
 }
 
 // GetPagesQty get the total pages number for pagination
@@ -56,14 +59,20 @@ func (repo *errorControlRepo) GetPagesQty() (nPages int) {
 		return 0
 	}
 
-	rows, _ := repo.db.Query(fmt.Sprintf(`
+	rows, err := repo.db.Query(fmt.Sprintf(`
 		SELECT 
 		count(*) 
 		FROM sync_error`,
 	))
+	if err != nil {
+		return 0
+	}
 
 	if rows.Next() {
-		rows.Scan(&nPages)
+		err = rows.Scan(&nPages)
+		if err != nil {
+			return 0
+		}
 	}
 	nPages = nPages / repo.resultsPerPage
 	if nPages%repo.resultsPerPage > 0 && nPages > 0 {
@@ -81,8 +90,11 @@ func (repo *errorControlRepo) DelErrorSync(imgPath string) error {
 		where image_path = '%s'`,
 		imgPath,
 	))
+	if err != nil {
+		return err
+	}
 	result.Close()
-	return err
+	return nil
 }
 
 // SetErrorCounter sets the error counter in repository for a specific image, if

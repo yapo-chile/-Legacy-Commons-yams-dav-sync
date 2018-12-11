@@ -25,8 +25,14 @@ func (repo *lastSyncRepo) GetLastSync() (dateStr string, err error) {
 		FROM last_sync 
 		ORDER BY last_sync_id DESC 
 		LIMIT 1`)
+	if err != nil {
+		return dateStr, fmt.Errorf("There was an error trying to obtain last Synchronization mark")
+	}
 	if result.Next() {
-		result.Scan(&dateStr)
+		err = result.Scan(&dateStr)
+		if err != nil {
+			return dateStr, fmt.Errorf("Cannot parse last Synchronization mark to string")
+		}
 	}
 	result.Close()
 	return dateStr, err
@@ -41,7 +47,7 @@ func (repo *lastSyncRepo) SetLastSync(dateMark string) (err error) {
 	))
 
 	if err != nil {
-		err = fmt.Errorf("There was an erro creating last synchronization mark")
+		err = fmt.Errorf("There was an error creating last synchronization mark")
 		return
 	}
 

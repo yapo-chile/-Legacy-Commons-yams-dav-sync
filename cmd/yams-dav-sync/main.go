@@ -7,8 +7,11 @@ import (
 	"strconv"
 	"time"
 
+	_ "github.com/lib/pq"
 	"github.com/mattes/migrate"
 	mpgsql "github.com/mattes/migrate/database/postgres"
+	_ "github.com/mattes/migrate/source/file"
+
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/infrastructure"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/loggers"
