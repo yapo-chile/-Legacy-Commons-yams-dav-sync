@@ -44,8 +44,8 @@ func (l *syncLogger) ErrorDuplicatedImage(img domain.Image) {
 func (l *syncLogger) ErrorDeletingImageInYams(imgID string, e error) {
 	l.logger.Error("Error: Deleting image %+v in yams: %+v", imgID, e)
 }
-func (l *syncLogger) ErrorDeletingImageStatusInRepo(imgID string, e error) {
-	l.logger.Error("Error: Deleting image status %+v in REDIS: %+v", imgID, e)
+func (l *syncLogger) ErrorDeletingLastSyncInRepo(imgID string, e error) {
+	l.logger.Error("Error: Deleting image status %+v in repo: %+v", imgID, e)
 }
 
 func (l *syncLogger) ImageSuccessfullyDelete(img domain.Image) {

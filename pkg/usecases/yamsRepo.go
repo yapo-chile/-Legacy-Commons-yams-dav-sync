@@ -59,6 +59,7 @@ var (
 
 // YamsRepository interface that allows yams repository operations
 type YamsRepository interface {
+	GetMaxConcurrentConns() int
 	GetImages() ([]YamsObject, *YamsRepositoryError)
 	PutImage(domain.Image) *YamsRepositoryError
 	HeadImage(imageName string) (externalHash string, err *YamsRepositoryError)

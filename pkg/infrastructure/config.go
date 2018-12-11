@@ -25,11 +25,12 @@ type LoggerConf struct {
 
 // Config holds all configuration for the service
 type Config struct {
-	LoggerConf       LoggerConf     `env:"LOGGER_"`
-	LocalStorageConf LocalStorage   `env:"LOCAL_"`
-	YamsConf         YamsConf       `env:"YAMS_"`
-	Redis            RedisConf      `env:"REDIS_"`
-	Database         DatabaseConfig `env:"DATABASE_"`
+	LoggerConf       LoggerConf       `env:"LOGGER_"`
+	LocalStorageConf LocalStorage     `env:"IMAGES_"`
+	YamsConf         YamsConf         `env:"YAMS_"`
+	Redis            RedisConf        `env:"REDIS_"`
+	Database         DatabaseConfig   `env:"DATABASE_"`
+	ErrorControl     ErrorControlConf `env:"ERRORS_"`
 }
 
 // LocalStorage hols all configuration for local storage
@@ -42,13 +43,19 @@ type RedisConf struct {
 }
 
 type YamsConf struct {
-	MgmtURL        string `env:"MGMT_URL" envDefault:"https://mgmt-us-east-1-yams.schibsted.com/api/v1"`
-	AccessKeyID    string `env:"ACCESS_KEY_ID"`
-	TenantID       string `env:"TENTAND_ID"`
-	DomainID       string `env:"DOMAIN_ID"`
-	BucketID       string `env:"BUCKET_ID"`
-	PrivateKeyFile string `env:"PRIVATE_KEY" envDefault:"writer-key.rsa"`
-	TimeOut        int    `env:"TiMEOUT" envDefault:30`
+	MgmtURL            string `env:"MGMT_URL" envDefault:"https://mgmt-us-east-1-yams.schibsted.com/api/v1"`
+	AccessKeyID        string `env:"ACCESS_KEY_ID"`
+	TenantID           string `env:"TENTAND_ID"`
+	DomainID           string `env:"DOMAIN_ID"`
+	BucketID           string `env:"BUCKET_ID"`
+	PrivateKeyFile     string `env:"PRIVATE_KEY" envDefault:"writer-key.rsa"`
+	TimeOut            int    `env:"TiMEOUT" envDefault:30`
+	MaxConcurrentConns int    `env:"MAX_CONCURRENT_CONN" envDefault:"100"`
+}
+
+type ErrorControlConf struct {
+	MaxRetriesPerError int `env:"MAX_RETRIES_PER_ERROR" envDefault:"3"`
+	MaxResultsPerPage  int `env:"MAX_RESULTS_PER_PAGE" envDefault:"10"`
 }
 
 type DatabaseConfig struct {

@@ -21,4 +21,4 @@ END=$(date +%s)
 DIFF=$(( $END - $START ))
 
 echoHeader "Sorting took $DIFF seconds"
-echoTitle "Dump file : $YAMS_IMAGES_LIST_FILE"
+echoTitle "Output: $(du -h ${YAMS_IMAGES_LIST_FILE})"

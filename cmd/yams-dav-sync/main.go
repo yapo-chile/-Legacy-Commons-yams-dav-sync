@@ -41,13 +41,12 @@ func main() {
 	}
 
 	opt := flag.String("command", "list", "command to execute syncher script")
-	limitStr := flag.String("limit", "100", "images quantity limit to be synchronized with yams")
+	dumpFile := flag.String("dumpfile", "", "dump file with the list of images to upload")
 	threadsStr := flag.String("threads", "5", "threads limit to be synchronized with yams")
 
 	object := flag.String("object", "", "image name to be deleted in yams")
 	flag.Parse()
 
-	limit, _ := strconv.Atoi(*limitStr)
 	threads, _ := strconv.Atoi(*threadsStr)
 	// Setting up insfrastructure
 	HTTPHandler := infrastructure.NewHTTPHandler()
@@ -62,7 +61,6 @@ func main() {
 
 	setUpMigrations(conf, dbHandler, logger)
 
-	redisHandler := infrastructure.NewRedisHandler(conf.Redis.Address, logger)
 	yamsRepo := repository.NewYamsRepository(
 		signer,
 		conf.YamsConf.MgmtURL,
@@ -73,19 +71,26 @@ func main() {
 		loggers.MakeYamsRepoLogger(logger),
 		HTTPHandler,
 		conf.YamsConf.TimeOut,
+		conf.YamsConf.MaxConcurrentConns,
 	)
 
-	imageStatusRepo := repository.NewImageStatusRepo(redisHandler, "", 0)
+	lastSyncRepo := repository.NewLastSyncRepo(dbHandler)
+	syncErrorRepo := repository.NewErrorControlRepo(
+		dbHandler,
+		conf.ErrorControl.MaxRetriesPerError,
+		conf.ErrorControl.MaxResultsPerPage,
+	)
+
 	localRepo := repository.NewLocalRepo(
 		conf.LocalStorageConf.Path,
 		logger,
 	)
-
 	syncInteractor := usecases.SyncInteractor{
-		YamsRepo:        yamsRepo,
-		LocalRepo:       localRepo,
-		ImageStatusRepo: imageStatusRepo,
-		Logger:          loggers.MakeSyncLogger(logger),
+		YamsRepo:      yamsRepo,
+		LocalRepo:     localRepo,
+		LastSyncRepo:  lastSyncRepo,
+		SyncErrorRepo: syncErrorRepo,
+		Logger:        loggers.MakeSyncLogger(logger),
 	}
 	CLIYams := interfaces.CLIYams{
 		Interactor: syncInteractor,
@@ -94,10 +99,10 @@ func main() {
 
 	switch *opt {
 	case "sync":
-		if limit > 0 && threads > 0 {
-			CLIYams.Sync(limit, threads)
+		if *dumpFile != "" && threads > 0 {
+			CLIYams.Sync(threads, *dumpFile)
 		} else {
-			fmt.Println("make start command=sync threads=[number] limit=[number]")
+			fmt.Println("make start command=sync threads=[number] dump-file=[path]")
 		}
 	case "list":
 		CLIYams.List()
