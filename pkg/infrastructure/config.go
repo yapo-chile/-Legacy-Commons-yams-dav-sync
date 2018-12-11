@@ -28,7 +28,6 @@ type Config struct {
 	LoggerConf       LoggerConf       `env:"LOGGER_"`
 	LocalStorageConf LocalStorage     `env:"IMAGES_"`
 	YamsConf         YamsConf         `env:"YAMS_"`
-	Redis            RedisConf        `env:"REDIS_"`
 	Database         DatabaseConfig   `env:"DATABASE_"`
 	ErrorControl     ErrorControlConf `env:"ERRORS_"`
 	LastSync         LastSyncConf     `env:"LAST_SYNC_"`
@@ -37,10 +36,6 @@ type Config struct {
 // LocalStorage hols all configuration for local storage
 type LocalStorage struct {
 	Path string `env:"PATH"`
-}
-
-type RedisConf struct {
-	Address string `env:"ADDRESS" envDefault:"0.0.0.0:6379"`
 }
 
 type YamsConf struct {
