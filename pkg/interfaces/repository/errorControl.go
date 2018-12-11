@@ -58,11 +58,11 @@ func (repo *errorControlRepo) GetPagesQty() (nPages int) {
 		return 0
 	}
 
-	rows, err := repo.db.Query(fmt.Sprintf(`
+	rows, err := repo.db.Query(`
 		SELECT 
 		count(*) 
-		FROM sync_error`,
-	))
+		FROM sync_error
+		`)
 	if err != nil {
 		return 0
 	}
