@@ -6,11 +6,16 @@ if [[ ! -d "$SOURCE" ]]; then DIR="$PWD"; fi
 DIR="${IMAGES_PATH}"
 
 START=$(date +%s)
-echoHeader "Sorting started : $(START)"
 
 echoHeader "Sorting : $DIR"
 
-find $DIR -printf '%CY%Cm%CdT%CH%CM%0.2CS %f\n' |sort | grep ".jpg" >  ${YAMS_IMAGES_LIST_FILE}
+if [ $(uname -s) = "Linux" ]
+then
+    find $DIR -printf '%CY%Cm%CdT%CH%CM%0.2CS %f\n' |sort | grep ".jpg" >  ${YAMS_IMAGES_LIST_FILE}
+elif [ $(uname -s) = "Darwin" ]
+then
+    find $DIR/ |xargs stat  -f "%Sm %N" -t "%Y%m%dT%H%M%S" $DIR/*|sort |sed "s+/\(.*\)${DIR}/+1+g;s+./\(.*\)/+ +g; s+/++g" | grep ".jpeg\|.jpg\|.png\|.gif" >  ${YAMS_IMAGES_LIST_FILE}
+fi
 
 END=$(date +%s)
 DIFF=$(( $END - $START ))
