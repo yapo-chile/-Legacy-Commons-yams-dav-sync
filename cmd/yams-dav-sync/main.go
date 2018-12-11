@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/mattes/migrate"
+	mpgsql "github.com/mattes/migrate/database/postgres"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/infrastructure"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/loggers"
@@ -48,6 +50,14 @@ func main() {
 	HTTPHandler := infrastructure.NewHTTPHandler()
 
 	signer := infrastructure.NewJWTSigner(conf.YamsConf.PrivateKeyFile)
+
+	dbHandler, err := infrastructure.NewPgsqlHandler(conf.Database, logger)
+	if err != nil {
+		logger.Error("%s\n", err)
+		os.Exit(2)
+	}
+
+	setUpMigrations(conf, dbHandler, logger)
 
 	redisHandler := infrastructure.NewRedisHandler(conf.Redis.Address, logger)
 	yamsRepo := repository.NewYamsRepository(
@@ -99,4 +109,31 @@ func main() {
 	default:
 		fmt.Printf("Make start command=[commmand]\nCommand list:\n- sync \n- list\n- deleteAll\n")
 	}
+}
+
+// Autoexecute database migrations
+func setUpMigrations(conf infrastructure.Config, dbHandler *infrastructure.PgsqlHandler, logger loggers.Logger) {
+	driver, err := mpgsql.WithInstance(dbHandler.Conn, &mpgsql.Config{})
+	if err != nil {
+		logger.Error("Error to instance migrations %v", err)
+		return
+	}
+	mig, err := migrate.NewWithDatabaseInstance(
+		"file://"+conf.Database.MgFolder,
+		conf.Database.MgDriver,
+		driver,
+	)
+	if err != nil {
+		logger.Error("Consume migrations sources err %#v", err)
+		return
+	}
+	version, _, _ := mig.Version()
+	logger.Info("Migrations Actual Version %d", version)
+	err = mig.Up()
+	if err != nil && err != migrate.ErrNoChange {
+		logger.Info("Migration message: %v", err)
+		return
+	}
+	version, _, _ = mig.Version()
+	logger.Info("Migrations upgraded to version %d", version)
 }

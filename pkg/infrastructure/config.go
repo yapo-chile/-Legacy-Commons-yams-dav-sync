@@ -25,10 +25,11 @@ type LoggerConf struct {
 
 // Config holds all configuration for the service
 type Config struct {
-	LoggerConf       LoggerConf   `env:"LOGGER_"`
-	LocalStorageConf LocalStorage `env:"LOCAL_"`
-	YamsConf         YamsConf     `env:"YAMS_"`
-	Redis            RedisConf    `env:"REDIS_"`
+	LoggerConf       LoggerConf     `env:"LOGGER_"`
+	LocalStorageConf LocalStorage   `env:"LOCAL_"`
+	YamsConf         YamsConf       `env:"YAMS_"`
+	Redis            RedisConf      `env:"REDIS_"`
+	Database         DatabaseConfig `env:"DATABASE_"`
 }
 
 // LocalStorage hols all configuration for local storage
@@ -48,6 +49,20 @@ type YamsConf struct {
 	BucketID       string `env:"BUCKET_ID"`
 	PrivateKeyFile string `env:"PRIVATE_KEY" envDefault:"writer-key.rsa"`
 	TimeOut        int    `env:"TiMEOUT" envDefault:30`
+}
+
+type DatabaseConfig struct {
+	Host        string `env:"HOST" envDefault:"db"`
+	Port        int    `env:"PORT" envDefault:"5432"`
+	Dbname      string `env:"NAME" envDefault:"pgdb"`
+	DbUser      string `env:"USER" envDefault:"postgres"`
+	DbPasswd    string `env:"PASSWORD" envDefault:"postgres"`
+	Sslmode     string `env:"SSL_MODE" envDefault:"disable"`
+	MaxIdle     int    `env:"MAX_IDLE" envDefault:"10"`
+	MaxOpen     int    `env:"MAX_OPEN" envDefault:"100"`
+	MgFolder    string `env:"MIGRATIONS_FOLDER" envDefault:"migrations"`
+	MgDriver    string `env:"MIGRATIONS_DRIVER" envDefault:"postgres"`
+	ConnRetries int    `env:"CONN_RETRIES" envDefault:"60"`
 }
 
 // LoadFromEnv loads the config data from the environment variables
