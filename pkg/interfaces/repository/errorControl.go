@@ -119,7 +119,7 @@ func (repo *errorControlRepo) SetErrorCounter(imagePath string, count int) (err 
 	return
 }
 
-// AddErrorSync creates a error mark for specific image, if exists then
+// AddErrorSync creates an error mark for a specific image, if exists then
 // increases the error counter
 func (repo *errorControlRepo) AddErrorSync(imagePath string) (err error) {
 	row, err := repo.db.Query(

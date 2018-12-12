@@ -8,6 +8,7 @@ DIR="${IMAGES_PATH}"
 START=$(date +%s)
 
 echoHeader "Sorting : $DIR"
+echoHeader "Started at $(date +%T)"
 
 if [ $(uname -s) = "Linux" ]
 then
@@ -20,5 +21,6 @@ fi
 END=$(date +%s)
 DIFF=$(( $END - $START ))
 
+echoHeader "Ended at $(date +%T)"
 echoHeader "Sorting took $DIFF seconds"
-echoTitle "Output: $(du -h ${YAMS_IMAGES_LIST_FILE})"
+echoTitle "Output size:$(du -h ${YAMS_IMAGES_LIST_FILE})"

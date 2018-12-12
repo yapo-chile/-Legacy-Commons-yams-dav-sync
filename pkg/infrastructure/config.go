@@ -31,6 +31,7 @@ type Config struct {
 	Redis            RedisConf        `env:"REDIS_"`
 	Database         DatabaseConfig   `env:"DATABASE_"`
 	ErrorControl     ErrorControlConf `env:"ERRORS_"`
+	LastSync         LastSyncConf     `env:"LAST_SYNC_"`
 }
 
 // LocalStorage hols all configuration for local storage
@@ -56,6 +57,10 @@ type YamsConf struct {
 type ErrorControlConf struct {
 	MaxRetriesPerError int `env:"MAX_RETRIES_PER_ERROR" envDefault:"3"`
 	MaxResultsPerPage  int `env:"MAX_RESULTS_PER_PAGE" envDefault:"10"`
+}
+
+type LastSyncConf struct {
+	DefaultDate string `env:"DEFAULT_DATE" envDefault:"31-12-2015"`
 }
 
 type DatabaseConfig struct {

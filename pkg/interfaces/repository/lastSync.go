@@ -2,44 +2,53 @@ package repository
 
 import (
 	"fmt"
+	"time"
 
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
 
 // lastSyncRepo repository to save current synchronization date mark
 type lastSyncRepo struct {
-	db DbHandler
+	db          DbHandler
+	defaultDate time.Time
 }
 
 // NewLastSyncRepo makes a new LastSyncRepo instance
-func NewLastSyncRepo(dbHandler DbHandler) usecases.LastSyncRepository {
+func NewLastSyncRepo(dbHandler DbHandler, defaultLastSyncDate time.Time) usecases.LastSyncRepository {
 	return &lastSyncRepo{
-		db: dbHandler,
+		db:          dbHandler,
+		defaultDate: defaultLastSyncDate,
 	}
 }
 
 // GetLastSync returns the last synchronization date mark
-func (repo *lastSyncRepo) GetLastSync() (dateStr string, err error) {
+func (repo *lastSyncRepo) GetLastSync() time.Time {
+	var lastSyncDate time.Time
 	result, err := repo.db.Query(`
 		SELECT last_sync_date
 		FROM last_sync 
 		ORDER BY last_sync_id DESC 
 		LIMIT 1`)
 	if err != nil {
-		return dateStr, fmt.Errorf("There was an error trying to obtain last Synchronization mark: %+v", err)
+		return repo.defaultDate
 	}
+	defer result.Close()
 	if result.Next() {
-		err = result.Scan(&dateStr)
+		err = result.Scan(&lastSyncDate)
 		if err != nil {
-			return dateStr, fmt.Errorf("Cannot parse last Synchronization mark to string: %+v", err)
+			return repo.defaultDate
 		}
 	}
-	result.Close()
-	return dateStr, err
+
+	return lastSyncDate
 }
 
 // GetLastSync saves a new synchronization date mark
 func (repo *lastSyncRepo) SetLastSync(dateMark string) (err error) {
+	if dateMark == "" {
+		return fmt.Errorf("dateMark not valid")
+	}
+
 	row, err := repo.db.Query(fmt.Sprintf(`
 		INSERT INTO last_sync(last_sync_date)
 		VALUES ('%s')`,

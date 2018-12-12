@@ -25,6 +25,9 @@ type CLIYamsLogger interface {
 
 var layout = "20060102T150405"
 
+// retryPreviousFailedUploads gets te images from errorControlRepository and try
+// to upload those images to yams one more time. If fails increase the counter of errors
+// in repo. Repository only returns images with less than a specific number of errors.
 func (handler *CLIYams) retryPreviousFailedUploads(threads int) error {
 	maxConcurrency := handler.Interactor.YamsRepo.GetMaxConcurrentConns()
 	if threads > maxConcurrency {
@@ -69,6 +72,7 @@ func (handler *CLIYams) Sync(threads int, imagesDumpYamsPath string) error {
 
 	jobs := make(chan domain.Image)
 	var waitGroup sync.WaitGroup
+
 	for w := 0; w < threads; w++ {
 		go handler.sendWorker(w, jobs, &waitGroup, false)
 	}
@@ -80,49 +84,54 @@ func (handler *CLIYams) Sync(threads int, imagesDumpYamsPath string) error {
 	if err != nil {
 		return err
 	}
-	lastSyncStr, err := handler.Interactor.LastSyncRepo.GetLastSync()
-	if err != nil || lastSyncStr == "" {
-		lastSyncStr = layout
-	}
-	lastSync, err := time.Parse(layout, lastSyncStr)
-	if err != nil {
-		return err
-	}
+
+	lastSyncDate := handler.Interactor.LastSyncRepo.GetLastSync()
+	scanner := bufio.NewScanner(file)
+	var imagePath, imageDateStr string
+
+	defer handler.Interactor.LastSyncRepo.SetLastSync(imageDateStr)
 
 	// for each image read from file
-	scanner := bufio.NewScanner(file)
-	var imageDateStr, imagePath string
 	for scanner.Scan() {
-		registry := strings.Split(scanner.Text(), " ")
-		if len(registry) >= 2 {
-			imageDateStr = registry[0]
-			imagePath = registry[1]
-			imageDate, err := time.Parse(layout, imageDateStr)
-			if err != nil {
-				continue
-			}
-			if imageDate.After(lastSync) || imageDate.Equal(lastSync) {
-				image, err := handler.Interactor.LocalRepo.GetImage(imagePath)
-				if err != nil {
-					continue
-				}
-				jobs <- image
-			}
+		tuple := strings.Split(scanner.Text(), " ")
+		if !validateTuple(tuple, lastSyncDate) {
+			continue
 		}
+		imageDateStr = tuple[0]
+		imagePath = tuple[1]
+		image, err := handler.Interactor.LocalRepo.GetImage(imagePath)
+		if err != nil {
+			continue
+		}
+		jobs <- image
 	}
+
 	// If scanner stops because error
 	if err := scanner.Err(); err != nil {
 		return fmt.Errorf("Error reading data from file: %+v", err)
-	}
-
-	if imageDateStr != "" {
-		handler.Interactor.LastSyncRepo.SetLastSync(imageDateStr)
 	}
 
 	close(jobs)
 	waitGroup.Wait()
 
 	return nil
+}
+
+// validateTuple validates a given tuple string is format []string{dateStr,path}
+// and the date after or before of a given date
+func validateTuple(tuple []string, date time.Time) bool {
+	if len(tuple) != 2 {
+		return false
+	}
+	imageDateStr := tuple[0]
+	imageDate, err := time.Parse(layout, imageDateStr)
+	if err != nil {
+		return false
+	}
+	if imageDate.After(date) || imageDate.Equal(date) {
+		return true
+	}
+	return false
 }
 
 // List prints a list of available images in yams repository

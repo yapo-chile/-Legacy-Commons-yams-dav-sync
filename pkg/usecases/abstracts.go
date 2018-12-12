@@ -1,8 +1,10 @@
 package usecases
 
+import "time"
+
 // LastSyncRepository allows LastSyncRepository's operations
 type LastSyncRepository interface {
-	GetLastSync() (string, error)
+	GetLastSync() time.Time
 	SetLastSync(value string) error
 }
 

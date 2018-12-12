@@ -74,7 +74,9 @@ func main() {
 		conf.YamsConf.MaxConcurrentConns,
 	)
 
-	lastSyncRepo := repository.NewLastSyncRepo(dbHandler)
+	defaultLastSyncDate, _ := time.Parse("02-01-2006", conf.LastSync.DefaultDate)
+	lastSyncRepo := repository.NewLastSyncRepo(dbHandler, defaultLastSyncDate)
+
 	syncErrorRepo := repository.NewErrorControlRepo(
 		dbHandler,
 		conf.ErrorControl.MaxRetriesPerError,

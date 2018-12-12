@@ -8,7 +8,7 @@ setup:
 build:
 	@scripts/commands/build.sh
 
-## Sort sorts images generatin yams file
+## Sort sorts images by date from local dir generating a list dump
 sort:
 	@scripts/commands/sort.sh
 
@@ -22,7 +22,7 @@ runsync:
 removedump:
 	rm ${YAMS_IMAGES_LIST_FILE}
 
-## sync starts dav-yams synchornization using GNU
+## sync starts dav-yams synchornization
 sync: build sort runsync removedump
 
 ## deleteall the images from yams
