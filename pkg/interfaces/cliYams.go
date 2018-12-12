@@ -89,8 +89,6 @@ func (handler *CLIYams) Sync(threads int, imagesDumpYamsPath string) error {
 	scanner := bufio.NewScanner(file)
 	var imagePath, imageDateStr string
 
-	defer handler.Interactor.LastSyncRepo.SetLastSync(imageDateStr)
-
 	// for each image read from file
 	for scanner.Scan() {
 		tuple := strings.Split(scanner.Text(), " ")
@@ -110,6 +108,8 @@ func (handler *CLIYams) Sync(threads int, imagesDumpYamsPath string) error {
 	if err := scanner.Err(); err != nil {
 		return fmt.Errorf("Error reading data from file: %+v", err)
 	}
+
+	handler.Interactor.LastSyncRepo.SetLastSync(imageDateStr)
 
 	close(jobs)
 	waitGroup.Wait()
