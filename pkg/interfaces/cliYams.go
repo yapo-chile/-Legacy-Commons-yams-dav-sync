@@ -25,7 +25,7 @@ type CLIYamsLogger interface {
 
 var layout = "20060102T150405"
 
-// retryPreviousFailedUploads gets te images from errorControlRepository and try
+// retryPreviousFailedUploads gets images from errorControlRepository and try
 // to upload those images to yams one more time. If fails increase the counter of errors
 // in repo. Repository only returns images with less than a specific number of errors.
 func (handler *CLIYams) retryPreviousFailedUploads(threads int) error {
@@ -170,12 +170,12 @@ func (handler *CLIYams) DeleteAll(threads int) error {
 }
 
 // sendWorker sends every image to yams repository
-func (handler *CLIYams) sendWorker(id int, jobs <-chan domain.Image, wg *sync.WaitGroup, previousFailedUpload bool) {
+func (handler *CLIYams) sendWorker(id int, jobs <-chan domain.Image, wg *sync.WaitGroup, previousUploadFailed bool) {
 	wg.Add(1)
 	defer wg.Done()
 	for image := range jobs {
 		err := handler.Interactor.Send(image)
-		if err == nil && previousFailedUpload {
+		if err == nil && previousUploadFailed {
 			handler.Interactor.SyncErrorRepo.DelErrorSync(image.Metadata.ImageName)
 		}
 		if err != nil {

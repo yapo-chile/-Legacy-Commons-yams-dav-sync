@@ -22,7 +22,7 @@ runsync:
 removedump:
 	rm ${YAMS_IMAGES_LIST_FILE}
 
-## sync starts dav-yams synchornization
+## sync starts dav-yams synchronization
 sync: build sort runsync removedump
 
 ## deleteall the images from yams

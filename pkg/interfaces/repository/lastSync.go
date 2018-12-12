@@ -22,8 +22,7 @@ func NewLastSyncRepo(dbHandler DbHandler, defaultLastSyncDate time.Time) usecase
 }
 
 // GetLastSync returns the last synchronization date mark
-func (repo *lastSyncRepo) GetLastSync() time.Time {
-	var lastSyncDate time.Time
+func (repo *lastSyncRepo) GetLastSync() (lastSyncDate time.Time) {
 	result, err := repo.db.Query(`
 		SELECT last_sync_date
 		FROM last_sync 
