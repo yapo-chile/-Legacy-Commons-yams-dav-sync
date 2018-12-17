@@ -22,6 +22,11 @@ func NewErrorControlRepo(dbHandler DbHandler, maxRetries, resultsPerPage int) us
 	}
 }
 
+// SetMaxErrorQty set the maximum number of errors before stopping of synchronization retry
+func (repo *errorControlRepo) SetMaxErrorQty(maxErrorQty int) {
+	repo.maxRetries = maxErrorQty
+}
+
 // GetErrorSync gets all error marks in repository using pagination
 func (repo *errorControlRepo) GetErrorSync(nPage int) (result []string, err error) {
 	rows, err := repo.db.Query(fmt.Sprintf(`
@@ -58,7 +63,7 @@ func (repo *errorControlRepo) GetPagesQty() (nPages int) {
 		return 0
 	}
 
-	rows, err := repo.db.Query(`
+	result, err := repo.db.Query(`
 		SELECT 
 		count(*) 
 		FROM sync_error
@@ -66,18 +71,18 @@ func (repo *errorControlRepo) GetPagesQty() (nPages int) {
 	if err != nil {
 		return 0
 	}
-
-	if rows.Next() {
-		err = rows.Scan(&nPages)
+	rows := 0
+	if result.Next() {
+		err = result.Scan(&rows)
 		if err != nil {
 			return 0
 		}
 	}
-	nPages = nPages / repo.resultsPerPage
-	if nPages%repo.resultsPerPage > 0 && nPages > 0 {
+	nPages = rows / repo.resultsPerPage
+	if rows%repo.resultsPerPage > 0 && rows > 0 {
 		nPages++
 	}
-	rows.Close()
+	result.Close()
 	return
 }
 
@@ -119,7 +124,7 @@ func (repo *errorControlRepo) SetErrorCounter(imagePath string, count int) (err 
 	return
 }
 
-// AddErrorSync creates a error mark for specific image, if exists then
+// AddErrorSync creates an error mark for a specific image, if exists then
 // increases the error counter
 func (repo *errorControlRepo) AddErrorSync(imagePath string) (err error) {
 	row, err := repo.db.Query(

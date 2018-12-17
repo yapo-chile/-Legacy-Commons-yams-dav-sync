@@ -14,6 +14,8 @@ import (
 // YamsRepository is yams bucket representation that allows operations
 // execution using http requests
 type YamsRepository struct {
+	// MaxConcurrentThreads max number of concurrent connection to yams
+	MaxConcurrentThreads int
 	// jwtSigner validates each request with jwt signature
 	jwtSigner Signer
 	// mgtURL contains the url of yams management server
@@ -40,7 +42,7 @@ type Signer interface {
 // NewYamsRepository creates a new instance of YamsRepository
 func NewYamsRepository(jwtSigner Signer, mgmtURL, accessKeyID, tenantID,
 	domainID, bucketID string, logger YamsRepositoryLogger, handler HTTPHandler,
-	timeOut int) *YamsRepository {
+	timeOut int, maxConcurrentThreads int) *YamsRepository {
 	return &YamsRepository{
 		jwtSigner:   jwtSigner,
 		mgmtURL:     mgmtURL,
@@ -53,6 +55,7 @@ func NewYamsRepository(jwtSigner Signer, mgmtURL, accessKeyID, tenantID,
 			Handler: handler,
 			TimeOut: timeOut,
 		},
+		MaxConcurrentThreads: maxConcurrentThreads,
 	}
 }
 
@@ -61,6 +64,11 @@ type YamsRepositoryLogger interface {
 	LogRequestURI(url string)
 	LogStatus(statusCode int)
 	LogResponse(body string, err error)
+}
+
+// GetMaxConcurrentConns gets the max number of concurrent connections to yams
+func (repo *YamsRepository) GetMaxConcurrentConns() int {
+	return repo.MaxConcurrentThreads
 }
 
 // GetDomains gets domains from yams, domains belongs to the repo tenant

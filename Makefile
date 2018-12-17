@@ -14,8 +14,21 @@ sort:
 
 ## Execute the service
 run:
-	@./${APPNAME}  -command=$(command) -limit=$(limit) -object=$(object) -threads=$(threads)
+	@./${APPNAME}  -command=$(command)  -object=$(object) -threads=$(threads)
 
+runsync:
+	@./${APPNAME}  -command=sync -dumpfile=${YAMS_IMAGES_LIST_FILE} -threads=$(YAMS_MAX_CONCURRENT_CONN)
+
+removedump:
+	rm ${YAMS_IMAGES_LIST_FILE}
+
+## sync starts dav-yams synchronization
+sync: build sort runsync removedump
+
+## deleteall the images from yams
+deleteall:
+ @./${APPNAME}  -command=deleteAll -threads=$(YAMS_MAX_CONCURRENT_CONN)
+	
 ## Compile and start the service
 start: build run
 
@@ -25,5 +38,3 @@ info:
 	@echo "ServerRoot   : ${SERVER_ROOT}"
 	@echo "API Base URL : ${BASE_URL}"
 	@echo "Healthcheck  : curl ${BASE_URL}/api/v1/healthcheck"
-
- 

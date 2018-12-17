@@ -1,8 +1,10 @@
 package usecases
 
+import "time"
+
 // LastSyncRepository allows LastSyncRepository's operations
 type LastSyncRepository interface {
-	GetLastSync() (string, error)
+	GetLastSync() time.Time
 	SetLastSync(value string) error
 }
 
@@ -13,6 +15,7 @@ type ErrorControlRepository interface {
 	DelErrorSync(imgPath string) error
 	AddErrorSync(imagePath string) (err error)
 	SetErrorCounter(imagePath string, count int) error
+	SetMaxErrorQty(max int)
 }
 
 // ImageStatusRepository allows ImageStatusRepository's operations
