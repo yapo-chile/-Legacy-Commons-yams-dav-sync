@@ -22,6 +22,11 @@ func NewErrorControlRepo(dbHandler DbHandler, maxRetries, resultsPerPage int) us
 	}
 }
 
+// SetMaxErrorQty set the maximum number of errors before stopping of synchronization retry
+func (repo *errorControlRepo) SetMaxErrorQty(maxErrorQty int) {
+	repo.maxRetries = maxErrorQty
+}
+
 // GetErrorSync gets all error marks in repository using pagination
 func (repo *errorControlRepo) GetErrorSync(nPage int) (result []string, err error) {
 	rows, err := repo.db.Query(fmt.Sprintf(`

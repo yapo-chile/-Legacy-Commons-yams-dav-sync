@@ -99,10 +99,12 @@ func main() {
 		Logger:     loggers.MakeCLIYamsLogger(logger),
 	}
 
+	maxErrorQty := conf.ErrorControl.MaxRetriesPerError
+
 	switch *opt {
 	case "sync":
 		if *dumpFile != "" && threads > 0 {
-			CLIYams.Sync(threads, *dumpFile)
+			CLIYams.Sync(threads, maxErrorQty, *dumpFile)
 		} else {
 			fmt.Println("make start command=sync threads=[number] dump-file=[path]")
 		}

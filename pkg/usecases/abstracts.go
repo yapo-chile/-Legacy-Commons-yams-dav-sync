@@ -15,6 +15,7 @@ type ErrorControlRepository interface {
 	DelErrorSync(imgPath string) error
 	AddErrorSync(imagePath string) (err error)
 	SetErrorCounter(imagePath string, count int) error
+	SetMaxErrorQty(max int)
 }
 
 // ImageStatusRepository allows ImageStatusRepository's operations

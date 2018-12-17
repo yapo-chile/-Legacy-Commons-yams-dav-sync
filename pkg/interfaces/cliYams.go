@@ -28,7 +28,7 @@ var layout = "20060102T150405"
 // retryPreviousFailedUploads gets images from errorControlRepository and try
 // to upload those images to yams one more time. If fails increase the counter of errors
 // in repo. Repository only returns images with less than a specific number of errors.
-func (handler *CLIYams) retryPreviousFailedUploads(threads int) error {
+func (handler *CLIYams) retryPreviousFailedUploads(threads, maxErrorQty int) error {
 	maxConcurrency := handler.Interactor.YamsRepo.GetMaxConcurrentConns()
 	if threads > maxConcurrency {
 		threads = maxConcurrency
@@ -39,7 +39,7 @@ func (handler *CLIYams) retryPreviousFailedUploads(threads int) error {
 	for w := 0; w < threads; w++ {
 		go handler.sendWorker(w, jobs, &waitGroup, true)
 	}
-
+	handler.Interactor.SyncErrorRepo.SetMaxErrorQty(maxErrorQty)
 	nPages := handler.Interactor.SyncErrorRepo.GetPagesQty()
 	for pagination := 1; pagination <= nPages; pagination++ {
 		result, err := handler.Interactor.SyncErrorRepo.GetErrorSync(pagination)
@@ -62,13 +62,13 @@ func (handler *CLIYams) retryPreviousFailedUploads(threads int) error {
 
 // Sync synchronizes images between local repository and yams repository
 // using go concurrency
-func (handler *CLIYams) Sync(threads int, imagesDumpYamsPath string) error {
+func (handler *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string) error {
 	maxConcurrency := handler.Interactor.YamsRepo.GetMaxConcurrentConns()
 	if threads > maxConcurrency {
 		threads = maxConcurrency
 	}
 
-	handler.retryPreviousFailedUploads(threads)
+	handler.retryPreviousFailedUploads(threads, maxErrorQty)
 
 	jobs := make(chan domain.Image)
 	var waitGroup sync.WaitGroup
