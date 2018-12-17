@@ -37,7 +37,7 @@ func (handler *CLIYams) retryPreviousFailedUploads(threads, maxErrorQty int) err
 	jobs := make(chan domain.Image)
 	var waitGroup sync.WaitGroup
 	for w := 0; w < threads; w++ {
-		go handler.sendWorker(w, jobs, &waitGroup, true)
+		go handler.sendWorker(w, jobs, &waitGroup, domain.SWRetry)
 	}
 	handler.Interactor.SyncErrorRepo.SetMaxErrorQty(maxErrorQty)
 	nPages := handler.Interactor.SyncErrorRepo.GetPagesQty()
@@ -74,7 +74,7 @@ func (handler *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string
 	var waitGroup sync.WaitGroup
 
 	for w := 0; w < threads; w++ {
-		go handler.sendWorker(w, jobs, &waitGroup, false)
+		go handler.sendWorker(w, jobs, &waitGroup, domain.SWUpload)
 	}
 
 	// Get the data file with list of images to upload
@@ -170,12 +170,12 @@ func (handler *CLIYams) DeleteAll(threads int) error {
 }
 
 // sendWorker sends every image to yams repository
-func (handler *CLIYams) sendWorker(id int, jobs <-chan domain.Image, wg *sync.WaitGroup, previousUploadFailed bool) {
+func (handler *CLIYams) sendWorker(id int, jobs <-chan domain.Image, wg *sync.WaitGroup, previousUploadFailed int) {
 	wg.Add(1)
 	defer wg.Done()
 	for image := range jobs {
 		err := handler.Interactor.Send(image)
-		if err == nil && previousUploadFailed {
+		if err == nil && previousUploadFailed == domain.SWRetry {
 			handler.Interactor.SyncErrorRepo.DelErrorSync(image.Metadata.ImageName)
 		}
 		if err != nil {
