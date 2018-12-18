@@ -6,14 +6,14 @@ import (
 
 // SyncInteractor executes operations for syncher between local storage and yams bucket
 type SyncInteractor struct {
-	YamsRepo      YamsRepository
-	LocalRepo     LocalRepository
-	LastSyncRepo  LastSyncRepository
-	SyncErrorRepo ErrorControlRepository
+	YamsRepo         YamsRepository
+	LocalStorageRepo LocalStorageRepository
+	LastSyncRepo     LastSyncRepository
+	SyncErrorRepo    ErrorControlRepository
 }
 
-// LocalRepository allows local storage operations
-type LocalRepository interface {
+// LocalStorageRepository allows local storage operations
+type LocalStorageRepository interface {
 	GetImage(imagePath string) (domain.Image, error)
 }
 
