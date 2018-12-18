@@ -14,6 +14,8 @@ TMP_COVER_FILE=${REPORT_ARTIFACTS}/cover.out.tmp
 COVERAGE_REPORT=${REPORT_ARTIFACTS}/coverage.xml
 JUNIT_REPORT=${REPORT_ARTIFACTS}/junit-report.xml
 
+EXCLUDE_FILE=./cover.exclude.directory.txt
+
 echoHeader "Running Unit Tests"
 
 function run_tests {
@@ -23,9 +25,12 @@ function run_tests {
     echo "mode: count" > ${COVER_FILE}
     # Test all packages from the list
     for package in ${packages}; do
-        echo "" > ${TMP_COVER_FILE}
-        go test -v -race -covermode="atomic" -coverprofile=${TMP_COVER_FILE} ${package} || status=$?
-        sed '/^mode: atomic$/d' ${TMP_COVER_FILE} >> ${COVER_FILE}
+       NUM=$(cat ${EXCLUDE_FILE} | grep ${package} | wc -l)
+        if [ $NUM == 0 ]; then
+	        echo "" > ${TMP_COVER_FILE}
+            go test -v -race -covermode="atomic" -coverprofile=${TMP_COVER_FILE} ${package} || status=$?
+            sed '/^mode: atomic$/d' ${TMP_COVER_FILE} >> ${COVER_FILE}
+        fi
     done
     sed -i.bak '/^$/d' ${COVER_FILE}
     return ${status:-0}

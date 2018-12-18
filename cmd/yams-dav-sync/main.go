@@ -83,16 +83,15 @@ func main() {
 		conf.ErrorControl.MaxResultsPerPage,
 	)
 
-	localRepo := repository.NewLocalRepo(
+	localStorageRepo := repository.NewLocalStorageRepo(
 		conf.LocalStorageConf.Path,
 		logger,
 	)
 	syncInteractor := usecases.SyncInteractor{
-		YamsRepo:      yamsRepo,
-		LocalRepo:     localRepo,
-		LastSyncRepo:  lastSyncRepo,
-		SyncErrorRepo: syncErrorRepo,
-		Logger:        loggers.MakeSyncLogger(logger),
+		YamsRepo:         yamsRepo,
+		LocalStorageRepo: localStorageRepo,
+		LastSyncRepo:     lastSyncRepo,
+		SyncErrorRepo:    syncErrorRepo,
 	}
 	CLIYams := interfaces.CLIYams{
 		Interactor: syncInteractor,

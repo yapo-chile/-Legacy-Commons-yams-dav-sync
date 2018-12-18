@@ -47,7 +47,7 @@ func (handler *CLIYams) retryPreviousFailedUploads(threads, maxErrorQty int) err
 			return err
 		}
 		for _, imagePath := range result {
-			image, err := handler.Interactor.LocalRepo.GetImage(imagePath)
+			image, err := handler.Interactor.LocalStorageRepo.GetImage(imagePath)
 			if err != nil {
 				continue
 			}
@@ -97,7 +97,7 @@ func (handler *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string
 		}
 		imageDateStr = tuple[0]
 		imagePath = tuple[1]
-		image, err := handler.Interactor.LocalRepo.GetImage(imagePath)
+		image, err := handler.Interactor.LocalStorageRepo.GetImage(imagePath)
 		if err != nil {
 			continue
 		}

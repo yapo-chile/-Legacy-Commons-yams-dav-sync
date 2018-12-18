@@ -13,27 +13,27 @@ import (
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
 )
 
-// LocalRepo is a local storage representation
-type LocalRepo struct {
+// LocalStorageRepo is a local storage representation
+type LocalStorageRepo struct {
 	// Path is the path to get objects to send to yams
 	Path string
 	// Logger logs event messages
 	Logger interface{}
 }
 
-// NewLocalRepo returns a fresh instance of LocalRepo
-func NewLocalRepo(path string, logger interface{}) *LocalRepo {
-	localRepo := LocalRepo{
+// NewLocalStorageRepo returns a fresh instance of LocalStorageRepo
+func NewLocalStorageRepo(path string, logger interface{}) *LocalStorageRepo {
+	localStorageRepo := LocalStorageRepo{
 		Path:   path,
 		Logger: logger,
 	}
-	return &localRepo
+	return &localStorageRepo
 }
 
 var extRegex = regexp.MustCompile("(?i).(png|bmp|jpg)$")
 
 // GetImage gets a single image from local repository
-func (repo *LocalRepo) GetImage(imagePath string) (domain.Image, error) {
+func (repo *LocalStorageRepo) GetImage(imagePath string) (domain.Image, error) {
 	if len(imagePath) < 2 {
 		return domain.Image{}, fmt.Errorf("ImagePath too short: %+v", imagePath)
 	}
@@ -62,7 +62,7 @@ func (repo *LocalRepo) GetImage(imagePath string) (domain.Image, error) {
 }
 
 // GetImages returns all images inside the path defined, including inner directories.
-func (repo *LocalRepo) GetImages() []domain.Image {
+func (repo *LocalStorageRepo) GetImages() []domain.Image {
 	var imagePath string
 
 	// Convert relative path to absolute path

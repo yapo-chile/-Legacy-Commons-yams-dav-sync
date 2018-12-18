@@ -6,3 +6,10 @@ const (
 	// SWRetry send worker retries to upload images because previous errors
 	SWRetry
 )
+
+const (
+	// YAMSForceRemoval force inmediate Image removal. Image won't be recoverable.
+	YAMSForceRemoval = true
+	// YAMSSoftRemoval soft image removal from yams bucket
+	YAMSSoftRemoval = false
+)
