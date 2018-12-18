@@ -8,6 +8,22 @@ setup:
 build:
 	@scripts/commands/build.sh
 
+## Run tests and generate quality reports
+test:
+	@scripts/commands/test.sh
+
+## Run tests and output coverage reports
+cover:
+	@scripts/commands/test_cover.sh cli
+
+## Run tests and open report on default web browser
+coverhtml:
+	@scripts/commands/test_cover.sh html
+
+## Run gometalinter and output report as text
+checkstyle:
+	@scripts/commands/test_style.sh display
+
 ## Sort sorts images by date from local dir generating a list dump
 sort:
 	@scripts/commands/sort.sh

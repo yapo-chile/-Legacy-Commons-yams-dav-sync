@@ -7,6 +7,9 @@ genport = $(shell expr ${GENPORTOFF} + \( $(shell id -u) - \( $(shell id -u) / 1
 # BRANCH info from travis
 export BUILD_BRANCH=$(shell if [ "${TRAVIS_PULL_REQUEST}" = "false" ]; then echo "${TRAVIS_BRANCH}"; else echo "${TRAVIS_PULL_REQUEST_BRANCH}"; fi)
 
+# REPORT_ARTIFACTS should be in sync with `RegexpFilePathMatcher` in
+# `reports-publisher/config.json`
+export REPORT_ARTIFACTS=reports
 
 # APP variables
 # This variables are for the use of your microservice. This variables must be updated each time you are creating a new microservice
