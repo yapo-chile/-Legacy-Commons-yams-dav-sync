@@ -51,6 +51,7 @@ func TestValidateChecksum(t *testing.T) {
 		Return(input.Metadata.Checksum, &YamsRepositoryError{})
 	result := repo.ValidateChecksum(input)
 	assert.Equal(t, true, result)
+	mYamsRepo.AssertExpectations(t)
 }
 
 func TestSend(t *testing.T) {
@@ -61,6 +62,7 @@ func TestSend(t *testing.T) {
 		Return(&YamsRepositoryError{})
 	result := repo.Send(input)
 	assert.Equal(t, &YamsRepositoryError{}, result)
+	mYamsRepo.AssertExpectations(t)
 }
 
 func TestList(t *testing.T) {
@@ -70,6 +72,7 @@ func TestList(t *testing.T) {
 	result, err := repo.List()
 	assert.Equal(t, []YamsObject{}, result)
 	assert.Equal(t, &YamsRepositoryError{}, err)
+	mYamsRepo.AssertExpectations(t)
 }
 
 func TestDelete(t *testing.T) {
@@ -83,4 +86,5 @@ func TestDelete(t *testing.T) {
 	).Return(&YamsRepositoryError{})
 	result := repo.Delete(input)
 	assert.Equal(t, &YamsRepositoryError{}, result)
+	mYamsRepo.AssertExpectations(t)
 }
