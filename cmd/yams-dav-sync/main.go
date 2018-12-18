@@ -92,7 +92,6 @@ func main() {
 		LocalRepo:     localRepo,
 		LastSyncRepo:  lastSyncRepo,
 		SyncErrorRepo: syncErrorRepo,
-		Logger:        loggers.MakeSyncLogger(logger),
 	}
 	CLIYams := interfaces.CLIYams{
 		Interactor: syncInteractor,

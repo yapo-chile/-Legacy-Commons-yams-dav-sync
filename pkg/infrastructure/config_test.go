@@ -40,7 +40,7 @@ func TestConfigLoad(t *testing.T) {
 	expected := TestConf{
 		I: 42,
 		S: "Don't panic",
-		F: "fullhd",
+		F: "",
 		N: Nested{
 			F: true,
 		},
