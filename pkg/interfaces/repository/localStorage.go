@@ -11,23 +11,32 @@ import (
 	"regexp"
 
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
+	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
 
 // LocalStorageRepo is a local storage representation
 type LocalStorageRepo struct {
-	// Path is the path to get objects to send to yams
-	Path string
-	// Logger logs event messages
-	Logger interface{}
+	// path is the path to get objects to send to yams
+	path string
+	// fileSystem allows operations in local storage
+	fileSystem FileSystem
+	// logger logs event messages
+	logger interface{}
 }
 
 // NewLocalStorageRepo returns a fresh instance of LocalStorageRepo
-func NewLocalStorageRepo(path string, logger interface{}) *LocalStorageRepo {
+func NewLocalStorageRepo(path string, fileSystem FileSystem, logger interface{}) *LocalStorageRepo {
 	localStorageRepo := LocalStorageRepo{
-		Path:   path,
-		Logger: logger,
+		path:       path,
+		fileSystem: fileSystem,
+		logger:     logger,
 	}
 	return &localStorageRepo
+}
+
+// Open opens a file from local storage
+func (repo *LocalStorageRepo) Open(path string) (usecases.File, error) {
+	return repo.fileSystem.Open(path)
 }
 
 var extRegex = regexp.MustCompile("(?i).(png|bmp|jpg)$")
@@ -37,8 +46,8 @@ func (repo *LocalStorageRepo) GetImage(imagePath string) (domain.Image, error) {
 	if len(imagePath) < 2 {
 		return domain.Image{}, fmt.Errorf("ImagePath too short: %+v", imagePath)
 	}
-	filePath := path.Join(repo.Path, imagePath[:2], imagePath)
-	f, err := os.Open(filePath)
+	filePath := path.Join(repo.path, imagePath[:2], imagePath)
+	f, err := repo.fileSystem.Open(filePath)
 	if err != nil {
 		return domain.Image{}, err
 	}
@@ -66,15 +75,14 @@ func (repo *LocalStorageRepo) GetImages() []domain.Image {
 	var imagePath string
 
 	// Convert relative path to absolute path
-	if !path.IsAbs(repo.Path) {
+	if !path.IsAbs(repo.path) {
 		workingDir, err := os.Getwd()
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		imagePath = path.Join(workingDir, repo.Path)
+		imagePath = path.Join(workingDir, repo.path)
 	} else {
-		imagePath = repo.Path
+		imagePath = repo.path
 	}
 
 	images, err := navigate(imagePath)

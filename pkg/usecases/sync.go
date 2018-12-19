@@ -15,6 +15,7 @@ type SyncInteractor struct {
 // LocalStorageRepository allows local storage operations
 type LocalStorageRepository interface {
 	GetImage(imagePath string) (domain.Image, error)
+	Open(Path string) (File, error)
 }
 
 // ValidateChecksum returns true if a given image exists in yams repository, otherwise

@@ -1,0 +1,559 @@
+package repository
+
+import (
+	"fmt"
+	"net/http"
+	"os"
+	"testing"
+
+	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
+	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
+)
+
+type mockSigner struct {
+	mock.Mock
+}
+
+func (m *mockSigner) GenerateTokenString(claims jwt.Claims) string {
+	args := m.Called(claims)
+	return args.String(0)
+}
+
+type MockYamsRepoLogger struct {
+	mock.Mock
+}
+
+func (m *MockYamsRepoLogger) LogRequestURI(url string) {
+	m.Called(url)
+}
+
+func (m *MockYamsRepoLogger) LogStatus(statusCode int) {
+	m.Called(statusCode)
+}
+
+func (m *MockYamsRepoLogger) LogResponse(body string, err error) {
+	m.Called(body, err)
+}
+
+func TestNewYamsRepository(t *testing.T) {
+	var jwtSigner Signer
+	var logger YamsRepositoryLogger
+	var http HTTPHandler
+	yamsRepo := YamsRepository{
+		jwtSigner:   jwtSigner,
+		mgmtURL:     "url",
+		accessKeyID: "key",
+		tenantID:    "tentantID",
+		domainID:    "domainID",
+		bucketID:    "bucketID",
+		logger:      logger,
+		http: &HTTPRepository{
+			Handler: http,
+			TimeOut: 0,
+		},
+		maxConcurrentThreads: 100,
+	}
+	result := NewYamsRepository(yamsRepo.jwtSigner, yamsRepo.mgmtURL, yamsRepo.accessKeyID,
+		yamsRepo.tenantID, yamsRepo.domainID, yamsRepo.bucketID, nil, yamsRepo.logger, http, 0,
+		yamsRepo.maxConcurrentThreads)
+	assert.Equal(t, &yamsRepo, result)
+}
+
+func TestGetMaxConcurrency(t *testing.T) {
+	yamsRepo := YamsRepository{
+		maxConcurrentThreads: 100,
+	}
+	result := yamsRepo.GetMaxConcurrentConns()
+	assert.Equal(t, yamsRepo.maxConcurrentThreads, result)
+}
+
+func TestGetDomain(t *testing.T) {
+	yamsRepo := YamsRepository{}
+	result := yamsRepo.GetMaxConcurrentConns()
+	assert.Equal(t, yamsRepo.maxConcurrentThreads, result)
+}
+
+func TestGetDomains(t *testing.T) {
+	mLogger := MockYamsRepoLogger{}
+	mSigner := mockSigner{}
+	mHandler := mockHTTPHandler{}
+	mRequest := mockRequest{}
+	yamsRepo := YamsRepository{
+		jwtSigner: &mSigner,
+		logger:    &mLogger,
+		http: &HTTPRepository{
+			Handler: &mHandler,
+		},
+	}
+
+	mHandler.On("NewRequest").Return(&mRequest, nil).Once()
+	response := HTTPResponse{
+		Code: 200,
+		Body: `domains`,
+	}
+
+	mRequest.On("SetMethod", mock.AnythingOfType("string")).Return(&mRequest)
+	mRequest.On("SetPath", mock.AnythingOfType("string")).Return(&mRequest)
+	mRequest.On("SetQueryParams", mock.AnythingOfType("map[string]string")).Return(&mRequest)
+
+	mLogger.On("LogRequestURI", mock.AnythingOfType("string")).Return()
+	mLogger.On("LogStatus", mock.AnythingOfType("int")).Return()
+	mLogger.On(
+		"LogResponse",
+		mock.AnythingOfType("string"),
+		nil,
+	).Return()
+
+	mHandler.On("Send", &mRequest).Return(response, nil).Once()
+
+	mSigner.On("GenerateTokenString", mock.AnythingOfType("MyCustomClaims")).Return("claims")
+
+	domains := yamsRepo.GetDomains()
+
+	assert.Equal(t, response.Body, domains)
+
+	mLogger.AssertExpectations(t)
+	mSigner.AssertExpectations(t)
+	mHandler.AssertExpectations(t)
+}
+
+type mockReader struct { // nolint
+	mock.Mock
+}
+
+func (m *mockReader) Read(p []byte) (n int, err error) {
+	args := m.Called(p)
+	return args.Get(0).(int), args.Error(1)
+}
+
+func (m *mockReader) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+type mFileSystem struct {
+	mock.Mock
+}
+
+func (m *mFileSystem) Open(name string) (usecases.File, error) {
+	args := m.Called(name)
+	return args.Get(0).(usecases.File), args.Error(1)
+}
+
+type mFile struct {
+	mock.Mock
+}
+
+func (m *mFile) Close() (err error) {
+	args := m.Called()
+	return args.Error(0)
+}
+
+func (m *mFile) Read(p []byte) (int, error) {
+	args := m.Called(p)
+	return args.Int(0), args.Error(1)
+}
+
+func (m *mFile) Stat() (os.FileInfo, error) {
+	args := m.Called()
+	return args.Get(0).(os.FileInfo), args.Error(1)
+}
+
+func TestPutImageErrorOpeningFile(t *testing.T) {
+	mLogger := MockYamsRepoLogger{}
+	mSigner := mockSigner{}
+	mHandler := mockHTTPHandler{}
+	mRequest := mockRequest{}
+	mFileSystem := mFileSystem{}
+	mFile := mFile{}
+
+	localStorageRepo := NewLocalStorageRepo("", &mFileSystem, nil)
+	yamsRepo := YamsRepository{
+		jwtSigner: &mSigner,
+		logger:    &mLogger,
+		http: &HTTPRepository{
+			Handler: &mHandler,
+		},
+		localStorageRepo: localStorageRepo,
+	}
+
+	mSigner.On("GenerateTokenString", mock.AnythingOfType("PutClaims")).
+		Return("claims")
+
+	mFileSystem.On("Open", mock.AnythingOfType("string")).
+		Return(&mFile, fmt.Errorf("err"))
+
+	resp := yamsRepo.PutImage(domain.Image{})
+
+	assert.Equal(t, usecases.ErrYamsImage, resp)
+
+	mLogger.AssertExpectations(t)
+	mSigner.AssertExpectations(t)
+	mHandler.AssertExpectations(t)
+	mRequest.AssertExpectations(t)
+	mFile.AssertExpectations(t)
+	mFileSystem.AssertExpectations(t)
+}
+
+func TestPutImage(t *testing.T) {
+	mLogger := MockYamsRepoLogger{}
+	mSigner := mockSigner{}
+	mHandler := mockHTTPHandler{}
+	mRequest := mockRequest{}
+	mFileSystem := mFileSystem{}
+	mFile := mFile{}
+
+	localStorageRepo := NewLocalStorageRepo("", &mFileSystem, nil)
+	yamsRepo := YamsRepository{
+		jwtSigner: &mSigner,
+		logger:    &mLogger,
+		http: &HTTPRepository{
+			Handler: &mHandler,
+		},
+		localStorageRepo: localStorageRepo,
+	}
+
+	mHandler.On("NewRequest").Return(&mRequest, nil)
+
+	mFileSystem.On("Open", mock.AnythingOfType("string")).Return(&mFile, nil)
+
+	mRequest.On("SetMethod", mock.AnythingOfType("string")).Return(&mRequest)
+	mRequest.On("SetPath", mock.AnythingOfType("string")).Return(&mRequest)
+	mRequest.On("SetQueryParams", mock.AnythingOfType("map[string]string")).Return(&mRequest)
+	mRequest.On("SetImgBody", mock.AnythingOfType("*repository.mFile")).Return(&mRequest)
+	mRequest.On("SetTimeOut", mock.AnythingOfType("int")).Return(&mRequest)
+
+	mFile.On("Close").Return(nil)
+	mLogger.On("LogStatus", mock.AnythingOfType("int")).Return()
+	mLogger.On("LogResponse", mock.AnythingOfType("string"), nil).Return()
+	mSigner.On("GenerateTokenString", mock.AnythingOfType("PutClaims")).Return("claims")
+
+	for cases := 0; cases < 7; cases++ {
+		switch cases {
+		case 0: // everything OK
+			response := HTTPResponse{
+				Code: 200,
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			resp := yamsRepo.PutImage(domain.Image{})
+			assert.Nil(t, resp)
+
+		case 1: // 400 Internal error
+			response := HTTPResponse{
+				Code: 400,
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			resp := yamsRepo.PutImage(domain.Image{})
+			assert.Equal(t, usecases.ErrYamsInternal, resp)
+
+		case 2: // 403 Unauthorized error
+			response := HTTPResponse{
+				Code: 403,
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			resp := yamsRepo.PutImage(domain.Image{})
+			assert.Equal(t, usecases.ErrYamsUnauthorized, resp)
+		case 3: // 404 Bucket Not Found error
+			response := HTTPResponse{
+				Code: 404,
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			resp := yamsRepo.PutImage(domain.Image{})
+			assert.Equal(t, usecases.ErrYamsBucketNotFound, resp)
+		case 4: // 409 object duplicated error
+			response := HTTPResponse{
+				Code: 409,
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			resp := yamsRepo.PutImage(domain.Image{})
+			assert.Equal(t, usecases.ErrYamsDuplicate, resp)
+		case 5: // 500 Internal Server error
+			response := HTTPResponse{
+				Code: 500,
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			resp := yamsRepo.PutImage(domain.Image{})
+			assert.Equal(t, usecases.ErrYamsInternal, resp)
+		case 6: // 503 Yams internal error
+			response := HTTPResponse{
+				Code: 503,
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			resp := yamsRepo.PutImage(domain.Image{})
+			assert.Equal(t, usecases.ErrYamsInternal, resp)
+		}
+	}
+
+	mLogger.AssertExpectations(t)
+	mSigner.AssertExpectations(t)
+	mHandler.AssertExpectations(t)
+	mRequest.AssertExpectations(t)
+	mFile.AssertExpectations(t)
+	mFileSystem.AssertExpectations(t)
+}
+
+func TestDeleteImage(t *testing.T) {
+	mLogger := MockYamsRepoLogger{}
+	mSigner := mockSigner{}
+	mHandler := mockHTTPHandler{}
+	mRequest := mockRequest{}
+
+	localStorageRepo := NewLocalStorageRepo("", nil, nil)
+	yamsRepo := YamsRepository{
+		jwtSigner: &mSigner,
+		logger:    &mLogger,
+		http: &HTTPRepository{
+			Handler: &mHandler,
+		},
+		localStorageRepo: localStorageRepo,
+	}
+
+	mHandler.On("NewRequest").Return(&mRequest, nil)
+
+	mRequest.On("SetMethod", mock.AnythingOfType("string")).Return(&mRequest)
+	mRequest.On("SetPath", mock.AnythingOfType("string")).Return(&mRequest)
+	mRequest.On("SetQueryParams", mock.AnythingOfType("map[string]string")).Return(&mRequest)
+	mRequest.On("SetTimeOut", mock.AnythingOfType("int")).Return(&mRequest)
+
+	mLogger.On("LogStatus", mock.AnythingOfType("int")).Return()
+	mLogger.On("LogRequestURI", mock.AnythingOfType("string")).Return()
+	mLogger.On("LogResponse", mock.AnythingOfType("string"), nil).Return()
+	mSigner.On("GenerateTokenString", mock.AnythingOfType("DeleteClaims")).Return("claims")
+
+	for cases := 0; cases < 7; cases++ {
+		switch cases {
+		case 0: // everything OK
+			response := HTTPResponse{
+				Code: 202,
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			resp := yamsRepo.DeleteImage("foto-sexy.jpg", domain.YAMSForceRemoval)
+			assert.Nil(t, resp)
+		case 1: // 400 yams internal error
+			response := HTTPResponse{
+				Code: 400,
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			resp := yamsRepo.DeleteImage("foto-sexy.jpg", domain.YAMSForceRemoval)
+			assert.Equal(t, resp, usecases.ErrYamsInternal)
+		case 2: // 403 yams Unauthorized error
+			response := HTTPResponse{
+				Code: 403,
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			resp := yamsRepo.DeleteImage("foto-sexy.jpg", domain.YAMSForceRemoval)
+			assert.Equal(t, resp, usecases.ErrYamsUnauthorized)
+		case 3: // 404 object not found error
+			response := HTTPResponse{
+				Code: 404,
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			resp := yamsRepo.DeleteImage("foto-sexy.jpg", domain.YAMSForceRemoval)
+			assert.Equal(t, resp, usecases.ErrYamsObjectNotFound)
+		case 4: // 500 server error
+			response := HTTPResponse{
+				Code: 500,
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			resp := yamsRepo.DeleteImage("foto-sexy.jpg", domain.YAMSForceRemoval)
+			assert.Equal(t, resp, usecases.ErrYamsInternal)
+		case 5: // 503 Service temporarily unavailable
+			response := HTTPResponse{
+				Code: 503,
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			resp := yamsRepo.DeleteImage("foto-sexy.jpg", domain.YAMSForceRemoval)
+			assert.Equal(t, resp, usecases.ErrYamsInternal)
+		default: // Unknown error
+			response := HTTPResponse{
+				Code: 999,
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			resp := yamsRepo.DeleteImage("foto-sexy.jpg", domain.YAMSForceRemoval)
+			assert.Equal(t, resp, usecases.ErrYamsInternal)
+		}
+	}
+	mLogger.AssertExpectations(t)
+	mSigner.AssertExpectations(t)
+	mHandler.AssertExpectations(t)
+	mRequest.AssertExpectations(t)
+}
+
+func TestHeadImage(t *testing.T) {
+	mLogger := MockYamsRepoLogger{}
+	mSigner := mockSigner{}
+	mHandler := mockHTTPHandler{}
+	mRequest := mockRequest{}
+
+	localStorageRepo := NewLocalStorageRepo("", nil, nil)
+	yamsRepo := YamsRepository{
+		jwtSigner: &mSigner,
+		logger:    &mLogger,
+		http: &HTTPRepository{
+			Handler: &mHandler,
+		},
+		localStorageRepo: localStorageRepo,
+	}
+
+	mHandler.On("NewRequest").Return(&mRequest, nil)
+
+	mRequest.On("SetMethod", mock.AnythingOfType("string")).Return(&mRequest)
+	mRequest.On("SetPath", mock.AnythingOfType("string")).Return(&mRequest)
+	mRequest.On("SetQueryParams", mock.AnythingOfType("map[string]string")).Return(&mRequest)
+	mRequest.On("SetTimeOut", mock.AnythingOfType("int")).Return(&mRequest)
+
+	mLogger.On("LogStatus", mock.AnythingOfType("int")).Return()
+	mLogger.On("LogRequestURI", mock.AnythingOfType("string")).Return()
+	mLogger.On("LogResponse", mock.AnythingOfType("string"), nil).Return()
+	mSigner.On("GenerateTokenString", mock.AnythingOfType("InfoClaims")).Return("claims")
+
+	for cases := 0; cases < 5; cases++ {
+		switch cases {
+		case 0: // everything OK
+			expected := "algo en md5"
+			response := HTTPResponse{
+				Code: 200,
+				Headers: http.Header{
+					"Content-Md5": []string{expected},
+				},
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			resp, err := yamsRepo.HeadImage("foto-sexy.jpg")
+			assert.Nil(t, err)
+			assert.Equal(t, expected, resp)
+		case 1: // 400 yams internal error
+			response := HTTPResponse{
+				Code: 404,
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			_, err := yamsRepo.HeadImage("foto-sexy.jpg")
+			assert.Equal(t, usecases.ErrYamsObjectNotFound, err)
+
+		case 2: // 500 server error
+			response := HTTPResponse{
+				Code: 500,
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			_, err := yamsRepo.HeadImage("foto-sexy.jpg")
+			assert.Equal(t, usecases.ErrYamsInternal, err)
+		case 3: // 503 Service temporarily unavailable
+			response := HTTPResponse{
+				Code: 503,
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			_, err := yamsRepo.HeadImage("foto-sexy.jpg")
+			assert.Equal(t, usecases.ErrYamsInternal, err)
+		default: // Unknown error
+			response := HTTPResponse{
+				Code: 999,
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			_, err := yamsRepo.HeadImage("foto-sexy.jpg")
+			assert.Equal(t, usecases.ErrYamsInternal, err)
+		}
+	}
+	mLogger.AssertExpectations(t)
+	mSigner.AssertExpectations(t)
+	mHandler.AssertExpectations(t)
+	mRequest.AssertExpectations(t)
+}
+
+func TestGetImages(t *testing.T) {
+	mLogger := MockYamsRepoLogger{}
+	mSigner := mockSigner{}
+	mHandler := mockHTTPHandler{}
+	mRequest := mockRequest{}
+
+	localStorageRepo := NewLocalStorageRepo("", nil, nil)
+	yamsRepo := YamsRepository{
+		jwtSigner: &mSigner,
+		logger:    &mLogger,
+		http: &HTTPRepository{
+			Handler: &mHandler,
+		},
+		localStorageRepo: localStorageRepo,
+	}
+
+	mHandler.On("NewRequest").Return(&mRequest, nil)
+
+	mRequest.On("SetMethod", mock.AnythingOfType("string")).Return(&mRequest)
+	mRequest.On("SetPath", mock.AnythingOfType("string")).Return(&mRequest)
+	mRequest.On("SetQueryParams", mock.AnythingOfType("map[string]string")).Return(&mRequest)
+	mRequest.On("SetTimeOut", mock.AnythingOfType("int")).Return(&mRequest)
+
+	mLogger.On("LogRequestURI", mock.AnythingOfType("string")).Return()
+	mLogger.On("LogResponse", mock.AnythingOfType("string"), nil).Return()
+	mSigner.On("GenerateTokenString", mock.AnythingOfType("InfoClaims")).Return("claims")
+
+	body := []byte(`{"objects":[{"object_id":"123","md5":"algo en md5",` +
+		`"size":1, "last_modified":1}], "continuation_token":""}`)
+
+	for cases := 0; cases < 6; cases++ {
+		switch cases {
+		case 0: // everything OK
+			expected := []usecases.YamsObject{
+				usecases.YamsObject{
+					ID:           "123",
+					Md5:          "algo en md5",
+					Size:         1,
+					LastModified: 1,
+				},
+			}
+			response := HTTPResponse{
+				Code: 200,
+				Body: body,
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			resp, err := yamsRepo.GetImages()
+			assert.Nil(t, err)
+			assert.Equal(t, expected, resp)
+		case 1: // 404 yams objects not found
+			response := HTTPResponse{
+				Code: 404,
+				Body: body,
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			_, err := yamsRepo.GetImages()
+			assert.Equal(t, usecases.ErrYamsObjectNotFound, err)
+
+		case 2: // 500 object not found error
+			response := HTTPResponse{
+				Code: 500,
+				Body: body,
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			_, err := yamsRepo.GetImages()
+			assert.Equal(t, usecases.ErrYamsInternal, err)
+		case 3: // 503 Service temporarily unavailable
+			response := HTTPResponse{
+				Code: 503,
+				Body: body,
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			_, err := yamsRepo.GetImages()
+			assert.Equal(t, usecases.ErrYamsInternal, err)
+		case 4: // Unmarshal error
+			response := HTTPResponse{
+				Body: "+++++++",
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			_, err := yamsRepo.GetImages()
+			assert.Equal(t, usecases.ErrYamsInternal, err)
+		default: // Unknown error
+			response := HTTPResponse{
+				Code: 999,
+				Body: body,
+			}
+			mHandler.On("Send", &mRequest).Return(response, nil).Once()
+			_, err := yamsRepo.GetImages()
+			assert.Equal(t, usecases.ErrYamsInternal, err)
+		}
+	}
+	mLogger.AssertExpectations(t)
+	mSigner.AssertExpectations(t)
+	mHandler.AssertExpectations(t)
+	mRequest.AssertExpectations(t)
+}

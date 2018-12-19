@@ -61,6 +61,12 @@ func main() {
 
 	setUpMigrations(conf, dbHandler, logger)
 
+	localStorageRepo := repository.NewLocalStorageRepo(
+		conf.LocalStorageConf.Path,
+		infrastructure.NewFileSystem(),
+		logger,
+	)
+
 	yamsRepo := repository.NewYamsRepository(
 		signer,
 		conf.YamsConf.MgmtURL,
@@ -68,6 +74,7 @@ func main() {
 		conf.YamsConf.TenantID,
 		conf.YamsConf.DomainID,
 		conf.YamsConf.BucketID,
+		localStorageRepo,
 		loggers.MakeYamsRepoLogger(logger),
 		HTTPHandler,
 		conf.YamsConf.TimeOut,
@@ -83,10 +90,6 @@ func main() {
 		conf.ErrorControl.MaxResultsPerPage,
 	)
 
-	localStorageRepo := repository.NewLocalStorageRepo(
-		conf.LocalStorageConf.Path,
-		logger,
-	)
 	syncInteractor := usecases.SyncInteractor{
 		YamsRepo:         yamsRepo,
 		LocalStorageRepo: localStorageRepo,

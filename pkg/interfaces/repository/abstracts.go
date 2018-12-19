@@ -4,6 +4,8 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
 
 // DbHandler represents a database connection handler
@@ -67,4 +69,9 @@ type HTTPResponse struct {
 	Body    interface{}
 	Code    int
 	Headers http.Header
+}
+
+// FileSystem allows FileSystem's operations
+type FileSystem interface {
+	Open(name string) (usecases.File, error)
 }

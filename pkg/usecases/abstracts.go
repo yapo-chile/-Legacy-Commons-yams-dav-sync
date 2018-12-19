@@ -1,6 +1,10 @@
 package usecases
 
-import "time"
+import (
+	"io"
+	"os"
+	"time"
+)
 
 // LastSyncRepository allows LastSyncRepository's operations
 type LastSyncRepository interface {
@@ -16,4 +20,11 @@ type ErrorControlRepository interface {
 	AddErrorSync(imagePath string) (err error)
 	SetErrorCounter(imagePath string, count int) error
 	SetMaxErrorQty(max int)
+}
+
+// File allows File's operations in local storage
+type File interface {
+	io.Closer
+	io.Reader
+	Stat() (os.FileInfo, error)
 }
