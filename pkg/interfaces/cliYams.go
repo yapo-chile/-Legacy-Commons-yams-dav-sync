@@ -28,8 +28,8 @@ var layout = "20060102T150405"
 // retryPreviousFailedUploads gets images from errorControlRepository and try
 // to upload those images to yams one more time. If fails increase the counter of errors
 // in repo. Repository only returns images with less than a specific number of errors.
-func (handler *CLIYams) retryPreviousFailedUploads(threads, maxErrorQty int) error {
-	maxConcurrency := handler.Interactor.YamsRepo.GetMaxConcurrentConns()
+func (handler *CLIYams) retryPreviousFailedUploads(threads, maxErrorTolerance int) {
+	maxConcurrency := handler.Interactor.GetMaxConcurrency()
 	if threads > maxConcurrency {
 		threads = maxConcurrency
 	}
@@ -39,15 +39,14 @@ func (handler *CLIYams) retryPreviousFailedUploads(threads, maxErrorQty int) err
 	for w := 0; w < threads; w++ {
 		go handler.sendWorker(w, jobs, &waitGroup, domain.SWRetry)
 	}
-	handler.Interactor.SyncErrorRepo.SetMaxErrorQty(maxErrorQty)
-	nPages := handler.Interactor.SyncErrorRepo.GetPagesQty()
+	nPages := handler.Interactor.GetErrorsPagesQty(maxErrorTolerance)
 	for pagination := 1; pagination <= nPages; pagination++ {
-		result, err := handler.Interactor.SyncErrorRepo.GetErrorSync(pagination)
+		result, err := handler.Interactor.GetPreviusErrors(pagination, maxErrorTolerance)
 		if err != nil {
-			return err
+			continue
 		}
 		for _, imagePath := range result {
-			image, err := handler.Interactor.LocalStorageRepo.GetImage(imagePath)
+			image, err := handler.Interactor.GetLocalImage(imagePath)
 			if err != nil {
 				continue
 			}
@@ -57,13 +56,12 @@ func (handler *CLIYams) retryPreviousFailedUploads(threads, maxErrorQty int) err
 
 	close(jobs)
 	waitGroup.Wait()
-	return nil
 }
 
 // Sync synchronizes images between local repository and yams repository
 // using go concurrency
 func (handler *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string) error {
-	maxConcurrency := handler.Interactor.YamsRepo.GetMaxConcurrentConns()
+	maxConcurrency := handler.Interactor.GetMaxConcurrency()
 	if threads > maxConcurrency {
 		threads = maxConcurrency
 	}
@@ -85,19 +83,19 @@ func (handler *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string
 		return err
 	}
 
-	lastSyncDate := handler.Interactor.LastSyncRepo.GetLastSync()
+	latestSynchronizedImageDate := handler.Interactor.GetLastSynchornizationMark()
 	scanner := bufio.NewScanner(file)
 	var imagePath, imageDateStr string
 
 	// for each image read from file
 	for scanner.Scan() {
 		tuple := strings.Split(scanner.Text(), " ")
-		if !validateTuple(tuple, lastSyncDate) {
+		if !validateTuple(tuple, latestSynchronizedImageDate) {
 			continue
 		}
 		imageDateStr = tuple[0]
 		imagePath = tuple[1]
-		image, err := handler.Interactor.LocalStorageRepo.GetImage(imagePath)
+		image, err := handler.Interactor.GetLocalImage(imagePath)
 		if err != nil {
 			continue
 		}
@@ -108,8 +106,7 @@ func (handler *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string
 	if err := scanner.Err(); err != nil {
 		return fmt.Errorf("Error reading data from file: %+v", err)
 	}
-
-	handler.Interactor.LastSyncRepo.SetLastSync(imageDateStr)
+	handler.Interactor.GetLastSynchornizationMark(imageDateStr)
 
 	close(jobs)
 	waitGroup.Wait()
@@ -145,12 +142,12 @@ func (handler *CLIYams) List() error {
 
 // Delete deletes an object in yams repository
 func (handler *CLIYams) Delete(imageName string) error {
-	return handler.Interactor.Delete(imageName)
+	return handler.Interactor.RemoteDelete(imageName)
 }
 
 // DeleteAll deletes every imagen in yams repository and redis using concurency
 func (handler *CLIYams) DeleteAll(threads int) error {
-	images, _ := handler.Interactor.YamsRepo.GetImages()
+	images, _ := handler.Interactor.List()
 
 	jobs := make(chan string)
 	var waitGroup sync.WaitGroup
@@ -176,23 +173,22 @@ func (handler *CLIYams) sendWorker(id int, jobs <-chan domain.Image, wg *sync.Wa
 	for image := range jobs {
 		err := handler.Interactor.Send(image)
 		if err == nil && previousUploadFailed == domain.SWRetry {
-			handler.Interactor.SyncErrorRepo.DelErrorSync(image.Metadata.ImageName)
+			handler.Interactor.CleanErrorMarks(image.Metadata.ImageName)
 		}
 		if err != nil {
 			if err == usecases.ErrYamsDuplicate {
-				externalChecksum, _ := handler.Interactor.YamsRepo.HeadImage(image.Metadata.ImageName)
+				externalChecksum, _ := handler.Interactor.GetRemoteChecksum(image.Metadata.ImageName)
 				// If the external image is not updated
 				if externalChecksum != image.Metadata.Checksum {
 					// delete from yams
-					handler.Interactor.YamsRepo.DeleteImage(image.Metadata.ImageName, true)
+					handler.Interactor.RemoteDelete(image.Metadata.ImageName)
 					// mark to upload in the next sync process (because yams cache)
-					handler.Interactor.SyncErrorRepo.SetErrorCounter(image.Metadata.ImageName, 0)
 				} else {
-					handler.Interactor.SyncErrorRepo.DelErrorSync(image.Metadata.ImageName)
+					handler.Interactor.ResetErrorCounter(image.Metadata.ImageName)
 				}
 			} else {
 				// any other kind of error, mark to upload again in the next sync
-				handler.Interactor.SyncErrorRepo.AddErrorSync(image.Metadata.ImageName)
+				handler.Interactor.IncreaseErrorCounter(image.Metadata.ImageName)
 			}
 		}
 	}
@@ -202,7 +198,7 @@ func (handler *CLIYams) sendWorker(id int, jobs <-chan domain.Image, wg *sync.Wa
 func (handler *CLIYams) deleteWorker(id int, jobs <-chan string, wg *sync.WaitGroup) {
 	wg.Add(1)
 	for j := range jobs {
-		handler.Interactor.Delete(j)
+		handler.Interactor.RemoteDelete(j)
 	}
 	wg.Done()
 }

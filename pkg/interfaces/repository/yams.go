@@ -29,8 +29,8 @@ type YamsRepository struct {
 	bucketID string
 	// http is the http client to connect to yams using http protocol
 	http *HTTPRepository
-	// localStorageRepo  repo to execute operations in local storage
-	localStorageRepo usecases.LocalStorageRepository
+	// localImageRepo  repo to execute operations in local storage
+	localImageRepo usecases.ImageRepository
 	// logger logs yams repository events
 	logger YamsRepositoryLogger
 }
@@ -42,7 +42,7 @@ type Signer interface {
 
 // NewYamsRepository creates a new instance of YamsRepository
 func NewYamsRepository(jwtSigner Signer, mgmtURL, accessKeyID, tenantID,
-	domainID, bucketID string, localStorageRepo usecases.LocalStorageRepository, logger YamsRepositoryLogger, handler HTTPHandler,
+	domainID, bucketID string, localImageRepo usecases.ImageRepository, logger YamsRepositoryLogger, handler HTTPHandler,
 	timeOut int, maxConcurrentThreads int) *YamsRepository {
 	return &YamsRepository{
 		jwtSigner:   jwtSigner,
@@ -57,7 +57,7 @@ func NewYamsRepository(jwtSigner Signer, mgmtURL, accessKeyID, tenantID,
 			TimeOut: timeOut,
 		},
 		maxConcurrentThreads: maxConcurrentThreads,
-		localStorageRepo:     localStorageRepo,
+		localImageRepo:       localImageRepo,
 	}
 }
 
@@ -154,7 +154,7 @@ func (repo *YamsRepository) PutImage(image domain.Image) *usecases.YamsRepositor
 		"AccessKeyId": repo.accessKeyID,
 	}
 
-	imageFile, err := repo.localStorageRepo.Open(image.FilePath)
+	imageFile, err := repo.localImageRepo.Open(image.FilePath)
 	if err != nil {
 		return usecases.ErrYamsImage
 	}

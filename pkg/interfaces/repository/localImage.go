@@ -14,44 +14,41 @@ import (
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
 
-// LocalStorageRepo is a local storage representation
-type LocalStorageRepo struct {
+// LocalImageRepo is a local storage representation
+type LocalImageRepo struct {
 	// path is the path to get objects to send to yams
 	path string
 	// fileSystem allows operations in local storage
-	fileSystem FileSystem
-	// logger logs event messages
-	logger interface{}
+	fileSystemView FileSystemView
 }
 
-// NewLocalStorageRepo returns a fresh instance of LocalStorageRepo
-func NewLocalStorageRepo(path string, fileSystem FileSystem, logger interface{}) *LocalStorageRepo {
-	localStorageRepo := LocalStorageRepo{
-		path:       path,
-		fileSystem: fileSystem,
-		logger:     logger,
+// NewLocalImageRepo returns a fresh instance of LocalImageRepo
+func NewLocalImageRepo(path string, fileSystemView FileSystemView) *LocalImageRepo {
+	localImageRepo := LocalImageRepo{
+		path:           path,
+		fileSystemView: fileSystemView,
 	}
-	return &localStorageRepo
+	return &localImageRepo
 }
 
 // Open opens a file from local storage
-func (repo *LocalStorageRepo) Open(path string) (usecases.File, error) {
-	return repo.fileSystem.Open(path)
+func (repo *LocalImageRepo) Open(path string) (usecases.File, error) {
+	return repo.fileSystemView.Open(path)
 }
 
 var extRegex = regexp.MustCompile("(?i).(png|bmp|jpg)$")
 
 // GetImage gets a single image from local repository
-func (repo *LocalStorageRepo) GetImage(imagePath string) (domain.Image, error) {
+func (repo *LocalImageRepo) GetImage(imagePath string) (domain.Image, error) {
 	if len(imagePath) < 2 {
 		return domain.Image{}, fmt.Errorf("ImagePath too short: %+v", imagePath)
 	}
 	filePath := path.Join(repo.path, imagePath[:2], imagePath)
-	f, err := repo.fileSystem.Open(filePath)
+	f, err := repo.fileSystemView.Open(filePath)
 	if err != nil {
 		return domain.Image{}, err
 	}
-	fileInfo, err := f.Stat()
+	fileInfo, err := repo.fileSystemView.Stat(filePath)
 	if err != nil {
 		return domain.Image{}, err
 	}
@@ -71,7 +68,7 @@ func (repo *LocalStorageRepo) GetImage(imagePath string) (domain.Image, error) {
 }
 
 // GetImages returns all images inside the path defined, including inner directories.
-func (repo *LocalStorageRepo) GetImages() []domain.Image {
+func (repo *LocalImageRepo) GetImages() []domain.Image {
 	var imagePath string
 
 	// Convert relative path to absolute path

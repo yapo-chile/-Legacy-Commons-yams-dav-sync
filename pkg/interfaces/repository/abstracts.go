@@ -3,6 +3,7 @@ package repository
 import (
 	"io"
 	"net/http"
+	"os"
 	"time"
 
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
@@ -71,7 +72,8 @@ type HTTPResponse struct {
 	Headers http.Header
 }
 
-// FileSystem allows FileSystem's operations
-type FileSystem interface {
+// FileSystemView allows FileSystem's operations to view elements in local storage
+type FileSystemView interface {
 	Open(name string) (usecases.File, error)
+	Stat(name string) (os.FileInfo, error)
 }

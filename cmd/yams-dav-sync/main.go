@@ -61,10 +61,9 @@ func main() {
 
 	setUpMigrations(conf, dbHandler, logger)
 
-	localStorageRepo := repository.NewLocalStorageRepo(
+	localImageRepo := repository.NewLocalImageRepo(
 		conf.LocalStorageConf.Path,
-		infrastructure.NewFileSystem(),
-		logger,
+		infrastructure.NewLocalFileSystemView(),
 	)
 
 	yamsRepo := repository.NewYamsRepository(
@@ -74,7 +73,7 @@ func main() {
 		conf.YamsConf.TenantID,
 		conf.YamsConf.DomainID,
 		conf.YamsConf.BucketID,
-		localStorageRepo,
+		localImageRepo,
 		loggers.MakeYamsRepoLogger(logger),
 		HTTPHandler,
 		conf.YamsConf.TimeOut,
@@ -84,17 +83,16 @@ func main() {
 	defaultLastSyncDate, _ := time.Parse("02-01-2006", conf.LastSync.DefaultDate)
 	lastSyncRepo := repository.NewLastSyncRepo(dbHandler, defaultLastSyncDate)
 
-	syncErrorRepo := repository.NewErrorControlRepo(
+	errorControlRepo := repository.NewErrorControlRepo(
 		dbHandler,
-		conf.ErrorControl.MaxRetriesPerError,
 		conf.ErrorControl.MaxResultsPerPage,
 	)
 
 	syncInteractor := usecases.SyncInteractor{
 		YamsRepo:         yamsRepo,
-		LocalStorageRepo: localStorageRepo,
+		ImageRepo:        localImageRepo,
 		LastSyncRepo:     lastSyncRepo,
-		SyncErrorRepo:    syncErrorRepo,
+		ErrorControlRepo: errorControlRepo,
 	}
 	CLIYams := interfaces.CLIYams{
 		Interactor: syncInteractor,

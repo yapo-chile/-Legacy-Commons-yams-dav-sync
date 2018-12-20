@@ -2,7 +2,6 @@ package usecases
 
 import (
 	"io"
-	"os"
 	"time"
 )
 
@@ -14,17 +13,15 @@ type LastSyncRepository interface {
 
 // ErrorControlRepository allows ErrorControlRepository's operations
 type ErrorControlRepository interface {
-	GetErrorSync(nPage int) (result []string, err error)
-	GetPagesQty() int
-	DelErrorSync(imgPath string) error
-	AddErrorSync(imagePath string) (err error)
+	GetSyncErrors(nPage, maxErrorTolerance int) (result []string, err error)
+	GetPagesQty(maxErrorTolerance int) int
+	DelSyncError(imgPath string) error
+	AddSyncError(imagePath string) (err error)
 	SetErrorCounter(imagePath string, count int) error
-	SetMaxErrorQty(max int)
 }
 
 // File allows File's operations in local storage
 type File interface {
 	io.Closer
 	io.Reader
-	Stat() (os.FileInfo, error)
 }

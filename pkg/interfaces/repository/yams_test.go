@@ -117,6 +117,7 @@ func TestGetDomains(t *testing.T) {
 
 	mLogger.AssertExpectations(t)
 	mSigner.AssertExpectations(t)
+	mRequest.AssertExpectations(t)
 	mHandler.AssertExpectations(t)
 }
 
@@ -134,13 +135,18 @@ func (m *mockReader) Close() error {
 	return args.Error(0)
 }
 
-type mFileSystem struct {
+type mFileSystemView struct {
 	mock.Mock
 }
 
-func (m *mFileSystem) Open(name string) (usecases.File, error) {
+func (m *mFileSystemView) Open(name string) (usecases.File, error) {
 	args := m.Called(name)
 	return args.Get(0).(usecases.File), args.Error(1)
+}
+
+func (m *mFileSystemView) Stat(path string) (os.FileInfo, error) {
+	args := m.Called(path)
+	return args.Get(0).(os.FileInfo), args.Error(1)
 }
 
 type mFile struct {
@@ -157,33 +163,28 @@ func (m *mFile) Read(p []byte) (int, error) {
 	return args.Int(0), args.Error(1)
 }
 
-func (m *mFile) Stat() (os.FileInfo, error) {
-	args := m.Called()
-	return args.Get(0).(os.FileInfo), args.Error(1)
-}
-
 func TestPutImageErrorOpeningFile(t *testing.T) {
 	mLogger := MockYamsRepoLogger{}
 	mSigner := mockSigner{}
 	mHandler := mockHTTPHandler{}
 	mRequest := mockRequest{}
-	mFileSystem := mFileSystem{}
+	mFileSystemView := mFileSystemView{}
 	mFile := mFile{}
 
-	localStorageRepo := NewLocalStorageRepo("", &mFileSystem, nil)
+	localImageRepo := NewLocalImageRepo("", &mFileSystemView)
 	yamsRepo := YamsRepository{
 		jwtSigner: &mSigner,
 		logger:    &mLogger,
 		http: &HTTPRepository{
 			Handler: &mHandler,
 		},
-		localStorageRepo: localStorageRepo,
+		localImageRepo: localImageRepo,
 	}
 
 	mSigner.On("GenerateTokenString", mock.AnythingOfType("PutClaims")).
 		Return("claims")
 
-	mFileSystem.On("Open", mock.AnythingOfType("string")).
+	mFileSystemView.On("Open", mock.AnythingOfType("string")).
 		Return(&mFile, fmt.Errorf("err"))
 
 	resp := yamsRepo.PutImage(domain.Image{})
@@ -195,7 +196,7 @@ func TestPutImageErrorOpeningFile(t *testing.T) {
 	mHandler.AssertExpectations(t)
 	mRequest.AssertExpectations(t)
 	mFile.AssertExpectations(t)
-	mFileSystem.AssertExpectations(t)
+	mFileSystemView.AssertExpectations(t)
 }
 
 func TestPutImage(t *testing.T) {
@@ -203,22 +204,22 @@ func TestPutImage(t *testing.T) {
 	mSigner := mockSigner{}
 	mHandler := mockHTTPHandler{}
 	mRequest := mockRequest{}
-	mFileSystem := mFileSystem{}
+	mFileSystemView := mFileSystemView{}
 	mFile := mFile{}
 
-	localStorageRepo := NewLocalStorageRepo("", &mFileSystem, nil)
+	localImageRepo := NewLocalImageRepo("", &mFileSystemView)
 	yamsRepo := YamsRepository{
 		jwtSigner: &mSigner,
 		logger:    &mLogger,
 		http: &HTTPRepository{
 			Handler: &mHandler,
 		},
-		localStorageRepo: localStorageRepo,
+		localImageRepo: localImageRepo,
 	}
 
 	mHandler.On("NewRequest").Return(&mRequest, nil)
 
-	mFileSystem.On("Open", mock.AnythingOfType("string")).Return(&mFile, nil)
+	mFileSystemView.On("Open", mock.AnythingOfType("string")).Return(&mFile, nil)
 
 	mRequest.On("SetMethod", mock.AnythingOfType("string")).Return(&mRequest)
 	mRequest.On("SetPath", mock.AnythingOfType("string")).Return(&mRequest)
@@ -292,7 +293,7 @@ func TestPutImage(t *testing.T) {
 	mHandler.AssertExpectations(t)
 	mRequest.AssertExpectations(t)
 	mFile.AssertExpectations(t)
-	mFileSystem.AssertExpectations(t)
+	mFileSystemView.AssertExpectations(t)
 }
 
 func TestDeleteImage(t *testing.T) {
@@ -301,14 +302,14 @@ func TestDeleteImage(t *testing.T) {
 	mHandler := mockHTTPHandler{}
 	mRequest := mockRequest{}
 
-	localStorageRepo := NewLocalStorageRepo("", nil, nil)
+	localImageRepo := NewLocalImageRepo("", nil)
 	yamsRepo := YamsRepository{
 		jwtSigner: &mSigner,
 		logger:    &mLogger,
 		http: &HTTPRepository{
 			Handler: &mHandler,
 		},
-		localStorageRepo: localStorageRepo,
+		localImageRepo: localImageRepo,
 	}
 
 	mHandler.On("NewRequest").Return(&mRequest, nil)
@@ -388,14 +389,14 @@ func TestHeadImage(t *testing.T) {
 	mHandler := mockHTTPHandler{}
 	mRequest := mockRequest{}
 
-	localStorageRepo := NewLocalStorageRepo("", nil, nil)
+	localImageRepo := NewLocalImageRepo("", nil)
 	yamsRepo := YamsRepository{
 		jwtSigner: &mSigner,
 		logger:    &mLogger,
 		http: &HTTPRepository{
 			Handler: &mHandler,
 		},
-		localStorageRepo: localStorageRepo,
+		localImageRepo: localImageRepo,
 	}
 
 	mHandler.On("NewRequest").Return(&mRequest, nil)
@@ -467,14 +468,14 @@ func TestGetImages(t *testing.T) {
 	mHandler := mockHTTPHandler{}
 	mRequest := mockRequest{}
 
-	localStorageRepo := NewLocalStorageRepo("", nil, nil)
+	localImageRepo := NewLocalImageRepo("", nil)
 	yamsRepo := YamsRepository{
 		jwtSigner: &mSigner,
 		logger:    &mLogger,
 		http: &HTTPRepository{
 			Handler: &mHandler,
 		},
-		localStorageRepo: localStorageRepo,
+		localImageRepo: localImageRepo,
 	}
 
 	mHandler.On("NewRequest").Return(&mRequest, nil)
