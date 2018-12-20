@@ -37,7 +37,7 @@ func main() {
 	logger, err := infrastructure.MakeYapoLogger(&conf.LoggerConf)
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(2)
+		os.Exit(1)
 	}
 
 	opt := flag.String("command", "list", "command to execute syncher script")
@@ -47,11 +47,11 @@ func main() {
 	object := flag.String("object", "", "image name to be deleted in yams")
 	flag.Parse()
 
-	threads, _ := strconv.Atoi(*threadsStr)
+	threads, _ := strconv.Atoi(*threadsStr) //nolint
 	// Setting up insfrastructure
 	HTTPHandler := infrastructure.NewHTTPHandler()
 
-	signer := infrastructure.NewJWTSigner(conf.YamsConf.PrivateKeyFile)
+	signer := infrastructure.NewJWTSigner(conf.YamsConf.PrivateKeyFile, logger)
 
 	dbHandler, err := infrastructure.NewPgsqlHandler(conf.Database, logger)
 	if err != nil {
@@ -80,7 +80,13 @@ func main() {
 		conf.YamsConf.MaxConcurrentConns,
 	)
 
-	defaultLastSyncDate, _ := time.Parse("02-01-2006", conf.LastSync.DefaultDate)
+	defaultLastSyncDate, err := time.Parse(conf.LastSync.DefaultLayout, conf.LastSync.DefaultDate)
+	if err != nil {
+		fmt.Printf("Wrong date layout %+v for date %+v",
+			conf.LastSync.DefaultLayout,
+			conf.LastSync.DefaultDate)
+		os.Exit(3)
+	}
 	lastSyncRepo := repository.NewLastSyncRepo(dbHandler, defaultLastSyncDate)
 
 	errorControlRepo := repository.NewErrorControlRepo(
@@ -104,20 +110,21 @@ func main() {
 	switch *opt {
 	case "sync":
 		if *dumpFile != "" && threads > 0 {
-			CLIYams.Sync(threads, maxErrorQty, *dumpFile)
+			CLIYams.Sync(threads, maxErrorQty, *dumpFile) // nolint
+
 		} else {
 			fmt.Println("make start command=sync threads=[number] dump-file=[path]")
 		}
 	case "list":
-		CLIYams.List()
+		CLIYams.List() // nolint
 	case "deleteAll":
 		if threads > 0 {
-			CLIYams.DeleteAll(threads)
+			CLIYams.DeleteAll(threads) // nolint
 		} else {
 			fmt.Println("make start command=deleteAll threads=[number]")
 		}
 	case "delete":
-		CLIYams.Delete(*object)
+		CLIYams.Delete(*object) // nolint
 	default:
 		fmt.Printf("Make start command=[commmand]\nCommand list:\n- sync \n- list\n- deleteAll\n")
 	}
@@ -139,13 +146,13 @@ func setUpMigrations(conf infrastructure.Config, dbHandler *infrastructure.Pgsql
 		logger.Error("Consume migrations sources err %#v", err)
 		return
 	}
-	version, _, _ := mig.Version()
+	version, _, _ := mig.Version() // nolint
 	logger.Info("Migrations Actual Version %d", version)
 	err = mig.Up()
 	if err != nil && err != migrate.ErrNoChange {
 		logger.Info("Migration message: %v", err)
 		return
 	}
-	version, _, _ = mig.Version()
+	version, _, _ = mig.Version() // nolint
 	logger.Info("Migrations upgraded to version %d", version)
 }

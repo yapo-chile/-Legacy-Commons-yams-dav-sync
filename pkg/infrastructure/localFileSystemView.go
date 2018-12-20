@@ -17,7 +17,7 @@ func NewLocalFileSystemView() repository.FileSystemView {
 
 // Open opens a file from local storage
 func (LocalFileSystemView) Open(name string) (usecases.File, error) {
-	return os.Open(name)
+	return os.Open(name) // nolint: gosec
 }
 
 // Stat gets the stats of a file in local storage

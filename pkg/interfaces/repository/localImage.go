@@ -1,14 +1,11 @@
 package repository
 
 import (
-	"crypto/md5"
+	"crypto/md5" // nolint:gosec
 	"encoding/hex"
 	"fmt"
 	"io"
-	"log"
-	"os"
 	"path"
-	"regexp"
 
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
@@ -36,8 +33,6 @@ func (repo *LocalImageRepo) Open(path string) (usecases.File, error) {
 	return repo.fileSystemView.Open(path)
 }
 
-var extRegex = regexp.MustCompile("(?i).(png|bmp|jpg)$")
-
 // GetImage gets a single image from local repository
 func (repo *LocalImageRepo) GetImage(imagePath string) (domain.Image, error) {
 	if len(imagePath) < 2 {
@@ -52,8 +47,11 @@ func (repo *LocalImageRepo) GetImage(imagePath string) (domain.Image, error) {
 	if err != nil {
 		return domain.Image{}, err
 	}
-	hash := md5.New()
-	io.Copy(hash, f)
+	hash := md5.New() // nolint:gosec
+	_, err = io.Copy(hash, f)
+	if err != nil {
+		return domain.Image{}, err
+	}
 	image := domain.Image{
 		FilePath: filePath,
 		Metadata: domain.ImageMetadata{
@@ -63,76 +61,6 @@ func (repo *LocalImageRepo) GetImage(imagePath string) (domain.Image, error) {
 			ModTime:   fileInfo.ModTime(),
 		},
 	}
-	f.Close()
+	f.Close() // nolint
 	return image, nil
-}
-
-// GetImages returns all images inside the path defined, including inner directories.
-func (repo *LocalImageRepo) GetImages() []domain.Image {
-	var imagePath string
-
-	// Convert relative path to absolute path
-	if !path.IsAbs(repo.path) {
-		workingDir, err := os.Getwd()
-		if err != nil {
-			log.Fatal(err)
-		}
-		imagePath = path.Join(workingDir, repo.path)
-	} else {
-		imagePath = repo.path
-	}
-
-	images, err := navigate(imagePath)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return images
-}
-
-func navigate(root string) ([]domain.Image, error) {
-	f, err := os.Open(root)
-	if err != nil {
-		return nil, err
-	}
-
-	fileInfo, err := f.Readdir(-1)
-	f.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	var images []domain.Image
-	for _, file := range fileInfo {
-
-		filePath := path.Join(root, file.Name())
-		if !file.IsDir() {
-			if extRegex.MatchString(file.Name()) {
-				f, e := os.Open(filePath)
-				if e != nil {
-					continue
-				}
-				hash := md5.New()
-				io.Copy(hash, f)
-				image := domain.Image{
-					FilePath: filePath,
-					Metadata: domain.ImageMetadata{
-						ImageName: file.Name(),
-						Size:      file.Size(),
-						Checksum:  hex.EncodeToString(hash.Sum(nil)),
-					},
-				}
-				images = append(images, image)
-				f.Close()
-			}
-		} else {
-			innerImages, err := navigate(filePath)
-			if err != nil {
-				return nil, err
-			}
-
-			images = append(images, innerImages...)
-		}
-	}
-
-	return images, nil
 }

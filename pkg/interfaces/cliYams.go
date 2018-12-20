@@ -3,7 +3,6 @@ package interfaces
 import (
 	"bufio"
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -76,12 +75,11 @@ func (handler *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string
 	}
 
 	// Get the data file with list of images to upload
-	file, err := os.Open(imagesDumpYamsPath)
-	defer file.Close()
-
+	file, err := handler.Interactor.Open(imagesDumpYamsPath)
 	if err != nil {
 		return err
 	}
+	defer file.Close() // nolint
 
 	latestSynchronizedImageDate := handler.Interactor.GetLastSynchornizationMark()
 	scanner := bufio.NewScanner(file)
@@ -106,7 +104,7 @@ func (handler *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string
 	if err := scanner.Err(); err != nil {
 		return fmt.Errorf("Error reading data from file: %+v", err)
 	}
-	handler.Interactor.GetLastSynchornizationMark(imageDateStr)
+	handler.Interactor.SetLastSynchornizationMark(imageDateStr) // nolint
 
 	close(jobs)
 	waitGroup.Wait()
@@ -147,7 +145,10 @@ func (handler *CLIYams) Delete(imageName string) error {
 
 // DeleteAll deletes every imagen in yams repository and redis using concurency
 func (handler *CLIYams) DeleteAll(threads int) error {
-	images, _ := handler.Interactor.List()
+	images, err := handler.Interactor.List()
+	if err != nil {
+		return err
+	}
 
 	jobs := make(chan string)
 	var waitGroup sync.WaitGroup
@@ -173,22 +174,23 @@ func (handler *CLIYams) sendWorker(id int, jobs <-chan domain.Image, wg *sync.Wa
 	for image := range jobs {
 		err := handler.Interactor.Send(image)
 		if err == nil && previousUploadFailed == domain.SWRetry {
-			handler.Interactor.CleanErrorMarks(image.Metadata.ImageName)
+			handler.Interactor.CleanErrorMarks(image.Metadata.ImageName) // nolint
 		}
 		if err != nil {
 			if err == usecases.ErrYamsDuplicate {
-				externalChecksum, _ := handler.Interactor.GetRemoteChecksum(image.Metadata.ImageName)
+				externalChecksum, _ := handler.Interactor.GetRemoteChecksum(image.Metadata.ImageName) // nolint
 				// If the external image is not updated
 				if externalChecksum != image.Metadata.Checksum {
 					// delete from yams
-					handler.Interactor.RemoteDelete(image.Metadata.ImageName)
+					handler.Interactor.RemoteDelete(image.Metadata.ImageName) // nolint
 					// mark to upload in the next sync process (because yams cache)
+					handler.Interactor.ResetErrorCounter(image.Metadata.ImageName) // nolint
 				} else {
-					handler.Interactor.ResetErrorCounter(image.Metadata.ImageName)
+					handler.Interactor.CleanErrorMarks(image.Metadata.ImageName) // nolint
 				}
 			} else {
 				// any other kind of error, mark to upload again in the next sync
-				handler.Interactor.IncreaseErrorCounter(image.Metadata.ImageName)
+				handler.Interactor.IncreaseErrorCounter(image.Metadata.ImageName) // nolint
 			}
 		}
 	}
@@ -198,7 +200,7 @@ func (handler *CLIYams) sendWorker(id int, jobs <-chan domain.Image, wg *sync.Wa
 func (handler *CLIYams) deleteWorker(id int, jobs <-chan string, wg *sync.WaitGroup) {
 	wg.Add(1)
 	for j := range jobs {
-		handler.Interactor.RemoteDelete(j)
+		handler.Interactor.RemoteDelete(j) // nolint
 	}
 	wg.Done()
 }

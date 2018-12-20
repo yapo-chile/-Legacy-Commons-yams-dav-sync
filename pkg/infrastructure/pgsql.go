@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	_ "github.com/jinzhu/gorm/dialects/postgres"
+	_ "github.com/jinzhu/gorm/dialects/postgres" // nolint
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/loggers"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/repository"
 )
@@ -86,7 +86,7 @@ func (r PgsqlRow) Close() error {
 }
 
 // NewPgsqlHandler Creates connection handler
-func NewPgsqlHandler(conf DatabaseConfig, logger loggers.Logger) (*PgsqlHandler, error) {
+func NewPgsqlHandler(conf DatabaseConf, logger loggers.Logger) (*PgsqlHandler, error) {
 	poolDb, err := sql.Open("postgres",
 		fmt.Sprintf("host=%s dbname=%s port=%d sslmode=%s user=%s password=%s",
 			conf.Host, conf.Dbname, conf.Port, conf.Sslmode, conf.DbUser, conf.DbPasswd),

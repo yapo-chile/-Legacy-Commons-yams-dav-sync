@@ -1,6 +1,7 @@
 package usecases
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -236,6 +237,20 @@ func TestGetLocalImage(t *testing.T) {
 		mock.AnythingOfType("string"),
 	).Return(expected, nil)
 	result, err := sync.GetLocalImage("foto-sexy.jpg")
+	assert.Equal(t, expected, result)
+	assert.Nil(t, err)
+	mImageRepo.AssertExpectations(t)
+}
+
+func TestOpenLocalImage(t *testing.T) {
+	mImageRepo := mockImageRepo{}
+	sync := SyncInteractor{ImageRepo: &mImageRepo}
+	expected := &os.File{}
+	mImageRepo.On(
+		"Open",
+		mock.AnythingOfType("string"),
+	).Return(expected, nil)
+	result, err := sync.Open("foto-sexy.jpg")
 	assert.Equal(t, expected, result)
 	assert.Nil(t, err)
 	mImageRepo.AssertExpectations(t)

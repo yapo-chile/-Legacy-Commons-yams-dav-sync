@@ -79,9 +79,14 @@ func (i *SyncInteractor) IncreaseErrorCounter(imageName string) error {
 	return i.ErrorControlRepo.AddSyncError(imageName)
 }
 
-// GetLocalImage gets image form local storage
+// GetLocalImage gets image form local storage parsed as domain.Image
 func (i *SyncInteractor) GetLocalImage(imagePath string) (domain.Image, error) {
 	return i.ImageRepo.GetImage(imagePath)
+}
+
+// Open gets image form local storage returning readable File struct
+func (i *SyncInteractor) Open(imagePath string) (File, error) {
+	return i.ImageRepo.Open(imagePath)
 }
 
 // GetLastSynchornizationMark gets the date of latest synchronizated image

@@ -76,12 +76,9 @@ func (repo *YamsRepository) GetMaxConcurrentConns() int {
 // GetDomains gets domains from yams, domains belongs to the repo tenant
 func (repo *YamsRepository) GetDomains() string {
 
-	type Metadata struct{}
-
 	type MyCustomClaims struct {
 		jwt.StandardClaims
-		Rqs      string   `json:"rqs"`
-		Metadata Metadata `json:"metadata"`
+		Rqs string `json:"rqs"`
 	}
 
 	path := "/tenants/" + repo.tenantID + "/domains"
@@ -92,7 +89,6 @@ func (repo *YamsRepository) GetDomains() string {
 			IssuedAt: time.Now().Unix(),
 		},
 		"GET\\" + path,
-		Metadata{},
 	}
 
 	tokenString := repo.jwtSigner.GenerateTokenString(claims)
@@ -158,7 +154,7 @@ func (repo *YamsRepository) PutImage(image domain.Image) *usecases.YamsRepositor
 	if err != nil {
 		return usecases.ErrYamsImage
 	}
-	defer imageFile.Close()
+	defer imageFile.Close() // nolint
 
 	request := repo.http.Handler.
 		NewRequest().

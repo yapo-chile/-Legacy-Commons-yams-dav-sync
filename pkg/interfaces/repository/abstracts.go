@@ -19,6 +19,7 @@ type DbHandler interface {
 	Query(statement string) (DbResult, error)
 }
 
+// DbRepo contains an instance of a DBHandler
 type DbRepo struct {
 	Handler DbHandler
 }

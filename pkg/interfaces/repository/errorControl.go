@@ -43,10 +43,10 @@ func (repo *errorControlRepo) GetSyncErrors(nPage, maxErrorTolerance int) (resul
 
 	var imgPath string
 	for rows.Next() {
-		rows.Scan(&imgPath)
+		rows.Scan(&imgPath) // nolint
 		result = append(result, imgPath)
 	}
-	rows.Close()
+	rows.Close() // nolint
 	return result, nil
 }
 
@@ -78,7 +78,7 @@ func (repo *errorControlRepo) GetPagesQty(maxErrorTolerance int) (nPages int) {
 	if rows%repo.resultsPerPage > 0 && rows > 0 {
 		nPages++
 	}
-	result.Close()
+	result.Close() // nolint
 	return
 }
 
@@ -93,7 +93,7 @@ func (repo *errorControlRepo) DelSyncError(imgPath string) error {
 	if err != nil {
 		return err
 	}
-	result.Close()
+	result.Close() // nolint
 	return nil
 }
 
@@ -116,7 +116,7 @@ func (repo *errorControlRepo) SetErrorCounter(imagePath string, count int) (err 
 	if err != nil {
 		return fmt.Errorf("There was an error creating errors sync: %+v", err)
 	}
-	row.Close()
+	row.Close() // nolint
 	return
 }
 
@@ -138,6 +138,6 @@ func (repo *errorControlRepo) AddSyncError(imagePath string) (err error) {
 	if err != nil {
 		return fmt.Errorf("There was an error creating errors sync: %+v", err)
 	}
-	row.Close()
+	row.Close() // nolint
 	return
 }

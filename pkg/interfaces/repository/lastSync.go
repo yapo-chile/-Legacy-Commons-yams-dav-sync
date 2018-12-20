@@ -31,7 +31,7 @@ func (repo *lastSyncRepo) GetLastSync() (lastSyncDate time.Time) {
 	if err != nil {
 		return repo.defaultDate
 	}
-	defer result.Close()
+	defer result.Close() // nolint
 	if result.Next() {
 		err = result.Scan(&lastSyncDate)
 		if err != nil {
@@ -59,6 +59,6 @@ func (repo *lastSyncRepo) SetLastSync(dateMark string) (err error) {
 		return
 	}
 
-	row.Close()
+	row.Close() // nolint
 	return
 }

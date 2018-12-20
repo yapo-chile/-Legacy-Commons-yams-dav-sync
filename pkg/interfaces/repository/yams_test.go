@@ -135,30 +135,30 @@ func (m *mockReader) Close() error {
 	return args.Error(0)
 }
 
-type mFileSystemView struct {
+type mockFileSystemView struct {
 	mock.Mock
 }
 
-func (m *mFileSystemView) Open(name string) (usecases.File, error) {
+func (m *mockFileSystemView) Open(name string) (usecases.File, error) {
 	args := m.Called(name)
 	return args.Get(0).(usecases.File), args.Error(1)
 }
 
-func (m *mFileSystemView) Stat(path string) (os.FileInfo, error) {
+func (m *mockFileSystemView) Stat(path string) (os.FileInfo, error) {
 	args := m.Called(path)
 	return args.Get(0).(os.FileInfo), args.Error(1)
 }
 
-type mFile struct {
+type mockFile struct {
 	mock.Mock
 }
 
-func (m *mFile) Close() (err error) {
+func (m *mockFile) Close() (err error) {
 	args := m.Called()
 	return args.Error(0)
 }
 
-func (m *mFile) Read(p []byte) (int, error) {
+func (m *mockFile) Read(p []byte) (int, error) {
 	args := m.Called(p)
 	return args.Int(0), args.Error(1)
 }
@@ -168,8 +168,8 @@ func TestPutImageErrorOpeningFile(t *testing.T) {
 	mSigner := mockSigner{}
 	mHandler := mockHTTPHandler{}
 	mRequest := mockRequest{}
-	mFileSystemView := mFileSystemView{}
-	mFile := mFile{}
+	mFileSystemView := mockFileSystemView{}
+	mFile := mockFile{}
 
 	localImageRepo := NewLocalImageRepo("", &mFileSystemView)
 	yamsRepo := YamsRepository{
@@ -204,8 +204,8 @@ func TestPutImage(t *testing.T) {
 	mSigner := mockSigner{}
 	mHandler := mockHTTPHandler{}
 	mRequest := mockRequest{}
-	mFileSystemView := mFileSystemView{}
-	mFile := mFile{}
+	mFileSystemView := mockFileSystemView{}
+	mFile := mockFile{}
 
 	localImageRepo := NewLocalImageRepo("", &mFileSystemView)
 	yamsRepo := YamsRepository{
@@ -224,7 +224,7 @@ func TestPutImage(t *testing.T) {
 	mRequest.On("SetMethod", mock.AnythingOfType("string")).Return(&mRequest)
 	mRequest.On("SetPath", mock.AnythingOfType("string")).Return(&mRequest)
 	mRequest.On("SetQueryParams", mock.AnythingOfType("map[string]string")).Return(&mRequest)
-	mRequest.On("SetImgBody", mock.AnythingOfType("*repository.mFile")).Return(&mRequest)
+	mRequest.On("SetImgBody", mock.AnythingOfType("*repository.mockFile")).Return(&mRequest)
 	mRequest.On("SetTimeOut", mock.AnythingOfType("int")).Return(&mRequest)
 
 	mFile.On("Close").Return(nil)

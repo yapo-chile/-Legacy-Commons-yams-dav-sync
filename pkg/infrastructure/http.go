@@ -58,7 +58,7 @@ func (*HTTPHandler) Send(req repository.HTTPRequest) (repository.HTTPResponse, e
 		logger.Error("HTTP - %s - Error reading response: %+v", req.GetMethod(), err)
 	}
 
-	defer resp.Body.Close()
+	defer resp.Body.Close() // nolint
 	return repository.HTTPResponse{
 			Body:    string(response),
 			Code:    resp.StatusCode,
