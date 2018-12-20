@@ -113,7 +113,7 @@ func (cli *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string) er
 	}
 	err := cli.Interactor.SetLastSynchornizationMark(imageDateStr)
 	if err != nil {
-		return fmt.Errorf("Error setting synchornization mark %+v", err)
+		return fmt.Errorf("Error setting synchronization mark %+v", err)
 	}
 
 	return nil

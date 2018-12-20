@@ -47,7 +47,6 @@ func (signer *jwtSigner) GenerateTokenString(claims jwt.Claims) string {
 	tokenString, err := token.SignedString(signer.getRSAKey())
 	if err != nil {
 		signer.logger.Error("Error with signature for claims: %+v", err)
-		return ""
 	}
 	return tokenString
 }
