@@ -39,14 +39,12 @@ func (repo *LocalImageRepo) GetImage(imagePath string) (domain.Image, error) {
 		return domain.Image{}, fmt.Errorf("ImagePath too short: %+v", imagePath)
 	}
 	filePath := path.Join(repo.path, imagePath[:2], imagePath)
-	f, err := repo.fileSystemView.Open(filePath)
+	f, err := repo.Open(filePath)
 	if err != nil {
 		return domain.Image{}, err
 	}
-	fileInfo, err := repo.fileSystemView.Stat(filePath)
-	if err != nil {
-		return domain.Image{}, err
-	}
+	defer f.Close() // nolint:errcheck,gosec
+
 	hash := md5.New() // nolint:gosec
 	_, err = io.Copy(hash, f)
 	if err != nil {
@@ -55,12 +53,11 @@ func (repo *LocalImageRepo) GetImage(imagePath string) (domain.Image, error) {
 	image := domain.Image{
 		FilePath: filePath,
 		Metadata: domain.ImageMetadata{
-			ImageName: fileInfo.Name(),
-			Size:      fileInfo.Size(),
+			ImageName: repo.fileSystemView.Name(filePath),
+			Size:      repo.fileSystemView.Size(filePath),
 			Checksum:  hex.EncodeToString(hash.Sum(nil)),
-			ModTime:   fileInfo.ModTime(),
+			ModTime:   repo.fileSystemView.ModTime(filePath),
 		},
 	}
-	f.Close() // nolint
 	return image, nil
 }

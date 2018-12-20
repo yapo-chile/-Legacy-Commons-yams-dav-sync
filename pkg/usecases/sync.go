@@ -57,9 +57,9 @@ func (i *SyncInteractor) GetErrorsPagesQty(maxErrorTolerance int) int {
 	return i.ErrorControlRepo.GetPagesQty(maxErrorTolerance)
 }
 
-// GetPreviusErrors gets a list with previus errors, errors must have itsown counter
+// GetPreviousErrors gets a list with previus errors, errors must have itsown counter
 // over maxErrorTolerance
-func (i *SyncInteractor) GetPreviusErrors(pagination, maxErrorTolerance int) ([]string, error) {
+func (i *SyncInteractor) GetPreviousErrors(pagination, maxErrorTolerance int) ([]string, error) {
 	return i.ErrorControlRepo.GetSyncErrors(pagination, maxErrorTolerance)
 }
 

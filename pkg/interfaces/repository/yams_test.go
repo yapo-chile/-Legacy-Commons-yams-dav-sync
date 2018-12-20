@@ -3,8 +3,8 @@ package repository
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"testing"
+	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
@@ -144,9 +144,19 @@ func (m *mockFileSystemView) Open(name string) (usecases.File, error) {
 	return args.Get(0).(usecases.File), args.Error(1)
 }
 
-func (m *mockFileSystemView) Stat(path string) (os.FileInfo, error) {
+func (m *mockFileSystemView) Name(path string) string {
 	args := m.Called(path)
-	return args.Get(0).(os.FileInfo), args.Error(1)
+	return args.String(0)
+}
+
+func (m *mockFileSystemView) Size(path string) int64 {
+	args := m.Called(path)
+	return args.Get(0).(int64)
+}
+
+func (m *mockFileSystemView) ModTime(path string) time.Time {
+	args := m.Called(path)
+	return args.Get(0).(time.Time)
 }
 
 type mockFile struct {

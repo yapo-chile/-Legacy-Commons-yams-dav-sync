@@ -36,6 +36,7 @@ func (repo *errorControlRepo) GetSyncErrors(nPage, maxErrorTolerance int) (resul
 		repo.resultsPerPage,
 		nPage,
 	))
+	defer rows.Close() // nolint
 
 	if err != nil {
 		return result, fmt.Errorf("Error getting synchronization marks: %+v", err)
@@ -46,7 +47,6 @@ func (repo *errorControlRepo) GetSyncErrors(nPage, maxErrorTolerance int) (resul
 		rows.Scan(&imgPath) // nolint
 		result = append(result, imgPath)
 	}
-	rows.Close() // nolint
 	return result, nil
 }
 
@@ -64,6 +64,7 @@ func (repo *errorControlRepo) GetPagesQty(maxErrorTolerance int) (nPages int) {
 			maxErrorTolerance,
 		),
 	)
+	defer result.Close() // nolint
 	if err != nil {
 		return 0
 	}
@@ -78,7 +79,6 @@ func (repo *errorControlRepo) GetPagesQty(maxErrorTolerance int) (nPages int) {
 	if rows%repo.resultsPerPage > 0 && rows > 0 {
 		nPages++
 	}
-	result.Close() // nolint
 	return
 }
 
@@ -90,11 +90,8 @@ func (repo *errorControlRepo) DelSyncError(imgPath string) error {
 		where image_path = '%s'`,
 		imgPath,
 	))
-	if err != nil {
-		return err
-	}
-	result.Close() // nolint
-	return nil
+	defer result.Close() // nolint
+	return err
 }
 
 // SetErrorCounter sets the error counter in repository for a specific image, if
@@ -112,11 +109,11 @@ func (repo *errorControlRepo) SetErrorCounter(imagePath string, count int) (err 
 			count,
 			count,
 		))
+	defer row.Close() // nolint
 
 	if err != nil {
 		return fmt.Errorf("There was an error creating errors sync: %+v", err)
 	}
-	row.Close() // nolint
 	return
 }
 
@@ -134,10 +131,9 @@ func (repo *errorControlRepo) AddSyncError(imagePath string) (err error) {
 				error_counter = sync_error.error_counter + 1`,
 			imagePath,
 		))
-
+	defer row.Close() // nolint
 	if err != nil {
 		return fmt.Errorf("There was an error creating errors sync: %+v", err)
 	}
-	row.Close() // nolint
 	return
 }

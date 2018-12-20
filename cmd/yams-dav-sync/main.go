@@ -47,7 +47,10 @@ func main() {
 	object := flag.String("object", "", "image name to be deleted in yams")
 	flag.Parse()
 
-	threads, _ := strconv.Atoi(*threadsStr) //nolint
+	threads, e := strconv.Atoi(*threadsStr)
+	if e != nil {
+		logger.Error("Error: %+v. Threads set as %+v", e, threads)
+	}
 	// Setting up insfrastructure
 	HTTPHandler := infrastructure.NewHTTPHandler()
 
@@ -110,23 +113,30 @@ func main() {
 	switch *opt {
 	case "sync":
 		if *dumpFile != "" && threads > 0 {
-			CLIYams.Sync(threads, maxErrorQty, *dumpFile) // nolint
-
+			if e := CLIYams.Sync(threads, maxErrorQty, *dumpFile); e != nil {
+				logger.Error("Error with synchornization: %+v", e)
+			}
 		} else {
-			fmt.Println("make start command=sync threads=[number] dump-file=[path]")
+			logger.Error("make start command=sync threads=[number] dump-file=[path]")
 		}
 	case "list":
-		CLIYams.List() // nolint
+		if e := CLIYams.List(); e != nil {
+			logger.Error("Error listing: %+v", e)
+		}
 	case "deleteAll":
 		if threads > 0 {
-			CLIYams.DeleteAll(threads) // nolint
+			if e := CLIYams.DeleteAll(threads); e != nil {
+				logger.Error("Error deleting: %+v ", e)
+			}
 		} else {
-			fmt.Println("make start command=deleteAll threads=[number]")
+			logger.Error("make start command=deleteAll threads=[number]")
 		}
 	case "delete":
-		CLIYams.Delete(*object) // nolint
+		if e := CLIYams.Delete(*object); e != nil {
+			logger.Error("Error deleting: %+v", e)
+		}
 	default:
-		fmt.Printf("Make start command=[commmand]\nCommand list:\n- sync \n- list\n- deleteAll\n")
+		logger.Error("Make start command=[commmand]\nCommand list:\n- sync \n- list\n- deleteAll\n")
 	}
 }
 
@@ -146,13 +156,19 @@ func setUpMigrations(conf infrastructure.Config, dbHandler *infrastructure.Pgsql
 		logger.Error("Consume migrations sources err %#v", err)
 		return
 	}
-	version, _, _ := mig.Version() // nolint
+	version, _, e := mig.Version()
+	if e != nil {
+		logger.Error("Error getting current migration version: %#v", e)
+	}
 	logger.Info("Migrations Actual Version %d", version)
 	err = mig.Up()
 	if err != nil && err != migrate.ErrNoChange {
 		logger.Info("Migration message: %v", err)
 		return
 	}
-	version, _, _ = mig.Version() // nolint
+	version, _, e = mig.Version()
+	if e != nil {
+		logger.Error("Error getting current migration version: %#v", e)
+	}
 	logger.Info("Migrations upgraded to version %d", version)
 }

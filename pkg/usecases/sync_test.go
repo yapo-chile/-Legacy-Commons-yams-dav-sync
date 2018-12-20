@@ -161,7 +161,7 @@ func TestGetPagesQty(t *testing.T) {
 	mErrorControlRepo.AssertExpectations(t)
 }
 
-func TestGetPreviusErrors(t *testing.T) {
+func TestGetPreviousErrors(t *testing.T) {
 	mErrorControlRepo := mockErrorControlRepo{}
 	sync := SyncInteractor{ErrorControlRepo: &mErrorControlRepo}
 	expected := []string{"errorcito"}
@@ -170,7 +170,7 @@ func TestGetPreviusErrors(t *testing.T) {
 		mock.AnythingOfType("int"),
 		mock.AnythingOfType("int"),
 	).Return(expected, nil)
-	result, err := sync.GetPreviusErrors(1, 1)
+	result, err := sync.GetPreviousErrors(1, 1)
 	assert.Equal(t, expected, result)
 	assert.Nil(t, err)
 	mErrorControlRepo.AssertExpectations(t)
