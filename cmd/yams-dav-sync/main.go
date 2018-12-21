@@ -52,7 +52,7 @@ func main() {
 		logger.Error("Error: %+v. Threads set as %+v", e, threads)
 	}
 	// Setting up insfrastructure
-	HTTPHandler := infrastructure.NewHTTPHandler()
+	HTTPHandler := infrastructure.NewHTTPHandler(logger)
 
 	signer := infrastructure.NewJWTSigner(conf.YamsConf.PrivateKeyFile, logger)
 
@@ -66,7 +66,7 @@ func main() {
 
 	localImageRepo := repository.NewLocalImageRepo(
 		conf.LocalStorageConf.Path,
-		infrastructure.NewLocalFileSystemView(),
+		infrastructure.NewLocalFileSystemView(logger),
 	)
 
 	yamsRepo := repository.NewYamsRepository(

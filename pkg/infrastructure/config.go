@@ -59,7 +59,7 @@ type ErrorControlConf struct {
 // LastSyncConf holds all configurations for last synchronization marks
 type LastSyncConf struct {
 	DefaultDate   string `env:"DEFAULT_DATE" envDefault:"31-12-2015"`
-	DefaultLayout string `env:"DEFAULT_LAYAOUT" envDefault:"31-12-2015"`
+	DefaultLayout string `env:"DEFAULT_LAYAOUT" envDefault:"02-01-2006"`
 }
 
 // DatabaseConf holds all configurations to connect with postgreSQL database
