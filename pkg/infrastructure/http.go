@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Yapo/logger"
+	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/loggers"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/repository"
 )
 
@@ -21,17 +21,19 @@ var errorCodes = map[int]string{
 }
 
 // HTTPHandler struct to implements http repository operations
-type HTTPHandler struct{}
+type HTTPHandler struct {
+	logger loggers.Logger
+}
 
 // NewHTTPHandler will create a new instance of a custom http request handler
-func NewHTTPHandler() repository.HTTPHandler {
-	return &HTTPHandler{}
+func NewHTTPHandler(logger loggers.Logger) repository.HTTPHandler {
+	return &HTTPHandler{logger: logger}
 }
 
 // Send will execute the sending of a http request
 // a custom http client has been made to add a request timeout of 10 seconds
-func (*HTTPHandler) Send(req repository.HTTPRequest) (repository.HTTPResponse, error) {
-	logger.Debug("HTTP - %s - Sending HTTP request to: %+v", req.GetMethod(), req.GetPath())
+func (h *HTTPHandler) Send(req repository.HTTPRequest) (repository.HTTPResponse, error) {
+	h.logger.Debug("HTTP - %s - Sending HTTP request to: %+v", req.GetMethod(), req.GetPath())
 
 	// this makes a custom http client with a timeout in secs for each request
 	var httpClient = &http.Client{
@@ -39,7 +41,7 @@ func (*HTTPHandler) Send(req repository.HTTPRequest) (repository.HTTPResponse, e
 	}
 	resp, err := httpClient.Do(&req.(*request).innerRequest)
 	if err != nil {
-		logger.Error("HTTP - %s - Error sending HTTP request: %+v", req.GetMethod(), err)
+		h.logger.Error("HTTP - %s - Error sending HTTP request: %+v", req.GetMethod(), err)
 		return repository.HTTPResponse{
 				Code: http.StatusBadRequest,
 			},
@@ -48,17 +50,17 @@ func (*HTTPHandler) Send(req repository.HTTPRequest) (repository.HTTPResponse, e
 
 	response, err := ioutil.ReadAll(resp.Body)
 	if val, ok := errorCodes[resp.StatusCode]; ok {
-		logger.Error("HTTP - %s - Received an error response: %+v", req.GetMethod(), val)
+		h.logger.Error("HTTP - %s - Received an error response: %+v", req.GetMethod(), val)
 		return repository.HTTPResponse{
 				Code: resp.StatusCode,
 			},
 			fmt.Errorf("%s", response)
 	}
 	if err != nil {
-		logger.Error("HTTP - %s - Error reading response: %+v", req.GetMethod(), err)
+		h.logger.Error("HTTP - %s - Error reading response: %+v", req.GetMethod(), err)
 	}
 
-	defer resp.Body.Close()
+	defer resp.Body.Close() // nolint
 	return repository.HTTPResponse{
 			Body:    string(response),
 			Code:    resp.StatusCode,
@@ -72,15 +74,17 @@ type request struct {
 	innerRequest http.Request
 	body         interface{}
 	timeOut      time.Duration
+	logger       loggers.Logger
 }
 
 // NewRequest returns an initialized struct that can be used to make a http request
-func (*HTTPHandler) NewRequest() repository.HTTPRequest {
+func (h *HTTPHandler) NewRequest() repository.HTTPRequest {
 	return &request{
 		innerRequest: http.Request{
 			Header: make(http.Header),
 		},
 		timeOut: time.Duration(10),
+		logger:  h.logger,
 	}
 }
 
@@ -100,7 +104,7 @@ func (r *request) SetPath(path string) repository.HTTPRequest {
 	url, err := url.Parse(path)
 	r.innerRequest.URL = url
 	if err != nil {
-		logger.Error("HTTP - there was an error setting the request path: %+v", err)
+		r.logger.Error("HTTP - there was an error setting the request path: %+v", err)
 	}
 	return r
 }
@@ -132,7 +136,7 @@ func (r *request) SetBody(body interface{}) repository.HTTPRequest {
 	if body != nil {
 		jsonBody, err := json.Marshal(body)
 		if err != nil {
-			logger.Error("HTTP - Error parsing request data to json: %+v", err)
+			r.logger.Error("HTTP - Error parsing request data to json: %+v", err)
 		}
 		reader = strings.NewReader(string(jsonBody))
 	}

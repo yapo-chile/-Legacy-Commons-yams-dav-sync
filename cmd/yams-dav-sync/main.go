@@ -37,7 +37,7 @@ func main() {
 	logger, err := infrastructure.MakeYapoLogger(&conf.LoggerConf)
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(2)
+		os.Exit(1)
 	}
 
 	opt := flag.String("command", "list", "command to execute syncher script")
@@ -47,11 +47,14 @@ func main() {
 	object := flag.String("object", "", "image name to be deleted in yams")
 	flag.Parse()
 
-	threads, _ := strconv.Atoi(*threadsStr)
+	threads, e := strconv.Atoi(*threadsStr)
+	if e != nil {
+		logger.Error("Error: %+v. Threads set as %+v", e, threads)
+	}
 	// Setting up insfrastructure
-	HTTPHandler := infrastructure.NewHTTPHandler()
+	HTTPHandler := infrastructure.NewHTTPHandler(logger)
 
-	signer := infrastructure.NewJWTSigner(conf.YamsConf.PrivateKeyFile)
+	signer := infrastructure.NewJWTSigner(conf.YamsConf.PrivateKeyFile, logger)
 
 	dbHandler, err := infrastructure.NewPgsqlHandler(conf.Database, logger)
 	if err != nil {
@@ -61,6 +64,11 @@ func main() {
 
 	setUpMigrations(conf, dbHandler, logger)
 
+	localImageRepo := repository.NewLocalImageRepo(
+		conf.LocalStorageConf.Path,
+		infrastructure.NewLocalFileSystemView(logger),
+	)
+
 	yamsRepo := repository.NewYamsRepository(
 		signer,
 		conf.YamsConf.MgmtURL,
@@ -68,30 +76,32 @@ func main() {
 		conf.YamsConf.TenantID,
 		conf.YamsConf.DomainID,
 		conf.YamsConf.BucketID,
+		localImageRepo,
 		loggers.MakeYamsRepoLogger(logger),
 		HTTPHandler,
 		conf.YamsConf.TimeOut,
 		conf.YamsConf.MaxConcurrentConns,
 	)
 
-	defaultLastSyncDate, _ := time.Parse("02-01-2006", conf.LastSync.DefaultDate)
+	defaultLastSyncDate, err := time.Parse(conf.LastSync.DefaultLayout, conf.LastSync.DefaultDate)
+	if err != nil {
+		fmt.Printf("Wrong date layout %+v for date %+v",
+			conf.LastSync.DefaultLayout,
+			conf.LastSync.DefaultDate)
+		os.Exit(3)
+	}
 	lastSyncRepo := repository.NewLastSyncRepo(dbHandler, defaultLastSyncDate)
 
-	syncErrorRepo := repository.NewErrorControlRepo(
+	errorControlRepo := repository.NewErrorControlRepo(
 		dbHandler,
-		conf.ErrorControl.MaxRetriesPerError,
 		conf.ErrorControl.MaxResultsPerPage,
 	)
 
-	localStorageRepo := repository.NewLocalStorageRepo(
-		conf.LocalStorageConf.Path,
-		logger,
-	)
 	syncInteractor := usecases.SyncInteractor{
 		YamsRepo:         yamsRepo,
-		LocalStorageRepo: localStorageRepo,
+		ImageRepo:        localImageRepo,
 		LastSyncRepo:     lastSyncRepo,
-		SyncErrorRepo:    syncErrorRepo,
+		ErrorControlRepo: errorControlRepo,
 	}
 	CLIYams := interfaces.CLIYams{
 		Interactor: syncInteractor,
@@ -103,22 +113,30 @@ func main() {
 	switch *opt {
 	case "sync":
 		if *dumpFile != "" && threads > 0 {
-			CLIYams.Sync(threads, maxErrorQty, *dumpFile)
+			if e := CLIYams.Sync(threads, maxErrorQty, *dumpFile); e != nil {
+				logger.Error("Error with synchornization: %+v", e)
+			}
 		} else {
-			fmt.Println("make start command=sync threads=[number] dump-file=[path]")
+			logger.Error("make start command=sync threads=[number] dump-file=[path]")
 		}
 	case "list":
-		CLIYams.List()
+		if e := CLIYams.List(); e != nil {
+			logger.Error("Error listing: %+v", e)
+		}
 	case "deleteAll":
 		if threads > 0 {
-			CLIYams.DeleteAll(threads)
+			if e := CLIYams.DeleteAll(threads); e != nil {
+				logger.Error("Error deleting: %+v ", e)
+			}
 		} else {
-			fmt.Println("make start command=deleteAll threads=[number]")
+			logger.Error("make start command=deleteAll threads=[number]")
 		}
 	case "delete":
-		CLIYams.Delete(*object)
+		if e := CLIYams.Delete(*object); e != nil {
+			logger.Error("Error deleting: %+v", e)
+		}
 	default:
-		fmt.Printf("Make start command=[commmand]\nCommand list:\n- sync \n- list\n- deleteAll\n")
+		logger.Error("Make start command=[commmand]\nCommand list:\n- sync \n- list\n- deleteAll\n")
 	}
 }
 
@@ -138,13 +156,19 @@ func setUpMigrations(conf infrastructure.Config, dbHandler *infrastructure.Pgsql
 		logger.Error("Consume migrations sources err %#v", err)
 		return
 	}
-	version, _, _ := mig.Version()
+	version, _, e := mig.Version()
+	if e != nil {
+		logger.Error("Error getting current migration version: %#v", e)
+	}
 	logger.Info("Migrations Actual Version %d", version)
 	err = mig.Up()
 	if err != nil && err != migrate.ErrNoChange {
 		logger.Info("Migration message: %v", err)
 		return
 	}
-	version, _, _ = mig.Version()
+	version, _, e = mig.Version()
+	if e != nil {
+		logger.Error("Error getting current migration version: %#v", e)
+	}
 	logger.Info("Migrations upgraded to version %d", version)
 }

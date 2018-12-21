@@ -1,32 +1,49 @@
-hash: 7812702a7be3fe433d43122526a38c1b3da4850a02573a27157296f4b997154e
-updated: 2018-11-21T15:41:12.123138754-03:00
+hash: 79f739e673334fa52e75255f47a1930fdece78f46cffb54689a204d588c2dabf
+updated: 2018-12-20T14:38:36.456117003-03:00
 imports:
-- name: github.com/dgrijalva/jwt-go
-  version: 06ea1031745cb8b3dab3f6a236daf2b0aa468b7e
-- name: github.com/go-redis/redis
-  version: 78a66f0e5fd787d5d0ba6ef4cc442895288229ad
-  subpackages:
-  - internal
-  - internal/consistenthash
-  - internal/hashtag
-  - internal/pool
-  - internal/proto
-  - internal/singleflight
-  - internal/util
-- name: github.com/spf13/viper
-  version: 2c12c60302a5a0e62ee102ca9bc996277c2f64f5
-- name: github.com/Yapo/logger
-  version: 91855e974718b8c68dd00e63817568f1f512a4cc
-testImports:
+- name: github.com/armon/go-socks5
+  version: e75332964ef517daa070d7c38a9466a0d687e0a5
+- name: github.com/aybabtme/iocontrol
+  version: ad15bcfc95a08d0b9d072012fb7618512aafb99b
+- name: github.com/benbjohnson/clock
+  version: 7dc76406b6d3c05b5f71a86293cbcf3c4ea03b19
 - name: github.com/davecgh/go-spew
   version: d8f796af33cc11cb798c1aaeb27a4ebc5099927d
   subpackages:
   - spew
+- name: github.com/dgrijalva/jwt-go
+  version: 06ea1031745cb8b3dab3f6a236daf2b0aa468b7e
+- name: github.com/jinzhu/gorm
+  version: 472c70caa40267cb89fd8facb07fe6454b578626
+  subpackages:
+  - dialects/postgres
+- name: github.com/lib/pq
+  version: 9eb73efc1fcc404148b56765b0d3f61d9a5ef8ee
+  subpackages:
+  - hstore
+  - oid
+- name: github.com/mattes/migrate
+  version: 4768a648fbd9e04389a73a21139d14a4ccb1a61a
+  subpackages:
+  - database
+  - database/postgres
+  - source
+  - source/file
 - name: github.com/pmezard/go-difflib
   version: 792786c7400a136282c1664665ae0a8db921c6c2
   subpackages:
   - difflib
+- name: github.com/stretchr/objx
+  version: ef50b0de28773081167c97fc27cf29a0bf8b8c71
 - name: github.com/stretchr/testify
   version: f35b8ab0b5a2cef36673838d662e249dd9c94686
   subpackages:
   - assert
+  - mock
+- name: github.com/Yapo/logger
+  version: 91855e974718b8c68dd00e63817568f1f512a4cc
+- name: golang.org/x/net
+  version: e147a9138326bc0e9d4e179541ffd8af41cff8a9
+  subpackages:
+  - context
+testImports: []

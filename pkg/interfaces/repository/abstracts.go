@@ -4,6 +4,8 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
 
 // DbHandler represents a database connection handler
@@ -16,6 +18,7 @@ type DbHandler interface {
 	Query(statement string) (DbResult, error)
 }
 
+// DbRepo contains an instance of a DBHandler
 type DbRepo struct {
 	Handler DbHandler
 }
@@ -67,4 +70,12 @@ type HTTPResponse struct {
 	Body    interface{}
 	Code    int
 	Headers http.Header
+}
+
+// FileSystemView allows FileSystem's operations to view elements in local storage
+type FileSystemView interface {
+	Open(name string) (usecases.File, error)
+	ModTime(name string) time.Time
+	Name(name string) string
+	Size(name string) int64
 }

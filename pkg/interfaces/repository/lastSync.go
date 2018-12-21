@@ -28,10 +28,10 @@ func (repo *lastSyncRepo) GetLastSync() (lastSyncDate time.Time) {
 		FROM last_sync 
 		ORDER BY last_sync_id DESC 
 		LIMIT 1`)
+	defer result.Close() // nolint
 	if err != nil {
 		return repo.defaultDate
 	}
-	defer result.Close()
 	if result.Next() {
 		err = result.Scan(&lastSyncDate)
 		if err != nil {
@@ -53,12 +53,10 @@ func (repo *lastSyncRepo) SetLastSync(dateMark string) (err error) {
 		VALUES ('%s')`,
 		dateMark,
 	))
-
+	defer row.Close() // nolint
 	if err != nil {
 		err = fmt.Errorf("There was an error creating last synchronization mark: %+v", err)
 		return
 	}
-
-	row.Close()
 	return
 }

@@ -3,7 +3,6 @@ package repository
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
@@ -14,8 +13,8 @@ import (
 // YamsRepository is yams bucket representation that allows operations
 // execution using http requests
 type YamsRepository struct {
-	// MaxConcurrentThreads max number of concurrent connection to yams
-	MaxConcurrentThreads int
+	// maxConcurrentThreads max number of concurrent connection to yams
+	maxConcurrentThreads int
 	// jwtSigner validates each request with jwt signature
 	jwtSigner Signer
 	// mgtURL contains the url of yams management server
@@ -30,6 +29,8 @@ type YamsRepository struct {
 	bucketID string
 	// http is the http client to connect to yams using http protocol
 	http *HTTPRepository
+	// localImageRepo  repo to execute operations in local storage
+	localImageRepo usecases.ImageRepository
 	// logger logs yams repository events
 	logger YamsRepositoryLogger
 }
@@ -41,7 +42,7 @@ type Signer interface {
 
 // NewYamsRepository creates a new instance of YamsRepository
 func NewYamsRepository(jwtSigner Signer, mgmtURL, accessKeyID, tenantID,
-	domainID, bucketID string, logger YamsRepositoryLogger, handler HTTPHandler,
+	domainID, bucketID string, localImageRepo usecases.ImageRepository, logger YamsRepositoryLogger, handler HTTPHandler,
 	timeOut int, maxConcurrentThreads int) *YamsRepository {
 	return &YamsRepository{
 		jwtSigner:   jwtSigner,
@@ -55,7 +56,8 @@ func NewYamsRepository(jwtSigner Signer, mgmtURL, accessKeyID, tenantID,
 			Handler: handler,
 			TimeOut: timeOut,
 		},
-		MaxConcurrentThreads: maxConcurrentThreads,
+		maxConcurrentThreads: maxConcurrentThreads,
+		localImageRepo:       localImageRepo,
 	}
 }
 
@@ -68,18 +70,15 @@ type YamsRepositoryLogger interface {
 
 // GetMaxConcurrentConns gets the max number of concurrent connections to yams
 func (repo *YamsRepository) GetMaxConcurrentConns() int {
-	return repo.MaxConcurrentThreads
+	return repo.maxConcurrentThreads
 }
 
 // GetDomains gets domains from yams, domains belongs to the repo tenant
 func (repo *YamsRepository) GetDomains() string {
 
-	type Metadata struct{}
-
 	type MyCustomClaims struct {
 		jwt.StandardClaims
-		Rqs      string   `json:"rqs"`
-		Metadata Metadata `json:"metadata"`
+		Rqs string `json:"rqs"`
 	}
 
 	path := "/tenants/" + repo.tenantID + "/domains"
@@ -90,7 +89,6 @@ func (repo *YamsRepository) GetDomains() string {
 			IssuedAt: time.Now().Unix(),
 		},
 		"GET\\" + path,
-		Metadata{},
 	}
 
 	tokenString := repo.jwtSigner.GenerateTokenString(claims)
@@ -110,11 +108,11 @@ func (repo *YamsRepository) GetDomains() string {
 		SetQueryParams(queryParams)
 	resp, err := repo.http.Handler.Send(request)
 	repo.logger.LogStatus(resp.Code)
-	body := fmt.Sprintf("%s", resp.Body)
+	domains := fmt.Sprintf("%s", resp.Body)
 
-	repo.logger.LogResponse(body, err)
+	repo.logger.LogResponse(domains, err)
 
-	return ""
+	return domains
 }
 
 // PutImage puts a image in yams repository
@@ -152,11 +150,11 @@ func (repo *YamsRepository) PutImage(image domain.Image) *usecases.YamsRepositor
 		"AccessKeyId": repo.accessKeyID,
 	}
 
-	imageFile, err := os.Open(image.FilePath)
+	imageFile, err := repo.localImageRepo.Open(image.FilePath)
 	if err != nil {
 		return usecases.ErrYamsImage
 	}
-	defer imageFile.Close()
+	defer imageFile.Close() // nolint
 
 	request := repo.http.Handler.
 		NewRequest().
@@ -235,7 +233,8 @@ func (repo *YamsRepository) DeleteImage(imageName string, immediateRemoval bool)
 		NewRequest().
 		SetMethod("DELETE").
 		SetPath(requestURI).
-		SetQueryParams(queryParams)
+		SetQueryParams(queryParams).
+		SetTimeOut(repo.http.TimeOut)
 
 	resp, err := repo.http.Handler.Send(request)
 	repo.logger.LogStatus(resp.Code)
@@ -256,7 +255,7 @@ func (repo *YamsRepository) DeleteImage(imageName string, immediateRemoval bool)
 		return usecases.ErrYamsInternal
 	case 503: // Service temporarily unavailable
 		return usecases.ErrYamsInternal
-	default: // Unkown error
+	default: // Unknown error
 		return usecases.ErrYamsInternal
 	}
 }
@@ -296,7 +295,8 @@ func (repo *YamsRepository) HeadImage(imageName string) (string, *usecases.YamsR
 		NewRequest().
 		SetMethod("HEAD").
 		SetPath(requestURI).
-		SetQueryParams(queryParams)
+		SetQueryParams(queryParams).
+		SetTimeOut(repo.http.TimeOut)
 
 	resp, err := repo.http.Handler.Send(request)
 	repo.logger.LogStatus(resp.Code)
@@ -356,7 +356,8 @@ func (repo *YamsRepository) GetImages() ([]usecases.YamsObject, *usecases.YamsRe
 		NewRequest().
 		SetMethod("GET").
 		SetPath(requestURI).
-		SetQueryParams(queryParams)
+		SetQueryParams(queryParams).
+		SetTimeOut(repo.http.TimeOut)
 	resp, err := repo.http.Handler.Send(request)
 
 	body := fmt.Sprintf("%s", resp.Body)

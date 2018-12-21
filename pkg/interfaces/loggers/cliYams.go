@@ -27,3 +27,19 @@ func MakeCLIYamsLogger(logger Logger) interfaces.CLIYamsLogger {
 		logger: logger,
 	}
 }
+
+func (l *cliYamsLogger) LogErrorCleaningMarks(imgName string, err error) {
+	l.logger.Error("Error cleaning error marks for %+v, error: %+v", imgName, err)
+}
+
+func (l *cliYamsLogger) LogErrorRemoteDelete(imgName string, err error) {
+	l.logger.Error("Error deleting remote image %+v, error: %+v", imgName, err)
+}
+
+func (l *cliYamsLogger) LogErrorResetingErrorCounter(imgName string, err error) {
+	l.logger.Error("Error reseting error counter for %+v, error: %+v", imgName, err)
+}
+
+func (l *cliYamsLogger) LogErrorIncreasingErrorCounter(imgName string, err error) {
+	l.logger.Error("Error increasing error counter for %+v, error: %+v", imgName, err)
+}

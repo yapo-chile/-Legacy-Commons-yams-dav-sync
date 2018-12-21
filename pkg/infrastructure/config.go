@@ -28,7 +28,7 @@ type Config struct {
 	LoggerConf       LoggerConf       `env:"LOGGER_"`
 	LocalStorageConf LocalStorage     `env:"IMAGES_"`
 	YamsConf         YamsConf         `env:"YAMS_"`
-	Database         DatabaseConfig   `env:"DATABASE_"`
+	Database         DatabaseConf     `env:"DATABASE_"`
 	ErrorControl     ErrorControlConf `env:"ERRORS_"`
 	LastSync         LastSyncConf     `env:"LAST_SYNC_"`
 }
@@ -38,6 +38,7 @@ type LocalStorage struct {
 	Path string `env:"PATH"`
 }
 
+// YamsConf holds all configuration for yams remote connection
 type YamsConf struct {
 	MgmtURL            string `env:"MGMT_URL" envDefault:"https://mgmt-us-east-1-yams.schibsted.com/api/v1"`
 	AccessKeyID        string `env:"ACCESS_KEY_ID"`
@@ -45,20 +46,24 @@ type YamsConf struct {
 	DomainID           string `env:"DOMAIN_ID"`
 	BucketID           string `env:"BUCKET_ID"`
 	PrivateKeyFile     string `env:"PRIVATE_KEY" envDefault:"writer-key.rsa"`
-	TimeOut            int    `env:"TiMEOUT" envDefault:30`
+	TimeOut            int    `env:"TiMEOUT" envDefault:"30"`
 	MaxConcurrentConns int    `env:"MAX_CONCURRENT_CONN" envDefault:"100"`
 }
 
+// ErrorControlConf holds all configurations for error control
 type ErrorControlConf struct {
 	MaxRetriesPerError int `env:"MAX_RETRIES_PER_ERROR" envDefault:"3"`
 	MaxResultsPerPage  int `env:"MAX_RESULTS_PER_PAGE" envDefault:"10"`
 }
 
+// LastSyncConf holds all configurations for last synchronization marks
 type LastSyncConf struct {
-	DefaultDate string `env:"DEFAULT_DATE" envDefault:"31-12-2015"`
+	DefaultDate   string `env:"DEFAULT_DATE" envDefault:"31-12-2015"`
+	DefaultLayout string `env:"DEFAULT_LAYAOUT" envDefault:"02-01-2006"`
 }
 
-type DatabaseConfig struct {
+// DatabaseConf holds all configurations to connect with postgreSQL database
+type DatabaseConf struct {
 	Host        string `env:"HOST" envDefault:"db"`
 	Port        int    `env:"PORT" envDefault:"5432"`
 	Dbname      string `env:"NAME" envDefault:"pgdb"`

@@ -3,7 +3,6 @@ package interfaces
 import (
 	"bufio"
 	"fmt"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -21,6 +20,10 @@ type CLIYams struct {
 // CLIYamsLogger logs CLI yams events
 type CLIYamsLogger interface {
 	LogImage(int, usecases.YamsObject)
+	LogErrorCleaningMarks(imgName string, err error)
+	LogErrorRemoteDelete(imgName string, err error)
+	LogErrorResetingErrorCounter(imgName string, err error)
+	LogErrorIncreasingErrorCounter(imgName string, err error)
 }
 
 var layout = "20060102T150405"
@@ -28,8 +31,8 @@ var layout = "20060102T150405"
 // retryPreviousFailedUploads gets images from errorControlRepository and try
 // to upload those images to yams one more time. If fails increase the counter of errors
 // in repo. Repository only returns images with less than a specific number of errors.
-func (handler *CLIYams) retryPreviousFailedUploads(threads, maxErrorQty int) error {
-	maxConcurrency := handler.Interactor.YamsRepo.GetMaxConcurrentConns()
+func (cli *CLIYams) retryPreviousFailedUploads(threads, maxErrorTolerance int) {
+	maxConcurrency := cli.Interactor.GetMaxConcurrency()
 	if threads > maxConcurrency {
 		threads = maxConcurrency
 	}
@@ -37,17 +40,16 @@ func (handler *CLIYams) retryPreviousFailedUploads(threads, maxErrorQty int) err
 	jobs := make(chan domain.Image)
 	var waitGroup sync.WaitGroup
 	for w := 0; w < threads; w++ {
-		go handler.sendWorker(w, jobs, &waitGroup, domain.SWRetry)
+		go cli.sendWorker(w, jobs, &waitGroup, domain.SWRetry)
 	}
-	handler.Interactor.SyncErrorRepo.SetMaxErrorQty(maxErrorQty)
-	nPages := handler.Interactor.SyncErrorRepo.GetPagesQty()
+	nPages := cli.Interactor.GetErrorsPagesQty(maxErrorTolerance)
 	for pagination := 1; pagination <= nPages; pagination++ {
-		result, err := handler.Interactor.SyncErrorRepo.GetErrorSync(pagination)
+		result, err := cli.Interactor.GetPreviousErrors(pagination, maxErrorTolerance)
 		if err != nil {
-			return err
+			continue
 		}
 		for _, imagePath := range result {
-			image, err := handler.Interactor.LocalStorageRepo.GetImage(imagePath)
+			image, err := cli.Interactor.GetLocalImage(imagePath)
 			if err != nil {
 				continue
 			}
@@ -57,62 +59,62 @@ func (handler *CLIYams) retryPreviousFailedUploads(threads, maxErrorQty int) err
 
 	close(jobs)
 	waitGroup.Wait()
-	return nil
 }
 
 // Sync synchronizes images between local repository and yams repository
 // using go concurrency
-func (handler *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string) error {
-	maxConcurrency := handler.Interactor.YamsRepo.GetMaxConcurrentConns()
+func (cli *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string) error {
+	maxConcurrency := cli.Interactor.GetMaxConcurrency()
 	if threads > maxConcurrency {
 		threads = maxConcurrency
 	}
 
-	handler.retryPreviousFailedUploads(threads, maxErrorQty)
+	cli.retryPreviousFailedUploads(threads, maxErrorQty)
 
 	jobs := make(chan domain.Image)
 	var waitGroup sync.WaitGroup
 
 	for w := 0; w < threads; w++ {
-		go handler.sendWorker(w, jobs, &waitGroup, domain.SWUpload)
+		go cli.sendWorker(w, jobs, &waitGroup, domain.SWUpload)
 	}
 
 	// Get the data file with list of images to upload
-	file, err := os.Open(imagesDumpYamsPath)
-	defer file.Close()
-
-	if err != nil {
-		return err
+	file, e := cli.Interactor.Open(imagesDumpYamsPath)
+	if e != nil {
+		return e
 	}
+	defer file.Close() // nolint
 
-	lastSyncDate := handler.Interactor.LastSyncRepo.GetLastSync()
+	latestSynchronizedImageDate := cli.Interactor.GetLastSynchornizationMark()
 	scanner := bufio.NewScanner(file)
 	var imagePath, imageDateStr string
 
 	// for each image read from file
 	for scanner.Scan() {
 		tuple := strings.Split(scanner.Text(), " ")
-		if !validateTuple(tuple, lastSyncDate) {
+		if !validateTuple(tuple, latestSynchronizedImageDate) {
 			continue
 		}
 		imageDateStr = tuple[0]
 		imagePath = tuple[1]
-		image, err := handler.Interactor.LocalStorageRepo.GetImage(imagePath)
+		image, err := cli.Interactor.GetLocalImage(imagePath)
 		if err != nil {
 			continue
 		}
 		jobs <- image
 	}
 
-	// If scanner stops because error
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("Error reading data from file: %+v", err)
-	}
-
-	handler.Interactor.LastSyncRepo.SetLastSync(imageDateStr)
-
 	close(jobs)
 	waitGroup.Wait()
+
+	// If scanner stops because error
+	if e := scanner.Err(); e != nil {
+		return fmt.Errorf("Error reading data from file: %+v", e)
+	}
+	err := cli.Interactor.SetLastSynchornizationMark(imageDateStr)
+	if err != nil {
+		return fmt.Errorf("Error setting synchronization mark %+v", err)
+	}
 
 	return nil
 }
@@ -135,28 +137,31 @@ func validateTuple(tuple []string, date time.Time) bool {
 }
 
 // List prints a list of available images in yams repository
-func (handler *CLIYams) List() error {
-	list, err := handler.Interactor.List()
+func (cli *CLIYams) List() error {
+	list, err := cli.Interactor.List()
 	for i, img := range list {
-		handler.Logger.LogImage(i+1, img)
+		cli.Logger.LogImage(i+1, img)
 	}
 	return err
 }
 
 // Delete deletes an object in yams repository
-func (handler *CLIYams) Delete(imageName string) error {
-	return handler.Interactor.Delete(imageName)
+func (cli *CLIYams) Delete(imageName string) error {
+	return cli.Interactor.RemoteDelete(imageName)
 }
 
 // DeleteAll deletes every imagen in yams repository and redis using concurency
-func (handler *CLIYams) DeleteAll(threads int) error {
-	images, _ := handler.Interactor.YamsRepo.GetImages()
+func (cli *CLIYams) DeleteAll(threads int) error {
+	images, err := cli.Interactor.List()
+	if err != nil {
+		return err
+	}
 
 	jobs := make(chan string)
 	var waitGroup sync.WaitGroup
 
 	for w := 0; w < threads; w++ {
-		go handler.deleteWorker(w, jobs, &waitGroup)
+		go cli.deleteWorker(w, jobs, &waitGroup)
 	}
 
 	for _, image := range images {
@@ -170,39 +175,53 @@ func (handler *CLIYams) DeleteAll(threads int) error {
 }
 
 // sendWorker sends every image to yams repository
-func (handler *CLIYams) sendWorker(id int, jobs <-chan domain.Image, wg *sync.WaitGroup, previousUploadFailed int) {
+func (cli *CLIYams) sendWorker(id int, jobs <-chan domain.Image, wg *sync.WaitGroup, previousUploadFailed int) {
 	wg.Add(1)
 	defer wg.Done()
 	for image := range jobs {
-		err := handler.Interactor.Send(image)
-		if err == nil && previousUploadFailed == domain.SWRetry {
-			handler.Interactor.SyncErrorRepo.DelErrorSync(image.Metadata.ImageName)
-		}
-		if err != nil {
-			if err == usecases.ErrYamsDuplicate {
-				externalChecksum, _ := handler.Interactor.YamsRepo.HeadImage(image.Metadata.ImageName)
-				// If the external image is not updated
-				if externalChecksum != image.Metadata.Checksum {
-					// delete from yams
-					handler.Interactor.YamsRepo.DeleteImage(image.Metadata.ImageName, true)
-					// mark to upload in the next sync process (because yams cache)
-					handler.Interactor.SyncErrorRepo.SetErrorCounter(image.Metadata.ImageName, 0)
-				} else {
-					handler.Interactor.SyncErrorRepo.DelErrorSync(image.Metadata.ImageName)
-				}
-			} else {
-				// any other kind of error, mark to upload again in the next sync
-				handler.Interactor.SyncErrorRepo.AddErrorSync(image.Metadata.ImageName)
+		imageName := image.Metadata.ImageName
+		err := cli.Interactor.Send(image)
+		cli.sendErrorControl(
+			imageName,
+			image.Metadata.Checksum,
+			previousUploadFailed,
+			err,
+		)
+	}
+}
+
+// sendErrorControl takes action depending of error type retuned by send method
+func (cli *CLIYams) sendErrorControl(imageName, imageChecksum string, previousUploadFailed int, err error) {
+	switch err {
+	case nil:
+		if previousUploadFailed == domain.SWRetry {
+			if e := cli.Interactor.CleanErrorMarks(imageName); e != nil {
+				cli.Logger.LogErrorCleaningMarks(imageName, e)
 			}
+		}
+	case usecases.ErrYamsDuplicate:
+		if e := cli.Interactor.RemoteDelete(imageName); e != nil {
+			cli.Logger.LogErrorRemoteDelete(imageName, e)
+			return
+		}
+		// mark to upload in the next sync process (because yams cache)
+		if e := cli.Interactor.ResetErrorCounter(imageName); e != nil {
+			cli.Logger.LogErrorResetingErrorCounter(imageName, e)
+		}
+	default:
+		if e := cli.Interactor.IncreaseErrorCounter(imageName); e != nil {
+			cli.Logger.LogErrorIncreasingErrorCounter(imageName, e)
 		}
 	}
 }
 
 // deleteWorker deletes every image to yams repository
-func (handler *CLIYams) deleteWorker(id int, jobs <-chan string, wg *sync.WaitGroup) {
+func (cli *CLIYams) deleteWorker(id int, jobs <-chan string, wg *sync.WaitGroup) {
 	wg.Add(1)
 	for j := range jobs {
-		handler.Interactor.Delete(j)
+		if e := cli.Interactor.RemoteDelete(j); e != nil {
+			cli.Logger.LogErrorRemoteDelete(j, e)
+		}
 	}
 	wg.Done()
 }
