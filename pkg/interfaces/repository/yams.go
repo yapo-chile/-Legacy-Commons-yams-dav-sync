@@ -150,7 +150,7 @@ func (repo *YamsRepository) PutImage(image domain.Image) *usecases.YamsRepositor
 		"AccessKeyId": repo.accessKeyID,
 	}
 
-	imageFile, err := repo.localImageRepo.Open(image.FilePath)
+	imageFile, err := repo.localImageRepo.OpenFile(image.FilePath)
 	if err != nil {
 		return usecases.ErrYamsImage
 	}

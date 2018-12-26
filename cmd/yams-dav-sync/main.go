@@ -83,7 +83,11 @@ func main() {
 		conf.YamsConf.MaxConcurrentConns,
 	)
 
-	defaultLastSyncDate, err := time.Parse(conf.LastSync.DefaultLayout, conf.LastSync.DefaultDate)
+	defaultLastSyncDate, err := time.Parse(
+		conf.LastSync.DefaultLayout,
+		conf.LastSync.DefaultDate,
+	)
+
 	if err != nil {
 		fmt.Printf("Wrong date layout %+v for date %+v",
 			conf.LastSync.DefaultLayout,
@@ -97,14 +101,16 @@ func main() {
 		conf.ErrorControl.MaxResultsPerPage,
 	)
 
-	syncInteractor := usecases.SyncInteractor{
-		YamsRepo:         yamsRepo,
-		ImageRepo:        localImageRepo,
-		LastSyncRepo:     lastSyncRepo,
-		ErrorControlRepo: errorControlRepo,
-	}
+	syncInteractor := usecases.NewSyncInteractor(
+		yamsRepo,
+		localImageRepo,
+		lastSyncRepo,
+		errorControlRepo,
+	)
+
 	CLIYams := interfaces.CLIYams{
 		Interactor: syncInteractor,
+		DateLayout: conf.LastSync.DefaultLayout,
 		Logger:     loggers.MakeCLIYamsLogger(logger),
 	}
 

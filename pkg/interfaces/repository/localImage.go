@@ -28,8 +28,8 @@ func NewLocalImageRepo(path string, fileSystemView FileSystemView) *LocalImageRe
 	return &localImageRepo
 }
 
-// Open opens a file from local storage
-func (repo *LocalImageRepo) Open(path string) (usecases.File, error) {
+// OpenFile opens a file from local storage
+func (repo *LocalImageRepo) OpenFile(path string) (usecases.File, error) {
 	return repo.fileSystemView.Open(path)
 }
 
@@ -39,7 +39,7 @@ func (repo *LocalImageRepo) GetImage(imagePath string) (domain.Image, error) {
 		return domain.Image{}, fmt.Errorf("ImagePath too short: %+v", imagePath)
 	}
 	filePath := path.Join(repo.path, imagePath[:2], imagePath)
-	f, err := repo.Open(filePath)
+	f, err := repo.OpenFile(filePath)
 	if err != nil {
 		return domain.Image{}, err
 	}
@@ -60,4 +60,25 @@ func (repo *LocalImageRepo) GetImage(imagePath string) (domain.Image, error) {
 		},
 	}
 	return image, nil
+}
+
+// GetImageListElement gets tuple element from image List, element format must be
+// [date][space][imagepath]
+func (repo *LocalImageRepo) GetImageListElement() string {
+	return repo.fileSystemView.Text()
+}
+
+// NextImageListElement returns true if there is more elements in Image List, otherwise returns false
+func (repo *LocalImageRepo) NextImageListElement() bool {
+	return repo.fileSystemView.Scan()
+}
+
+// ErrorScanningImageList returns error if the process of get element from image list failed
+func (repo *LocalImageRepo) ErrorScanningImageList() error {
+	return repo.fileSystemView.Err()
+}
+
+// InitImageListScanner initialize scanner to read image list from file
+func (repo *LocalImageRepo) InitImageListScanner(f usecases.File) {
+	repo.fileSystemView.NewScanner(f)
 }

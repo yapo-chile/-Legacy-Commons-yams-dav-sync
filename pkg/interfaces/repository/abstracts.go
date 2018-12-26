@@ -78,4 +78,8 @@ type FileSystemView interface {
 	ModTime(name string) time.Time
 	Name(name string) string
 	Size(name string) int64
+	NewScanner(usecases.File)
+	Scan() bool
+	Err() error
+	Text() string
 }
