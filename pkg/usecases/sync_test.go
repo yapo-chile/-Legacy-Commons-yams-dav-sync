@@ -223,9 +223,28 @@ func (m *mockImageRepo) GetImage(imgPath string) (domain.Image, error) {
 	args := m.Called(imgPath)
 	return args.Get(0).(domain.Image), args.Error(1)
 }
-func (m *mockImageRepo) Open(imgPath string) (File, error) {
+func (m *mockImageRepo) OpenFile(imgPath string) (File, error) {
 	args := m.Called(imgPath)
 	return args.Get(0).(File), args.Error(1)
+}
+
+func (m *mockImageRepo) InitImageListScanner(f File) {
+	m.Called(f)
+}
+
+func (m *mockImageRepo) NextImageListElement() bool {
+	args := m.Called()
+	return args.Bool(0)
+}
+
+func (m *mockImageRepo) ErrorScanningImageList() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+func (m *mockImageRepo) GetImageListElement() string {
+	args := m.Called()
+	return args.String(0)
 }
 
 func TestGetLocalImage(t *testing.T) {
@@ -242,15 +261,15 @@ func TestGetLocalImage(t *testing.T) {
 	mImageRepo.AssertExpectations(t)
 }
 
-func TestOpenLocalImage(t *testing.T) {
+func TestOpenFileLocalImage(t *testing.T) {
 	mImageRepo := mockImageRepo{}
 	sync := SyncInteractor{ImageRepo: &mImageRepo}
 	expected := &os.File{}
 	mImageRepo.On(
-		"Open",
+		"OpenFile",
 		mock.AnythingOfType("string"),
 	).Return(expected, nil)
-	result, err := sync.Open("foto-sexy.jpg")
+	result, err := sync.OpenFile("foto-sexy.jpg")
 	assert.Equal(t, expected, result)
 	assert.Nil(t, err)
 	mImageRepo.AssertExpectations(t)

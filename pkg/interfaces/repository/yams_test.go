@@ -121,20 +121,6 @@ func TestGetDomains(t *testing.T) {
 	mHandler.AssertExpectations(t)
 }
 
-type mockReader struct { // nolint
-	mock.Mock
-}
-
-func (m *mockReader) Read(p []byte) (n int, err error) {
-	args := m.Called(p)
-	return args.Get(0).(int), args.Error(1)
-}
-
-func (m *mockReader) Close() error {
-	args := m.Called()
-	return args.Error(0)
-}
-
 type mockFileSystemView struct {
 	mock.Mock
 }
@@ -157,6 +143,25 @@ func (m *mockFileSystemView) Size(path string) int64 {
 func (m *mockFileSystemView) ModTime(path string) time.Time {
 	args := m.Called(path)
 	return args.Get(0).(time.Time)
+}
+
+func (m *mockFileSystemView) NewScanner(file usecases.File) {
+	m.Called(file)
+}
+
+func (m *mockFileSystemView) Scan() bool {
+	args := m.Called()
+	return args.Bool(0)
+}
+
+func (m *mockFileSystemView) Text() string {
+	args := m.Called()
+	return args.String(0)
+}
+
+func (m *mockFileSystemView) Err() error {
+	args := m.Called()
+	return args.Error(0)
 }
 
 type mockFile struct {
