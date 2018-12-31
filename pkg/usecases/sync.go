@@ -94,12 +94,12 @@ func (i *SyncInteractor) IncreaseErrorCounter(imageName string) error {
 	return i.ErrorControlRepo.AddSyncError(imageName)
 }
 
-// GetLocalImage gets image form local storage parsed as domain.Image
+// GetLocalImage gets image from local storage parsed as domain.Image
 func (i *SyncInteractor) GetLocalImage(imagePath string) (domain.Image, error) {
 	return i.ImageRepo.GetImage(imagePath)
 }
 
-// OpenFile gets file form local storage returning readable File struct
+// OpenFile gets file from local storage returning readable File struct
 func (i *SyncInteractor) OpenFile(imagePath string) (File, error) {
 	return i.ImageRepo.OpenFile(imagePath)
 }

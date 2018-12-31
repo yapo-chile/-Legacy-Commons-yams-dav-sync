@@ -33,7 +33,7 @@ type SyncherInteractor interface {
 	GetRemoteChecksum(imageName string) (string, *usecases.YamsRepositoryError)
 	// GetErrorsPagesQty gets the number of pages for error pagination
 	GetErrorsPagesQty(maxErrorTolerance int) int
-	// GetPreviousErrors gets a list with previus errors, errors must have itsown counter
+	// GetPreviousErrors gets a list with previus errors, errors must have its own counter
 	// over maxErrorTolerance
 	GetPreviousErrors(pagination, maxErrorTolerance int) ([]string, error)
 	// CleanErrorMarks cleans every error mark associated with the image
@@ -70,7 +70,7 @@ type CLIYamsLogger interface {
 	LogErrorRemoteDelete(imgName string, err error)
 	LogErrorResetingErrorCounter(imgName string, err error)
 	LogErrorIncreasingErrorCounter(imgName string, err error)
-	LogErrorGettingRemoteChecksum(imageName string, err error)
+	LogErrorGettingRemoteChecksum(imgName string, err error)
 }
 
 // retryPreviousFailedUploads gets images from errorControlRepository and try
