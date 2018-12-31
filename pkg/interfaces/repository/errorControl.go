@@ -112,7 +112,7 @@ func (repo *errorControlRepo) SetErrorCounter(imagePath string, count int) (err 
 	defer row.Close() // nolint
 
 	if err != nil {
-		return fmt.Errorf("There was an error creating errors sync: %+v", err)
+		err = fmt.Errorf("There was an error creating errors sync: %+v", err)
 	}
 	return
 }
@@ -133,7 +133,7 @@ func (repo *errorControlRepo) IncreaseErrorCounter(imagePath string) (err error)
 		))
 	defer row.Close() // nolint
 	if err != nil {
-		return fmt.Errorf("There was an error creating errors sync: %+v", err)
+		err = fmt.Errorf("There was an error creating errors sync: %+v", err)
 	}
 	return
 }

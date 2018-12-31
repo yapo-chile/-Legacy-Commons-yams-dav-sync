@@ -4,7 +4,6 @@ import (
 	"crypto/md5" // nolint:gosec
 	"encoding/hex"
 	"fmt"
-	"io"
 	"path"
 
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
@@ -47,7 +46,7 @@ func (repo *LocalImageRepo) GetLocalImage(imagePath string) (domain.Image, error
 	defer f.Close() // nolint:errcheck,gosec
 
 	hash := md5.New() // nolint:gosec
-	_, err = io.Copy(hash, f)
+	_, err = repo.fileSystemView.Copy(hash, f)
 	if err != nil {
 		return domain.Image{}, err
 	}

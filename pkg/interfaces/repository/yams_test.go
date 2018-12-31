@@ -2,6 +2,7 @@ package repository
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -149,6 +150,11 @@ func (m *mockFileSystemView) ModTime(path string) time.Time {
 func (m *mockFileSystemView) NewScanner(file usecases.File) interfaces.Scanner {
 	args := m.Called(file)
 	return args.Get(0).(interfaces.Scanner)
+}
+
+func (m *mockFileSystemView) Copy(dst io.Writer, src io.Reader) (int64, error) {
+	args := m.Called(dst, src)
+	return args.Get(0).(int64), args.Error(1)
 }
 
 type mockFile struct {
