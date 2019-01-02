@@ -47,6 +47,7 @@ type YamsService interface {
 	GetMaxConcurrency() int
 }
 
+// ErrorControl allows operations to control errors with yams synchronization
 type ErrorControl interface {
 	// GetErrorsPagesQty gets the number of pages for error pagination
 	GetErrorsPagesQty(maxErrorTolerance int) int
@@ -62,6 +63,7 @@ type ErrorControl interface {
 	IncreaseErrorCounter(imageName string) error
 }
 
+// LastSync allows operations to control latest synchornization status
 type LastSync interface {
 	// GetLastSynchornizationMark gets the date of latest synchronizated image
 	GetLastSynchornizationMark() time.Time
@@ -69,6 +71,7 @@ type LastSync interface {
 	SetLastSynchornizationMark(imageDateStr string) error
 }
 
+// LocalImage allows operations over local storage
 type LocalImage interface {
 	// GetLocalImage gets image form local storage parsed as domain.Image
 	GetLocalImage(imagePath string) (domain.Image, error)
@@ -88,6 +91,7 @@ type LocalImage interface {
 // CLIYamsLogger logs CLI yams events
 type CLIYamsLogger interface {
 	LogImage(int, usecases.YamsObject)
+	LogErrorGettingImagesList(listPath string, err error)
 	LogErrorCleaningMarks(imgName string, err error)
 	LogErrorRemoteDelete(imgName string, err error)
 	LogErrorResetingErrorCounter(imgName string, err error)
@@ -150,6 +154,7 @@ func (cli *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string) er
 	// Get the data file with list of images to upload
 	file, e := cli.localImage.OpenFile(imagesDumpYamsPath)
 	if e != nil {
+		cli.logger.LogErrorGettingImagesList(imagesDumpYamsPath, e)
 		return e
 	}
 	defer file.Close() // nolint
@@ -176,7 +181,7 @@ func (cli *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string) er
 	waitGroup.Wait()
 
 	// If scanner stops because error
-	if cli.localImage.ErrorScanningImageList() != nil {
+	if e := cli.localImage.ErrorScanningImageList(); e != nil {
 		return fmt.Errorf("Error reading data from file: %+v", e)
 	}
 	err := cli.lastSync.SetLastSynchornizationMark(imageDateStr)

@@ -163,6 +163,21 @@ func (m *mockLogger) LogErrorGettingRemoteChecksum(imgName string, err error) {
 	m.Called(imgName, err)
 }
 
+func (m *mockLogger) LogErrorGettingImagesList(listPath string, err error) {
+	m.Called(listPath, err)
+}
+
+func TestNewSync(t *testing.T) {
+	expected := &CLIYams{}
+	result := NewCLIYams(expected.yamsService,
+		expected.errorControl,
+		expected.lastSync,
+		expected.localImage,
+		expected.logger,
+		expected.dateLayout)
+	assert.Equal(t, expected, result)
+}
+
 func TestSyncProcess(t *testing.T) {
 	mYamsService := &mockYamsService{}
 	mErrorControl := &mockErrorControl{}
@@ -418,7 +433,9 @@ func TestSyncErrorOpeningFile(t *testing.T) {
 		mock.AnythingOfType("int")).Return([]string{}, nil)
 
 	mLocalImage.On("OpenFile", mock.AnythingOfType("string")).Return(mFile, fmt.Errorf("err"))
-
+	mLogger.On("LogErrorGettingImagesList",
+		mock.AnythingOfType("string"),
+		mock.AnythingOfType("*errors.errorString")).Return()
 	cli := CLIYams{yamsService: mYamsService,
 		errorControl: mErrorControl,
 		lastSync:     mLastSync,

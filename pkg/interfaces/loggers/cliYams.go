@@ -47,3 +47,7 @@ func (l *cliYamsLogger) LogErrorIncreasingErrorCounter(imgName string, err error
 func (l *cliYamsLogger) LogErrorGettingRemoteChecksum(imgName string, err error) {
 	l.logger.Error("Error getting checksum for %+v, error: %+v", imgName, err)
 }
+
+func (l *cliYamsLogger) LogErrorGettingImagesList(listPath string, err error) {
+	l.logger.Error("Error getting images list in path %+v, error: %+v", listPath, err)
+}
