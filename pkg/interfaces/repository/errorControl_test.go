@@ -17,7 +17,7 @@ func TestNewErrorControlRepo(t *testing.T) {
 	assert.Equal(t, errorControlRepo, result)
 }
 
-func TestGetSyncErrors(t *testing.T) {
+func TestGetPreviousErrors(t *testing.T) {
 	mDbHandler := &mockDbHandler{}
 	mResult := &mockResult{}
 	errCtrlRepo := &errorControlRepo{
@@ -32,7 +32,7 @@ func TestGetSyncErrors(t *testing.T) {
 
 	mResult.On("Scan", mock.AnythingOfType("string")).Return(nil)
 
-	result, err := errCtrlRepo.GetSyncErrors(1, 1)
+	result, err := errCtrlRepo.GetPreviousErrors(1, 1)
 
 	assert.Equal(t, expected, result)
 	assert.Nil(t, err)
@@ -40,7 +40,7 @@ func TestGetSyncErrors(t *testing.T) {
 	mResult.AssertExpectations(t)
 }
 
-func TestGetSyncErrorsCloseError(t *testing.T) {
+func TestGetPreviousErrorsCloseError(t *testing.T) {
 	mDbHandler := &mockDbHandler{}
 	mResult := &mockResult{}
 	errCtrlRepo := &errorControlRepo{
@@ -49,14 +49,14 @@ func TestGetSyncErrorsCloseError(t *testing.T) {
 	mDbHandler.On("Query", mock.AnythingOfType("string")).Return(mResult, fmt.Errorf("err"))
 	mResult.On("Close").Return(nil)
 
-	_, err := errCtrlRepo.GetSyncErrors(1, 1)
+	_, err := errCtrlRepo.GetPreviousErrors(1, 1)
 
 	assert.Error(t, err)
 	mDbHandler.AssertExpectations(t)
 	mResult.AssertExpectations(t)
 }
 
-func TestGetPagesQty(t *testing.T) {
+func TestGetErrorsPagesQty(t *testing.T) {
 	mDbHandler := &mockDbHandler{}
 	mResult := &mockResult{}
 	errCtrlRepo := &errorControlRepo{
@@ -70,23 +70,23 @@ func TestGetPagesQty(t *testing.T) {
 
 	mResult.On("Scan", mock.AnythingOfType("string")).Return(nil)
 
-	result := errCtrlRepo.GetPagesQty(expected)
+	result := errCtrlRepo.GetErrorsPagesQty(expected)
 	assert.Equal(t, expected, result)
 	mDbHandler.AssertExpectations(t)
 	mResult.AssertExpectations(t)
 
 }
 
-func TestGetPagesQtyErr(t *testing.T) {
+func TestGetErrorsPagesQtyErr(t *testing.T) {
 	errCtrlRepo := &errorControlRepo{
 		resultsPerPage: 0,
 	}
 	expected := 0
-	result := errCtrlRepo.GetPagesQty(expected)
+	result := errCtrlRepo.GetErrorsPagesQty(expected)
 	assert.Equal(t, expected, result)
 }
 
-func TestGetPagesQtyResultQueryError(t *testing.T) {
+func TestGetErrorsPagesQtyResultQueryError(t *testing.T) {
 	mDbHandler := &mockDbHandler{}
 	mResult := &mockResult{}
 	errCtrlRepo := &errorControlRepo{
@@ -97,13 +97,13 @@ func TestGetPagesQtyResultQueryError(t *testing.T) {
 	mResult.On("Close").Return(nil)
 	expected := 0
 
-	result := errCtrlRepo.GetPagesQty(expected)
+	result := errCtrlRepo.GetErrorsPagesQty(expected)
 	assert.Equal(t, expected, result)
 	mDbHandler.AssertExpectations(t)
 	mResult.AssertExpectations(t)
 }
 
-func TestGetPagesQtyResultScanError(t *testing.T) {
+func TestGetErrorsPagesQtyResultScanError(t *testing.T) {
 	mDbHandler := &mockDbHandler{}
 	mResult := &mockResult{}
 	errCtrlRepo := &errorControlRepo{
@@ -117,13 +117,13 @@ func TestGetPagesQtyResultScanError(t *testing.T) {
 
 	mResult.On("Scan", mock.AnythingOfType("string")).Return(fmt.Errorf("err"))
 
-	result := errCtrlRepo.GetPagesQty(expected)
+	result := errCtrlRepo.GetErrorsPagesQty(expected)
 	assert.Equal(t, expected, result)
 	mDbHandler.AssertExpectations(t)
 	mResult.AssertExpectations(t)
 }
 
-func TestDelSyncError(t *testing.T) {
+func TestCleanErrorMarks(t *testing.T) {
 	mDbHandler := &mockDbHandler{}
 	mResult := &mockResult{}
 	errCtrlRepo := &errorControlRepo{
@@ -132,7 +132,7 @@ func TestDelSyncError(t *testing.T) {
 	mDbHandler.On("Query", mock.AnythingOfType("string")).Return(mResult, nil)
 	mResult.On("Close").Return(nil)
 
-	err := errCtrlRepo.DelSyncError("fotito.jpg")
+	err := errCtrlRepo.CleanErrorMarks("fotito.jpg")
 	assert.Nil(t, err)
 	mDbHandler.AssertExpectations(t)
 	mResult.AssertExpectations(t)
@@ -153,7 +153,7 @@ func TestSetErrorCounter(t *testing.T) {
 	mResult.AssertExpectations(t)
 }
 
-func TestAddSyncError(t *testing.T) {
+func TestIncreaseErrorCounter(t *testing.T) {
 	mDbHandler := &mockDbHandler{}
 	mResult := &mockResult{}
 	errCtrlRepo := &errorControlRepo{
@@ -162,7 +162,7 @@ func TestAddSyncError(t *testing.T) {
 	mDbHandler.On("Query", mock.AnythingOfType("string")).Return(mResult, fmt.Errorf("err"))
 	mResult.On("Close").Return(nil)
 
-	err := errCtrlRepo.AddSyncError("fotito.jpg")
+	err := errCtrlRepo.IncreaseErrorCounter("fotito.jpg")
 	assert.Error(t, err)
 	mDbHandler.AssertExpectations(t)
 	mResult.AssertExpectations(t)

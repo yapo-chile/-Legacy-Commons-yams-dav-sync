@@ -20,7 +20,7 @@ func NewErrorControlRepo(dbHandler DbHandler, resultsPerPage int) interfaces.Err
 	}
 }
 
-// GetSyncError gets all error marks in repository using pagination
+// GetPreviousErrors gets all error marks in repository using pagination
 func (repo *errorControlRepo) GetPreviousErrors(nPage, maxErrorTolerance int) (result []string, err error) {
 	rows, err := repo.db.Query(fmt.Sprintf(`
 		SELECT image_path	

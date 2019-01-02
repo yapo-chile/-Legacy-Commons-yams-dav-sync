@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"testing"
@@ -33,19 +34,19 @@ func TestOpenFile(t *testing.T) {
 	mFileSystem.AssertExpectations(t)
 }
 
-func TestGetImagePathTooShort(t *testing.T) {
+func TestGetLocalImagePathTooShort(t *testing.T) {
 	mFileSystem := &mockFileSystemView{}
 	imgRepo := &LocalImageRepo{
 		fileSystemView: mFileSystem,
 	}
 	expected := domain.Image{}
-	result, err := imgRepo.GetImage("")
+	result, err := imgRepo.GetLocalImage("")
 	assert.Equal(t, expected, result)
 	assert.Error(t, err)
 	mFileSystem.AssertExpectations(t)
 }
 
-func TestGetImageOK(t *testing.T) {
+func TestGetLocalImageOK(t *testing.T) {
 	mFileSystem := &mockFileSystemView{}
 	mFile := &mockFile{}
 	imgRepo := &LocalImageRepo{
@@ -72,14 +73,14 @@ func TestGetImageOK(t *testing.T) {
 		FilePath: "fo/foto-sexy.jpg",
 	}
 
-	result, err := imgRepo.GetImage("foto-sexy.jpg")
+	result, err := imgRepo.GetLocalImage("foto-sexy.jpg")
 	assert.Equal(t, expected, result)
 	assert.Nil(t, err)
 	mFileSystem.AssertExpectations(t)
 	mFile.AssertExpectations(t)
 }
 
-func TestGetImageOpenError(t *testing.T) {
+func TestGetLocalImageOpenError(t *testing.T) {
 	mFileSystem := &mockFileSystemView{}
 	mFile := &mockFile{}
 	imgRepo := &LocalImageRepo{
@@ -90,14 +91,14 @@ func TestGetImageOpenError(t *testing.T) {
 
 	expected := domain.Image{}
 
-	result, err := imgRepo.GetImage("foto-sexy.jpg")
+	result, err := imgRepo.GetLocalImage("foto-sexy.jpg")
 	assert.Equal(t, expected, result)
 	assert.Error(t, err)
 	mFileSystem.AssertExpectations(t)
 	mFile.AssertExpectations(t)
 }
 
-func TestGetImageCopyError(t *testing.T) {
+func TestGetLocalImageCopyError(t *testing.T) {
 	mFileSystem := &mockFileSystemView{}
 	mFile := &mockFile{}
 	imgRepo := &LocalImageRepo{
@@ -116,53 +117,11 @@ func TestGetImageCopyError(t *testing.T) {
 
 	expected := domain.Image{}
 
-	result, err := imgRepo.GetImage("foto-sexy.jpg")
+	result, err := imgRepo.GetLocalImage("foto-sexy.jpg")
 	assert.Equal(t, expected, result)
 	assert.Error(t, err)
 	mFileSystem.AssertExpectations(t)
 	mFile.AssertExpectations(t)
-}
-
-func TestGetImageListElement(t *testing.T) {
-	mFileSystem := &mockFileSystemView{}
-	imgRepo := &LocalImageRepo{
-		fileSystemView: mFileSystem,
-	}
-
-	expected := ""
-	mFileSystem.On("Text").Return(expected, nil)
-
-	result := imgRepo.GetImageListElement()
-	assert.Equal(t, expected, result)
-	mFileSystem.AssertExpectations(t)
-}
-
-func TestNextImageListElement(t *testing.T) {
-	mFileSystem := &mockFileSystemView{}
-	imgRepo := &LocalImageRepo{
-		fileSystemView: mFileSystem,
-	}
-
-	expected := true
-	mFileSystem.On("Scan").Return(expected)
-
-	result := imgRepo.NextImageListElement()
-	assert.Equal(t, expected, result)
-	mFileSystem.AssertExpectations(t)
-}
-
-func TestErrorScanningImageList(t *testing.T) {
-	mFileSystem := &mockFileSystemView{}
-	imgRepo := &LocalImageRepo{
-		fileSystemView: mFileSystem,
-	}
-
-	expected := fmt.Errorf("err")
-	mFileSystem.On("Err").Return(expected)
-
-	result := imgRepo.ErrorScanningImageList()
-	assert.Equal(t, expected, result)
-	mFileSystem.AssertExpectations(t)
 }
 
 func TestInitImageListScanner(t *testing.T) {
@@ -171,11 +130,12 @@ func TestInitImageListScanner(t *testing.T) {
 	imgRepo := &LocalImageRepo{
 		fileSystemView: mFileSystem,
 	}
-
+	expected := bufio.NewScanner(mFile)
 	mFileSystem.On("NewScanner",
-		mock.AnythingOfType("*repository.mockFile")).Return()
+		mock.AnythingOfType("*repository.mockFile")).Return(expected)
 
-	imgRepo.InitImageListScanner(mFile)
+	result := imgRepo.InitImageListScanner(mFile)
+	assert.Equal(t, expected, result)
 	mFileSystem.AssertExpectations(t)
 	mFile.AssertExpectations(t)
 }
