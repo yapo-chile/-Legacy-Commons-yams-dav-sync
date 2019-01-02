@@ -33,8 +33,8 @@ func (repo *LocalImageRepo) OpenFile(path string) (usecases.File, error) {
 	return repo.fileSystemView.Open(path)
 }
 
-// GetImage gets a single image from local repository
-func (repo *LocalImageRepo) GetImage(imagePath string) (domain.Image, error) {
+// GetLocalImage gets a single image from local repository
+func (repo *LocalImageRepo) GetLocalImage(imagePath string) (domain.Image, error) {
 	if len(imagePath) < 2 {
 		return domain.Image{}, fmt.Errorf("ImagePath too short: %+v", imagePath)
 	}
@@ -62,9 +62,9 @@ func (repo *LocalImageRepo) GetImage(imagePath string) (domain.Image, error) {
 	return image, nil
 }
 
-// GetImageListElement gets tuple element from image List, element format must be
+// GetLocalImageListElement gets tuple element from image List, element format must be
 // [date][space][imagepath]
-func (repo *LocalImageRepo) GetImageListElement() string {
+func (repo *LocalImageRepo) GetLocalImageListElement() string {
 	return repo.fileSystemView.Text()
 }
 

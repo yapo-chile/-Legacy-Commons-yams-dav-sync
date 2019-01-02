@@ -3,7 +3,7 @@ package repository
 import (
 	"fmt"
 
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
+	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces"
 )
 
 // errorControlRepo repository to store error marks in dav-yams synchronization process
@@ -13,7 +13,7 @@ type errorControlRepo struct {
 }
 
 // NewErrorControlRepo creates a new instance of ErrorControl repository
-func NewErrorControlRepo(dbHandler DbHandler, resultsPerPage int) usecases.ErrorControlRepository {
+func NewErrorControlRepo(dbHandler DbHandler, resultsPerPage int) interfaces.ErrorControl {
 	return &errorControlRepo{
 		db:             dbHandler,
 		resultsPerPage: resultsPerPage,
@@ -21,7 +21,7 @@ func NewErrorControlRepo(dbHandler DbHandler, resultsPerPage int) usecases.Error
 }
 
 // GetSyncError gets all error marks in repository using pagination
-func (repo *errorControlRepo) GetSyncErrors(nPage, maxErrorTolerance int) (result []string, err error) {
+func (repo *errorControlRepo) GetPreviousErrors(nPage, maxErrorTolerance int) (result []string, err error) {
 	rows, err := repo.db.Query(fmt.Sprintf(`
 		SELECT image_path	
 		FROM sync_error 
@@ -50,8 +50,8 @@ func (repo *errorControlRepo) GetSyncErrors(nPage, maxErrorTolerance int) (resul
 	return result, nil
 }
 
-// GetPagesQty get the total pages number for pagination
-func (repo *errorControlRepo) GetPagesQty(maxErrorTolerance int) (nPages int) {
+// GetErrorsPagesQty get the total pages number for pagination
+func (repo *errorControlRepo) GetErrorsPagesQty(maxErrorTolerance int) (nPages int) {
 	if repo.resultsPerPage < 1 {
 		return 0
 	}
@@ -82,8 +82,8 @@ func (repo *errorControlRepo) GetPagesQty(maxErrorTolerance int) (nPages int) {
 	return
 }
 
-// DelSyncError deletes the error mark for a specific image in repository
-func (repo *errorControlRepo) DelSyncError(imgPath string) error {
+// CleanErrorMarks deletes the error mark for a specific image in repository
+func (repo *errorControlRepo) CleanErrorMarks(imgPath string) error {
 	result, err := repo.db.Query(fmt.Sprintf(`
 		DELETE  
 		FROM sync_error
@@ -117,9 +117,9 @@ func (repo *errorControlRepo) SetErrorCounter(imagePath string, count int) (err 
 	return
 }
 
-// AddSyncError creates an error mark for a specific image, if exists then
+// IncreaseErrorCounter creates an error mark for a specific image, if exists then
 // increases the error counter
-func (repo *errorControlRepo) AddSyncError(imagePath string) (err error) {
+func (repo *errorControlRepo) IncreaseErrorCounter(imagePath string) (err error) {
 	row, err := repo.db.Query(
 		fmt.Sprintf(`
 			INSERT INTO

@@ -16,7 +16,6 @@ import (
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/loggers"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/repository"
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
 
 // elapsed estimated execution processing time since a defer elapsed is placed
@@ -101,18 +100,14 @@ func main() {
 		conf.ErrorControl.MaxResultsPerPage,
 	)
 
-	syncInteractor := usecases.NewSyncInteractor(
+	CLIYams := interfaces.NewCLIYams(
 		yamsRepo,
-		localImageRepo,
-		lastSyncRepo,
 		errorControlRepo,
+		lastSyncRepo,
+		localImageRepo,
+		loggers.MakeCLIYamsLogger(logger),
+		conf.LocalStorageConf.DefaultFilesDateLayout,
 	)
-
-	CLIYams := interfaces.CLIYams{
-		Interactor: syncInteractor,
-		DateLayout: conf.LastSync.DefaultLayout,
-		Logger:     loggers.MakeCLIYamsLogger(logger),
-	}
 
 	maxErrorQty := conf.ErrorControl.MaxRetriesPerError
 

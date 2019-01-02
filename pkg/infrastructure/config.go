@@ -35,7 +35,8 @@ type Config struct {
 
 // LocalStorage hols all configuration for local storage
 type LocalStorage struct {
-	Path string `env:"PATH"`
+	Path                   string `env:"PATH"`
+	DefaultFilesDateLayout string `env:"DEFAULT_LAYOUT" envDefault:"20060102T150405"`
 }
 
 // YamsConf holds all configuration for yams remote connection
@@ -59,7 +60,7 @@ type ErrorControlConf struct {
 // LastSyncConf holds all configurations for last synchronization marks
 type LastSyncConf struct {
 	DefaultDate   string `env:"DEFAULT_DATE" envDefault:"31-12-2015"`
-	DefaultLayout string `env:"DEFAULT_LAYAOUT" envDefault:"02-01-2006"`
+	DefaultLayout string `env:"DEFAULT_LAYOUT" envDefault:"02-01-2006"`
 }
 
 // DatabaseConf holds all configurations to connect with postgreSQL database

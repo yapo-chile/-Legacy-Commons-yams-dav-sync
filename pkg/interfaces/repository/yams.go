@@ -7,6 +7,7 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
+	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
 
@@ -30,7 +31,7 @@ type YamsRepository struct {
 	// http is the http client to connect to yams using http protocol
 	http *HTTPRepository
 	// localImageRepo  repo to execute operations in local storage
-	localImageRepo usecases.ImageRepository
+	localImageRepo interfaces.LocalImage
 	// logger logs yams repository events
 	logger YamsRepositoryLogger
 }
@@ -42,7 +43,7 @@ type Signer interface {
 
 // NewYamsRepository creates a new instance of YamsRepository
 func NewYamsRepository(jwtSigner Signer, mgmtURL, accessKeyID, tenantID,
-	domainID, bucketID string, localImageRepo usecases.ImageRepository, logger YamsRepositoryLogger, handler HTTPHandler,
+	domainID, bucketID string, localImageRepo interfaces.LocalImage, logger YamsRepositoryLogger, handler HTTPHandler,
 	timeOut int, maxConcurrentThreads int) *YamsRepository {
 	return &YamsRepository{
 		jwtSigner:   jwtSigner,
@@ -68,8 +69,8 @@ type YamsRepositoryLogger interface {
 	LogResponse(body string, err error)
 }
 
-// GetMaxConcurrentConns gets the max number of concurrent connections to yams
-func (repo *YamsRepository) GetMaxConcurrentConns() int {
+// GetMaxConcurrency gets the max number of concurrent connections to yams
+func (repo *YamsRepository) GetMaxConcurrency() int {
 	return repo.maxConcurrentThreads
 }
 
@@ -115,8 +116,8 @@ func (repo *YamsRepository) GetDomains() string {
 	return domains
 }
 
-// PutImage puts a image in yams repository
-func (repo *YamsRepository) PutImage(image domain.Image) *usecases.YamsRepositoryError {
+// Send puts a image in yams repository
+func (repo *YamsRepository) Send(image domain.Image) *usecases.YamsRepositoryError {
 	type PutMetadata struct {
 		ObjectID string `json:"oid"`
 	}
@@ -187,8 +188,8 @@ func (repo *YamsRepository) PutImage(image domain.Image) *usecases.YamsRepositor
 	return nil
 }
 
-// DeleteImage deletes a specific image of yams repository
-func (repo *YamsRepository) DeleteImage(imageName string, immediateRemoval bool) *usecases.YamsRepositoryError {
+// RemoteDelete deletes a specific image of yams repository
+func (repo *YamsRepository) RemoteDelete(imageName string, immediateRemoval bool) *usecases.YamsRepositoryError {
 
 	type DeleteMetadata struct {
 		ObjectID              string `json:"oid"`
@@ -260,8 +261,8 @@ func (repo *YamsRepository) DeleteImage(imageName string, immediateRemoval bool)
 	}
 }
 
-// HeadImage gets an object metadata.
-func (repo *YamsRepository) HeadImage(imageName string) (string, *usecases.YamsRepositoryError) {
+// GetRemoteChecksum gets an object metadata.
+func (repo *YamsRepository) GetRemoteChecksum(imageName string) (string, *usecases.YamsRepositoryError) {
 	type InfoClaims struct {
 		jwt.StandardClaims
 		Rqs string `json:"rqs"`
@@ -320,8 +321,8 @@ func (repo *YamsRepository) HeadImage(imageName string) (string, *usecases.YamsR
 	}
 }
 
-// GetImages gets a list of available images in yams repository
-func (repo *YamsRepository) GetImages() ([]usecases.YamsObject, *usecases.YamsRepositoryError) {
+// List gets a list of available images in yams repository
+func (repo *YamsRepository) List() ([]usecases.YamsObject, *usecases.YamsRepositoryError) {
 
 	type InfoClaims struct {
 		jwt.StandardClaims
