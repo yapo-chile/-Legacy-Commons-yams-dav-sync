@@ -21,8 +21,8 @@ func NewLastSyncRepo(dbHandler DbHandler, defaultLastSyncDate time.Time) interfa
 	}
 }
 
-// GetLastSynchornizationMark returns the last synchronization date mark
-func (repo *lastSyncRepo) GetLastSynchornizationMark() (lastSyncDate time.Time) {
+// GetLastSynchronizationMark returns the last synchronization date mark
+func (repo *lastSyncRepo) GetLastSynchronizationMark() (lastSyncDate time.Time) {
 	result, err := repo.db.Query(`
 		SELECT last_sync_date
 		FROM last_sync 
@@ -42,8 +42,8 @@ func (repo *lastSyncRepo) GetLastSynchornizationMark() (lastSyncDate time.Time) 
 	return lastSyncDate
 }
 
-// SetLastSynchornizationMark saves a new synchronization date mark
-func (repo *lastSyncRepo) SetLastSynchornizationMark(dateMark string) (err error) {
+// SetLastSynchronizationMark saves a new synchronization date mark
+func (repo *lastSyncRepo) SetLastSynchronizationMark(dateMark string) (err error) {
 	if dateMark == "" {
 		return fmt.Errorf("dateMark is empty")
 	}

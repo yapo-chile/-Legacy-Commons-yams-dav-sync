@@ -65,10 +65,10 @@ type ErrorControl interface {
 
 // LastSync allows operations to control latest synchornization status
 type LastSync interface {
-	// GetLastSynchornizationMark gets the date of latest synchronizated image
-	GetLastSynchornizationMark() time.Time
-	// SetLastSynchornizationMark sets the date of latest synchronizated image
-	SetLastSynchornizationMark(imageDateStr string) error
+	// GetLastSynchronizationMark gets the date of latest synchronizated image
+	GetLastSynchronizationMark() time.Time
+	// SetLastSynchronizationMark sets the date of latest synchronizated image
+	SetLastSynchronizationMark(imageDateStr string) error
 }
 
 // LocalImage allows operations over local storage
@@ -159,7 +159,7 @@ func (cli *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string) er
 	}
 	defer file.Close() // nolint
 
-	latestSynchronizedImageDate := cli.lastSync.GetLastSynchornizationMark()
+	latestSynchronizedImageDate := cli.lastSync.GetLastSynchronizationMark()
 	var imagePath, imageDateStr string
 
 	cli.localImage.InitImageListScanner(file)
@@ -184,7 +184,7 @@ func (cli *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string) er
 	if e := cli.localImage.ErrorScanningImageList(); e != nil {
 		return fmt.Errorf("Error reading data from file: %+v", e)
 	}
-	err := cli.lastSync.SetLastSynchornizationMark(imageDateStr)
+	err := cli.lastSync.SetLastSynchronizationMark(imageDateStr)
 	if err != nil {
 		return fmt.Errorf("Error setting synchronization mark %+v", err)
 	}

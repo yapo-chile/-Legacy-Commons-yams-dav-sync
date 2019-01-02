@@ -112,12 +112,12 @@ type mockLastSync struct {
 	mock.Mock
 }
 
-func (m *mockLastSync) GetLastSynchornizationMark() time.Time {
+func (m *mockLastSync) GetLastSynchronizationMark() time.Time {
 	args := m.Called()
 	return args.Get(0).(time.Time)
 }
 
-func (m *mockLastSync) SetLastSynchornizationMark(imageDateStr string) error {
+func (m *mockLastSync) SetLastSynchronizationMark(imageDateStr string) error {
 	args := m.Called(imageDateStr)
 	return args.Error(0)
 }
@@ -280,7 +280,7 @@ func TestSyncProcess(t *testing.T) {
 
 	layout := "20060102T150405"
 	date, _ := time.Parse(layout, "20180102T150405")
-	mLastSync.On("GetLastSynchornizationMark", mock.AnythingOfType("string")).Return(date)
+	mLastSync.On("GetLastSynchronizationMark", mock.AnythingOfType("string")).Return(date)
 
 	imageListElements := []string{
 		"20190102T150405 1.jpg",
@@ -310,7 +310,7 @@ func TestSyncProcess(t *testing.T) {
 
 	mFile.On("Close").Return(nil)
 
-	mLastSync.On("SetLastSynchornizationMark", mock.AnythingOfType("string")).Return(nil)
+	mLastSync.On("SetLastSynchronizationMark", mock.AnythingOfType("string")).Return(nil)
 
 	cli := CLIYams{yamsService: mYamsService,
 		errorControl: mErrorControl,
@@ -348,7 +348,7 @@ func TestSyncProcessErrorScanning(t *testing.T) {
 	layout := "20060102T150405"
 	date, _ := time.Parse(layout, "20180102T150405")
 
-	mLastSync.On("GetLastSynchornizationMark", mock.AnythingOfType("string")).Return(date)
+	mLastSync.On("GetLastSynchronizationMark", mock.AnythingOfType("string")).Return(date)
 	mLocalImage.On("NextImageListElement").Return(false).Once()
 	mLocalImage.On("ErrorScanningImageList").Return(fmt.Errorf("err")).Once()
 
@@ -391,14 +391,14 @@ func TestSyncProcessErrorSettingMark(t *testing.T) {
 
 	layout := "20060102T150405"
 	date, _ := time.Parse(layout, "20180102T150405")
-	mLastSync.On("GetLastSynchornizationMark", mock.AnythingOfType("string")).Return(date)
+	mLastSync.On("GetLastSynchronizationMark", mock.AnythingOfType("string")).Return(date)
 
 	mLocalImage.On("NextImageListElement").Return(false).Once()
 	mLocalImage.On("ErrorScanningImageList").Return(nil).Once()
 
 	mFile.On("Close").Return(nil)
 
-	mLastSync.On("SetLastSynchornizationMark", mock.AnythingOfType("string")).Return(fmt.Errorf("err"))
+	mLastSync.On("SetLastSynchronizationMark", mock.AnythingOfType("string")).Return(fmt.Errorf("err"))
 
 	cli := CLIYams{yamsService: mYamsService,
 		errorControl: mErrorControl,
@@ -568,6 +568,7 @@ func TestDelete(t *testing.T) {
 	mYamsService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(yamsErrResponse)
 	err := cli.Delete("foto.jpg")
 	assert.Nil(t, err)
+	mYamsService.AssertExpectations(t)
 }
 
 func TestDeleteAll(t *testing.T) {
@@ -599,4 +600,5 @@ func TestDeleteAllListError(t *testing.T) {
 
 	err := cli.DeleteAll(100)
 	assert.Equal(t, usecases.ErrYamsInternal, err)
+	mYamsService.AssertExpectations(t)
 }

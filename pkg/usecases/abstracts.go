@@ -7,7 +7,7 @@ import (
 
 // LastSyncRepository allows LastSyncRepository's operations
 type LastSyncRepository interface {
-	GetLastSynchornizationMark() time.Time
+	GetLastSynchronizationMark() time.Time
 	SetLastSync(value string) error
 }
 
