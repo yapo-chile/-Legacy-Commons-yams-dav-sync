@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
+	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
 
@@ -145,23 +146,9 @@ func (m *mockFileSystemView) ModTime(path string) time.Time {
 	return args.Get(0).(time.Time)
 }
 
-func (m *mockFileSystemView) NewScanner(file usecases.File) {
-	m.Called(file)
-}
-
-func (m *mockFileSystemView) Scan() bool {
-	args := m.Called()
-	return args.Bool(0)
-}
-
-func (m *mockFileSystemView) Text() string {
-	args := m.Called()
-	return args.String(0)
-}
-
-func (m *mockFileSystemView) Err() error {
-	args := m.Called()
-	return args.Error(0)
+func (m *mockFileSystemView) NewScanner(file usecases.File) interfaces.Scanner {
+	args := m.Called(file)
+	return args.Get(0).(interfaces.Scanner)
 }
 
 type mockFile struct {

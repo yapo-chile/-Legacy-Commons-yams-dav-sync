@@ -12,36 +12,36 @@ import (
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
 
-type mockYamsService struct {
+type mockImageService struct {
 	mock.Mock
 }
 
-func (m *mockYamsService) ValidateChecksum(image domain.Image) bool {
+func (m *mockImageService) ValidateChecksum(image domain.Image) bool {
 	args := m.Called(image)
 	return args.Bool(0)
 }
 
-func (m *mockYamsService) Send(image domain.Image) *usecases.YamsRepositoryError {
+func (m *mockImageService) Send(image domain.Image) *usecases.YamsRepositoryError {
 	args := m.Called(image)
 	return args.Get(0).(*usecases.YamsRepositoryError)
 }
 
-func (m *mockYamsService) List() ([]usecases.YamsObject, *usecases.YamsRepositoryError) {
+func (m *mockImageService) List() ([]usecases.YamsObject, *usecases.YamsRepositoryError) {
 	args := m.Called()
 	return args.Get(0).([]usecases.YamsObject), args.Get(1).(*usecases.YamsRepositoryError)
 }
 
-func (m *mockYamsService) RemoteDelete(imageName string, force bool) *usecases.YamsRepositoryError {
+func (m *mockImageService) RemoteDelete(imageName string, force bool) *usecases.YamsRepositoryError {
 	args := m.Called(imageName, force)
 	return args.Get(0).(*usecases.YamsRepositoryError)
 }
 
-func (m *mockYamsService) GetMaxConcurrency() int {
+func (m *mockImageService) GetMaxConcurrency() int {
 	args := m.Called()
 	return args.Int(0)
 }
 
-func (m *mockYamsService) GetRemoteChecksum(imgName string) (string, *usecases.YamsRepositoryError) {
+func (m *mockImageService) GetRemoteChecksum(imgName string) (string, *usecases.YamsRepositoryError) {
 	args := m.Called(imgName)
 	return args.String(0), args.Get(1).(*usecases.YamsRepositoryError)
 }
@@ -89,21 +89,26 @@ func (m *mockLocalImage) OpenFile(imagePath string) (usecases.File, error) {
 	return args.Get(0).(usecases.File), args.Error(1)
 }
 
-func (m *mockLocalImage) InitImageListScanner(f usecases.File) {
-	m.Called(f)
+func (m *mockLocalImage) InitImageListScanner(f usecases.File) Scanner {
+	args := m.Called(f)
+	return args.Get(0).(Scanner)
 }
 
-func (m *mockLocalImage) NextImageListElement() bool {
+type mockScanner struct {
+	mock.Mock
+}
+
+func (m *mockScanner) Scan() bool {
 	args := m.Called()
 	return args.Bool(0)
 }
 
-func (m *mockLocalImage) ErrorScanningImageList() error {
+func (m *mockScanner) Err() error {
 	args := m.Called()
 	return args.Error(0)
 }
 
-func (m *mockLocalImage) GetLocalImageListElement() string {
+func (m *mockScanner) Text() string {
 	args := m.Called()
 	return args.String(0)
 }
@@ -169,7 +174,7 @@ func (m *mockLogger) LogErrorGettingImagesList(listPath string, err error) {
 
 func TestNewSync(t *testing.T) {
 	expected := &CLIYams{}
-	result := NewCLIYams(expected.yamsService,
+	result := NewCLIYams(expected.imageService,
 		expected.errorControl,
 		expected.lastSync,
 		expected.localImage,
@@ -179,14 +184,15 @@ func TestNewSync(t *testing.T) {
 }
 
 func TestSyncProcess(t *testing.T) {
-	mYamsService := &mockYamsService{}
+	mImageService := &mockImageService{}
 	mErrorControl := &mockErrorControl{}
 	mLastSync := &mockLastSync{}
 	mLocalImage := &mockLocalImage{}
 	mFile := &mockFile{}
+	mScanner := &mockScanner{}
 	mLogger := &mockLogger{}
 	// images to send
-	mYamsService.On("GetMaxConcurrency").Return(1)
+	mImageService.On("GetMaxConcurrency").Return(1)
 	mErrorControl.On("GetErrorsPagesQty", mock.AnythingOfType("int")).Return(1)
 
 	imagesToRetrySend := []string{"0.jpg", "1.jpg", "2.jpg", "3.jpg", "4.jpg", "5.jpg", "6.jpg", "7.jpg"}
@@ -202,31 +208,31 @@ func TestSyncProcess(t *testing.T) {
 		switch i {
 		case 0: // Everything ok
 			yamsResponse := (*usecases.YamsRepositoryError)(nil)
-			mYamsService.On("Send", mock.AnythingOfType("domain.Image")).Return(yamsResponse).Once()
+			mImageService.On("Send", mock.AnythingOfType("domain.Image")).Return(yamsResponse).Once()
 			mErrorControl.On("CleanErrorMarks", mock.AnythingOfType("string")).Return(nil).Once()
 
 		case 1: // Sending duplicated img with equal checksum
 			sendResponse := usecases.ErrYamsDuplicate
 			yamsErrNil := (*usecases.YamsRepositoryError)(nil)
-			mYamsService.On("Send", mock.AnythingOfType("domain.Image")).Return(sendResponse).Once()
+			mImageService.On("Send", mock.AnythingOfType("domain.Image")).Return(sendResponse).Once()
 			mErrorControl.On("CleanErrorMarks", mock.AnythingOfType("string")).Return(nil).Once()
 			//	mInteractor.On("CleanErrorMarks", mock.AnythingOfType("string")).Return(nil).Once()
-			mYamsService.On("GetRemoteChecksum", mock.AnythingOfType("string")).Return("", yamsErrNil).Once()
+			mImageService.On("GetRemoteChecksum", mock.AnythingOfType("string")).Return("", yamsErrNil).Once()
 
 		case 2: // Sending duplicated img with different checksum
 			sendResponse := usecases.ErrYamsDuplicate
 			yamsErrNil := (*usecases.YamsRepositoryError)(nil)
-			mYamsService.On("GetRemoteChecksum", mock.AnythingOfType("string")).Return("algo", yamsErrNil).Once()
-			mYamsService.On("Send", mock.AnythingOfType("domain.Image")).Return(sendResponse).Once()
-			mYamsService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(yamsErrNil).Once()
+			mImageService.On("GetRemoteChecksum", mock.AnythingOfType("string")).Return("algo", yamsErrNil).Once()
+			mImageService.On("Send", mock.AnythingOfType("domain.Image")).Return(sendResponse).Once()
+			mImageService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(yamsErrNil).Once()
 			mErrorControl.On("SetErrorCounter", mock.AnythingOfType("string"), 0).Return(nil).Once()
 		case 3: // Sending duplicated img with different checksum and error in remote delete
 			sendResponse := usecases.ErrYamsDuplicate
 			yamsError := usecases.ErrYamsInternal
 			yamsErrNil := (*usecases.YamsRepositoryError)(nil)
-			mYamsService.On("Send", mock.AnythingOfType("domain.Image")).Return(sendResponse).Once()
-			mYamsService.On("GetRemoteChecksum", mock.AnythingOfType("string")).Return("algo", yamsErrNil).Once()
-			mYamsService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(yamsError).Once()
+			mImageService.On("Send", mock.AnythingOfType("domain.Image")).Return(sendResponse).Once()
+			mImageService.On("GetRemoteChecksum", mock.AnythingOfType("string")).Return("algo", yamsErrNil).Once()
+			mImageService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(yamsError).Once()
 			mLogger.On("LogErrorRemoteDelete",
 				mock.AnythingOfType("string"),
 				mock.AnythingOfType("*usecases.YamsRepositoryError")).Return().Once()
@@ -235,9 +241,9 @@ func TestSyncProcess(t *testing.T) {
 			sendResponse := usecases.ErrYamsDuplicate
 			err := fmt.Errorf("Error reseting counter")
 			yamsErrNil := (*usecases.YamsRepositoryError)(nil)
-			mYamsService.On("Send", mock.AnythingOfType("domain.Image")).Return(sendResponse).Once()
-			mYamsService.On("GetRemoteChecksum", mock.AnythingOfType("string")).Return("algo", yamsErrNil).Once()
-			mYamsService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(yamsErrNil).Once()
+			mImageService.On("Send", mock.AnythingOfType("domain.Image")).Return(sendResponse).Once()
+			mImageService.On("GetRemoteChecksum", mock.AnythingOfType("string")).Return("algo", yamsErrNil).Once()
+			mImageService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(yamsErrNil).Once()
 			mErrorControl.On("SetErrorCounter", mock.AnythingOfType("string"), 0).Return(err).Once()
 			mLogger.On("LogErrorResetingErrorCounter",
 				mock.AnythingOfType("string"),
@@ -245,8 +251,8 @@ func TestSyncProcess(t *testing.T) {
 		case 5: // Error getting remote checksum
 			sendResponse := usecases.ErrYamsDuplicate
 			yamsError := usecases.ErrYamsInternal
-			mYamsService.On("Send", mock.AnythingOfType("domain.Image")).Return(sendResponse).Once()
-			mYamsService.On("GetRemoteChecksum", mock.AnythingOfType("string")).Return("", yamsError).Once()
+			mImageService.On("Send", mock.AnythingOfType("domain.Image")).Return(sendResponse).Once()
+			mImageService.On("GetRemoteChecksum", mock.AnythingOfType("string")).Return("", yamsError).Once()
 			mLogger.On("LogErrorGettingRemoteChecksum",
 				mock.AnythingOfType("string"),
 				mock.AnythingOfType("*usecases.YamsRepositoryError")).Return().Once()
@@ -255,8 +261,8 @@ func TestSyncProcess(t *testing.T) {
 			sendResponse := usecases.ErrYamsDuplicate
 			yamsError := usecases.ErrYamsInternal
 			err := fmt.Errorf("Error increasing counter")
-			mYamsService.On("Send", mock.AnythingOfType("domain.Image")).Return(sendResponse).Once()
-			mYamsService.On("GetRemoteChecksum", mock.AnythingOfType("string")).Return("", yamsError).Once()
+			mImageService.On("Send", mock.AnythingOfType("domain.Image")).Return(sendResponse).Once()
+			mImageService.On("GetRemoteChecksum", mock.AnythingOfType("string")).Return("", yamsError).Once()
 			mLogger.On("LogErrorGettingRemoteChecksum",
 				mock.AnythingOfType("string"),
 				mock.AnythingOfType("*usecases.YamsRepositoryError")).Return().Once()
@@ -267,7 +273,7 @@ func TestSyncProcess(t *testing.T) {
 		case 7: // Error cleaning up marks
 			yamsResponse := (*usecases.YamsRepositoryError)(nil)
 			err := fmt.Errorf("Error cleaning error marks")
-			mYamsService.On("Send", mock.AnythingOfType("domain.Image")).Return(yamsResponse).Once()
+			mImageService.On("Send", mock.AnythingOfType("domain.Image")).Return(yamsResponse).Once()
 			mErrorControl.On("CleanErrorMarks", mock.AnythingOfType("string")).Return(err).Once()
 			mLogger.On("LogErrorCleaningMarks",
 				mock.AnythingOfType("string"),
@@ -276,7 +282,7 @@ func TestSyncProcess(t *testing.T) {
 	}
 
 	mLocalImage.On("OpenFile", mock.AnythingOfType("string")).Return(mFile, nil)
-	mLocalImage.On("InitImageListScanner", mock.AnythingOfType("*interfaces.mockFile")).Return()
+	mLocalImage.On("InitImageListScanner", mock.AnythingOfType("*interfaces.mockFile")).Return(mScanner)
 
 	layout := "20060102T150405"
 	date, _ := time.Parse(layout, "20180102T150405")
@@ -291,28 +297,28 @@ func TestSyncProcess(t *testing.T) {
 	for i, testCases := 0, len(imageListElements); i < testCases; i++ {
 		switch i {
 		case 0: // Happy case: Element read from image list and send to yams
-			mLocalImage.On("GetLocalImageListElement").Return(imageListElements[i]).Once()
-			mLocalImage.On("NextImageListElement").Return(true).Once()
+			mScanner.On("Text").Return(imageListElements[i]).Once()
+			mScanner.On("Scan").Return(true).Once()
 			mLocalImage.On("GetLocalImage", mock.AnythingOfType("string")).Return(domain.Image{}, nil).Once()
-			mYamsService.On("Send", mock.AnythingOfType("domain.Image")).Return((*usecases.YamsRepositoryError)(nil)).Once()
+			mImageService.On("Send", mock.AnythingOfType("domain.Image")).Return((*usecases.YamsRepositoryError)(nil)).Once()
 		case 1: // Invalid tuple and skipped element
-			mLocalImage.On("GetLocalImageListElement").Return(imageListElements[i]).Once()
-			mLocalImage.On("NextImageListElement").Return(true).Once()
+			mScanner.On("Text").Return(imageListElements[i]).Once()
+			mScanner.On("Scan").Return(true).Once()
 		case 2: // Image not found in local & skipped
-			mLocalImage.On("GetLocalImageListElement").Return(imageListElements[i]).Once()
-			mLocalImage.On("NextImageListElement").Return(true).Once()
+			mScanner.On("Text").Return(imageListElements[i]).Once()
+			mScanner.On("Scan").Return(true).Once()
 			mLocalImage.On("GetLocalImage", mock.AnythingOfType("string")).Return(domain.Image{}, fmt.Errorf("error")).Once()
 		}
 	}
-	mLocalImage.On("ErrorScanningImageList").Return(nil).Once()
+	mScanner.On("Err").Return(nil).Once()
 
-	mLocalImage.On("NextImageListElement").Return(false).Once()
+	mScanner.On("Scan").Return(false).Once()
 
 	mFile.On("Close").Return(nil)
 
 	mLastSync.On("SetLastSynchronizationMark", mock.AnythingOfType("string")).Return(nil)
 
-	cli := CLIYams{yamsService: mYamsService,
+	cli := CLIYams{imageService: mImageService,
 		errorControl: mErrorControl,
 		lastSync:     mLastSync,
 		localImage:   mLocalImage,
@@ -321,40 +327,42 @@ func TestSyncProcess(t *testing.T) {
 
 	cli.Sync(3, 1, "/")
 
-	mYamsService.AssertExpectations(t)
+	mImageService.AssertExpectations(t)
 	mErrorControl.AssertExpectations(t)
 	mLocalImage.AssertExpectations(t)
 	mLastSync.AssertExpectations(t)
 	mLogger.AssertExpectations(t)
 	mFile.AssertExpectations(t)
+	mScanner.AssertExpectations(t)
 }
 
 func TestSyncProcessErrorScanning(t *testing.T) {
-	mYamsService := &mockYamsService{}
+	mImageService := &mockImageService{}
 	mErrorControl := &mockErrorControl{}
 	mLastSync := &mockLastSync{}
 	mLocalImage := &mockLocalImage{}
+	mScanner := &mockScanner{}
 	mFile := &mockFile{}
 	mLogger := &mockLogger{}
-	mYamsService.On("GetMaxConcurrency").Return(1)
+	mImageService.On("GetMaxConcurrency").Return(1)
 	mErrorControl.On("GetErrorsPagesQty", mock.AnythingOfType("int")).Return(1)
 	mErrorControl.On("GetPreviousErrors",
 		mock.AnythingOfType("int"),
 		mock.AnythingOfType("int")).Return([]string{}, nil)
 	mLocalImage.On("OpenFile", mock.AnythingOfType("string")).Return(mFile, nil)
 	mLocalImage.On("InitImageListScanner", mock.AnythingOfType("*interfaces.mockFile")).
-		Return()
+		Return(mScanner)
 
 	layout := "20060102T150405"
 	date, _ := time.Parse(layout, "20180102T150405")
 
 	mLastSync.On("GetLastSynchronizationMark", mock.AnythingOfType("string")).Return(date)
-	mLocalImage.On("NextImageListElement").Return(false).Once()
-	mLocalImage.On("ErrorScanningImageList").Return(fmt.Errorf("err")).Once()
+	mScanner.On("Scan").Return(false).Once()
+	mScanner.On("Err").Return(fmt.Errorf("err")).Once()
 
 	mFile.On("Close").Return(nil)
 
-	cli := CLIYams{yamsService: mYamsService,
+	cli := CLIYams{imageService: mImageService,
 		errorControl: mErrorControl,
 		lastSync:     mLastSync,
 		localImage:   mLocalImage,
@@ -363,23 +371,25 @@ func TestSyncProcessErrorScanning(t *testing.T) {
 
 	err := cli.Sync(3, 1, "/")
 	assert.Error(t, err)
-	mYamsService.AssertExpectations(t)
+	mImageService.AssertExpectations(t)
 	mErrorControl.AssertExpectations(t)
 	mLocalImage.AssertExpectations(t)
 	mLastSync.AssertExpectations(t)
+	mScanner.AssertExpectations(t)
 	mLogger.AssertExpectations(t)
 	mFile.AssertExpectations(t)
 }
 
 func TestSyncProcessErrorSettingMark(t *testing.T) {
-	mYamsService := &mockYamsService{}
+	mImageService := &mockImageService{}
 	mErrorControl := &mockErrorControl{}
 	mLastSync := &mockLastSync{}
 	mLocalImage := &mockLocalImage{}
 	mFile := &mockFile{}
+	mScanner := &mockScanner{}
 	mLogger := &mockLogger{}
 	// images to send
-	mYamsService.On("GetMaxConcurrency").Return(1)
+	mImageService.On("GetMaxConcurrency").Return(1)
 	mErrorControl.On("GetErrorsPagesQty", mock.AnythingOfType("int")).Return(1)
 
 	mErrorControl.On("GetPreviousErrors",
@@ -387,20 +397,21 @@ func TestSyncProcessErrorSettingMark(t *testing.T) {
 		mock.AnythingOfType("int")).Return([]string{}, nil)
 
 	mLocalImage.On("OpenFile", mock.AnythingOfType("string")).Return(mFile, nil)
-	mLocalImage.On("InitImageListScanner", mock.AnythingOfType("*interfaces.mockFile")).Return()
+	mLocalImage.On("InitImageListScanner",
+		mock.AnythingOfType("*interfaces.mockFile")).Return(mScanner)
 
 	layout := "20060102T150405"
 	date, _ := time.Parse(layout, "20180102T150405")
 	mLastSync.On("GetLastSynchronizationMark", mock.AnythingOfType("string")).Return(date)
 
-	mLocalImage.On("NextImageListElement").Return(false).Once()
-	mLocalImage.On("ErrorScanningImageList").Return(nil).Once()
+	mScanner.On("Scan").Return(false).Once()
+	mScanner.On("Err").Return(nil).Once()
 
 	mFile.On("Close").Return(nil)
 
 	mLastSync.On("SetLastSynchronizationMark", mock.AnythingOfType("string")).Return(fmt.Errorf("err"))
 
-	cli := CLIYams{yamsService: mYamsService,
+	cli := CLIYams{imageService: mImageService,
 		errorControl: mErrorControl,
 		lastSync:     mLastSync,
 		localImage:   mLocalImage,
@@ -409,23 +420,24 @@ func TestSyncProcessErrorSettingMark(t *testing.T) {
 	err := cli.Sync(3, 1, "/")
 	assert.Error(t, err)
 
-	mYamsService.AssertExpectations(t)
+	mImageService.AssertExpectations(t)
 	mErrorControl.AssertExpectations(t)
 	mLocalImage.AssertExpectations(t)
 	mLastSync.AssertExpectations(t)
 	mLogger.AssertExpectations(t)
 	mFile.AssertExpectations(t)
+	mScanner.AssertExpectations(t)
 }
 
 func TestSyncErrorOpeningFile(t *testing.T) {
-	mYamsService := &mockYamsService{}
+	mImageService := &mockImageService{}
 	mErrorControl := &mockErrorControl{}
 	mLastSync := &mockLastSync{}
 	mLocalImage := &mockLocalImage{}
 	mFile := &mockFile{}
 	mLogger := &mockLogger{}
 	// images to send
-	mYamsService.On("GetMaxConcurrency").Return(1)
+	mImageService.On("GetMaxConcurrency").Return(1)
 	mErrorControl.On("GetErrorsPagesQty", mock.AnythingOfType("int")).Return(1)
 
 	mErrorControl.On("GetPreviousErrors",
@@ -436,7 +448,7 @@ func TestSyncErrorOpeningFile(t *testing.T) {
 	mLogger.On("LogErrorGettingImagesList",
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("*errors.errorString")).Return()
-	cli := CLIYams{yamsService: mYamsService,
+	cli := CLIYams{imageService: mImageService,
 		errorControl: mErrorControl,
 		lastSync:     mLastSync,
 		localImage:   mLocalImage,
@@ -445,7 +457,7 @@ func TestSyncErrorOpeningFile(t *testing.T) {
 
 	err := cli.Sync(3, 1, "/")
 	assert.Error(t, err)
-	mYamsService.AssertExpectations(t)
+	mImageService.AssertExpectations(t)
 	mErrorControl.AssertExpectations(t)
 	mLocalImage.AssertExpectations(t)
 	mLastSync.AssertExpectations(t)
@@ -454,11 +466,11 @@ func TestSyncErrorOpeningFile(t *testing.T) {
 }
 
 func TestRetryPreviousFailedUploads(t *testing.T) {
-	mYamsService := &mockYamsService{}
+	mImageService := &mockImageService{}
 	mErrorControl := &mockErrorControl{}
 	mLastSync := &mockLastSync{}
 	mLocalImage := &mockLocalImage{}
-	mYamsService.On("GetMaxConcurrency").Return(1)
+	mImageService.On("GetMaxConcurrency").Return(1)
 	mErrorControl.On("GetErrorsPagesQty", mock.AnythingOfType("int")).Return(1)
 	imagesToRetrySend := []string{"0.jpg", "1.jpg"}
 	mErrorControl.On("GetPreviousErrors",
@@ -470,7 +482,7 @@ func TestRetryPreviousFailedUploads(t *testing.T) {
 			mLocalImage.On("GetLocalImage", mock.AnythingOfType("string")).
 				Return(domain.Image{}, nil).Once()
 			yamsResponse := (*usecases.YamsRepositoryError)(nil)
-			mYamsService.On("Send", mock.AnythingOfType("domain.Image")).Return(yamsResponse).Once()
+			mImageService.On("Send", mock.AnythingOfType("domain.Image")).Return(yamsResponse).Once()
 			mErrorControl.On("CleanErrorMarks", mock.AnythingOfType("string")).Return(nil).Once()
 		case 1: // error getting local image
 			err := fmt.Errorf("Error")
@@ -478,34 +490,34 @@ func TestRetryPreviousFailedUploads(t *testing.T) {
 				Return(domain.Image{}, err).Once()
 		}
 	}
-	cli := CLIYams{yamsService: mYamsService,
+	cli := CLIYams{imageService: mImageService,
 		errorControl: mErrorControl,
 		lastSync:     mLastSync,
 		localImage:   mLocalImage}
 	cli.retryPreviousFailedUploads(3, 1)
 
-	mYamsService.AssertExpectations(t)
+	mImageService.AssertExpectations(t)
 	mErrorControl.AssertExpectations(t)
 	mLocalImage.AssertExpectations(t)
 	mLastSync.AssertExpectations(t)
 }
 
 func TestRetryPreviousFailedUploadsErrorGettingErrors(t *testing.T) {
-	mYamsService := &mockYamsService{}
+	mImageService := &mockImageService{}
 	mErrorControl := &mockErrorControl{}
 
-	mYamsService.On("GetMaxConcurrency").Return(1)
+	mImageService.On("GetMaxConcurrency").Return(1)
 	mErrorControl.On("GetErrorsPagesQty", mock.AnythingOfType("int")).Return(1)
 	err := fmt.Errorf("Error")
 	mErrorControl.On("GetPreviousErrors",
 		mock.AnythingOfType("int"),
 		mock.AnythingOfType("int")).Return([]string{}, err).Once()
 
-	cli := CLIYams{yamsService: mYamsService,
+	cli := CLIYams{imageService: mImageService,
 		errorControl: mErrorControl,
 	}
 	cli.retryPreviousFailedUploads(3, 1)
-	mYamsService.AssertExpectations(t)
+	mImageService.AssertExpectations(t)
 	mErrorControl.AssertExpectations(t)
 }
 
@@ -546,59 +558,59 @@ func TestValidateTuple(t *testing.T) {
 }
 
 func TestList(t *testing.T) {
-	mYamsService := &mockYamsService{}
+	mImageService := &mockImageService{}
 	mLogger := &mockLogger{}
 	yamsErrResponse := (*usecases.YamsRepositoryError)(nil)
 	yamsObjectResponse := []usecases.YamsObject{{ID: "12"}}
-	cli := CLIYams{yamsService: mYamsService, logger: mLogger}
-	mYamsService.On("List").Return(yamsObjectResponse, yamsErrResponse)
+	cli := CLIYams{imageService: mImageService, logger: mLogger}
+	mImageService.On("List").Return(yamsObjectResponse, yamsErrResponse)
 	mLogger.On("LogImage",
 		mock.AnythingOfType("int"),
 		mock.AnythingOfType("usecases.YamsObject")).Return()
 	err := cli.List()
 	assert.Nil(t, err)
-	mYamsService.AssertExpectations(t)
+	mImageService.AssertExpectations(t)
 	mLogger.AssertExpectations(t)
 }
 
 func TestDelete(t *testing.T) {
-	mYamsService := &mockYamsService{}
-	cli := CLIYams{yamsService: mYamsService}
+	mImageService := &mockImageService{}
+	cli := CLIYams{imageService: mImageService}
 	yamsErrResponse := (*usecases.YamsRepositoryError)(nil)
-	mYamsService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(yamsErrResponse)
+	mImageService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(yamsErrResponse)
 	err := cli.Delete("foto.jpg")
 	assert.Nil(t, err)
-	mYamsService.AssertExpectations(t)
+	mImageService.AssertExpectations(t)
 }
 
 func TestDeleteAll(t *testing.T) {
-	mYamsService := &mockYamsService{}
+	mImageService := &mockImageService{}
 	mLogger := &mockLogger{}
 
-	cli := CLIYams{yamsService: mYamsService, logger: mLogger}
+	cli := CLIYams{imageService: mImageService, logger: mLogger}
 	yamsObjectResponse := []usecases.YamsObject{{ID: "12"}, {ID: "12"}}
 	yamsErrResponse := (*usecases.YamsRepositoryError)(nil)
 
-	mYamsService.On("List").Return(yamsObjectResponse, yamsErrResponse)
-	mYamsService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(yamsErrResponse).Once()
-	mYamsService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(usecases.ErrYamsInternal).Once()
+	mImageService.On("List").Return(yamsObjectResponse, yamsErrResponse)
+	mImageService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(yamsErrResponse).Once()
+	mImageService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(usecases.ErrYamsInternal).Once()
 
 	mLogger.On("LogErrorRemoteDelete", mock.AnythingOfType("string"), mock.AnythingOfType("*usecases.YamsRepositoryError"))
 	err := cli.DeleteAll(100)
 	assert.Nil(t, err)
-	mYamsService.AssertExpectations(t)
+	mImageService.AssertExpectations(t)
 	mLogger.AssertExpectations(t)
 }
 
 func TestDeleteAllListError(t *testing.T) {
-	mYamsService := &mockYamsService{}
+	mImageService := &mockImageService{}
 
-	cli := CLIYams{yamsService: mYamsService}
+	cli := CLIYams{imageService: mImageService}
 	yamsObjectResponse := []usecases.YamsObject{{ID: "12"}, {ID: "12"}}
 
-	mYamsService.On("List").Return(yamsObjectResponse, usecases.ErrYamsInternal)
+	mImageService.On("List").Return(yamsObjectResponse, usecases.ErrYamsInternal)
 
 	err := cli.DeleteAll(100)
 	assert.Equal(t, usecases.ErrYamsInternal, err)
-	mYamsService.AssertExpectations(t)
+	mImageService.AssertExpectations(t)
 }

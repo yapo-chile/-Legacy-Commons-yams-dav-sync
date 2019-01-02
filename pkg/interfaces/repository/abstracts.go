@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
 
@@ -78,8 +79,5 @@ type FileSystemView interface {
 	ModTime(name string) time.Time
 	Name(name string) string
 	Size(name string) int64
-	NewScanner(usecases.File)
-	Scan() bool
-	Err() error
-	Text() string
+	NewScanner(usecases.File) interfaces.Scanner
 }

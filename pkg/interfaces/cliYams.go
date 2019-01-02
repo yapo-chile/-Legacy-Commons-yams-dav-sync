@@ -12,7 +12,7 @@ import (
 
 // CLIYams is a yams client that executes operation on yams repository
 type CLIYams struct {
-	yamsService  YamsService
+	imageService ImageService
 	errorControl ErrorControl
 	lastSync     LastSync
 	localImage   LocalImage
@@ -21,10 +21,10 @@ type CLIYams struct {
 }
 
 // NewCLIYams creates a new instance of CLIYams
-func NewCLIYams(yamsService YamsService, errorControl ErrorControl, lastSync LastSync,
+func NewCLIYams(imageService ImageService, errorControl ErrorControl, lastSync LastSync,
 	localImage LocalImage, logger CLIYamsLogger, dateLayout string) *CLIYams {
 	return &CLIYams{
-		yamsService:  yamsService,
+		imageService: imageService,
 		errorControl: errorControl,
 		lastSync:     lastSync,
 		localImage:   localImage,
@@ -33,8 +33,8 @@ func NewCLIYams(yamsService YamsService, errorControl ErrorControl, lastSync Las
 	}
 }
 
-// YamsService allows operations between local repository & remote yams repository
-type YamsService interface {
+// ImageService allows operations between local repository & remote yams repository
+type ImageService interface {
 	// GetRemoteChecksum gets the checksum of image in YAMS
 	GetRemoteChecksum(imageName string) (string, *usecases.YamsRepositoryError)
 	// Send sends images from local storage to yams bucket
@@ -78,14 +78,14 @@ type LocalImage interface {
 	// OpenFile gets image form local storage returning readable File struct
 	OpenFile(imagePath string) (usecases.File, error)
 	// InitImageListScanner initialize scanner to read image list from file
-	InitImageListScanner(f usecases.File)
-	// GetLocalImageListElement gets tuple element from image List, element format must be
-	// [date][space][imagepath]
-	GetLocalImageListElement() string
-	// NextImageListElement returns true if there is more elements in Image List, otherwise returns false
-	NextImageListElement() bool
-	// ErrorScanningImageList returns error if the process of get element from image list failed
-	ErrorScanningImageList() error
+	InitImageListScanner(f usecases.File) Scanner
+}
+
+// Scanner allows operations to read file line by line
+type Scanner interface {
+	Text() string
+	Scan() bool
+	Err() error
 }
 
 // CLIYamsLogger logs CLI yams events
@@ -103,7 +103,7 @@ type CLIYamsLogger interface {
 // to upload those images to yams one more time. If fails increase the counter of errors
 // in repo. Repository only returns images with less than a specific number of errors.
 func (cli *CLIYams) retryPreviousFailedUploads(threads, maxErrorTolerance int) {
-	maxConcurrency := cli.yamsService.GetMaxConcurrency()
+	maxConcurrency := cli.imageService.GetMaxConcurrency()
 	if threads > maxConcurrency {
 		threads = maxConcurrency
 	}
@@ -136,7 +136,7 @@ func (cli *CLIYams) retryPreviousFailedUploads(threads, maxErrorTolerance int) {
 // Sync synchronizes images between local repository and yams repository
 // using go concurrency
 func (cli *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string) error {
-	maxConcurrency := cli.yamsService.GetMaxConcurrency()
+	maxConcurrency := cli.imageService.GetMaxConcurrency()
 	if threads > maxConcurrency {
 		threads = maxConcurrency
 	}
@@ -162,10 +162,10 @@ func (cli *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string) er
 	latestSynchronizedImageDate := cli.lastSync.GetLastSynchronizationMark()
 	var imagePath, imageDateStr string
 
-	cli.localImage.InitImageListScanner(file)
+	scanner := cli.localImage.InitImageListScanner(file)
 	// for each element read from file
-	for cli.localImage.NextImageListElement() {
-		tuple := strings.Split(cli.localImage.GetLocalImageListElement(), " ")
+	for scanner.Scan() {
+		tuple := strings.Split(scanner.Text(), " ")
 		if !validateTuple(tuple, latestSynchronizedImageDate, cli.dateLayout) {
 			continue
 		}
@@ -181,7 +181,7 @@ func (cli *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string) er
 	waitGroup.Wait()
 
 	// If scanner stops because error
-	if e := cli.localImage.ErrorScanningImageList(); e != nil {
+	if e := scanner.Err(); e != nil {
 		return fmt.Errorf("Error reading data from file: %+v", e)
 	}
 	err := cli.lastSync.SetLastSynchronizationMark(imageDateStr)
@@ -211,7 +211,7 @@ func validateTuple(tuple []string, date time.Time, dateLayout string) bool {
 
 // List prints a list of available images in yams repository
 func (cli *CLIYams) List() error {
-	list, err := cli.yamsService.List()
+	list, err := cli.imageService.List()
 	for i, img := range list {
 		cli.logger.LogImage(i+1, img)
 	}
@@ -220,12 +220,12 @@ func (cli *CLIYams) List() error {
 
 // Delete deletes an object in yams repository
 func (cli *CLIYams) Delete(imageName string) error {
-	return cli.yamsService.RemoteDelete(imageName, domain.YAMSForceRemoval)
+	return cli.imageService.RemoteDelete(imageName, domain.YAMSForceRemoval)
 }
 
 // DeleteAll deletes every imagen in yams repository and redis using concurency
 func (cli *CLIYams) DeleteAll(threads int) error {
-	images, err := cli.yamsService.List()
+	images, err := cli.imageService.List()
 	if err != nil {
 		return err
 	}
@@ -252,7 +252,7 @@ func (cli *CLIYams) DeleteAll(threads int) error {
 func (cli *CLIYams) sendWorker(id int, jobs <-chan domain.Image, wg *sync.WaitGroup, previousUploadFailed int) {
 	defer wg.Done()
 	for image := range jobs {
-		err := cli.yamsService.Send(image)
+		err := cli.imageService.Send(image)
 		cli.sendErrorControl(image, previousUploadFailed, err)
 	}
 }
@@ -273,7 +273,7 @@ func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed in
 		}
 		return
 	case usecases.ErrYamsDuplicate:
-		remoteImgChecksum, e := cli.yamsService.GetRemoteChecksum(imageName)
+		remoteImgChecksum, e := cli.imageService.GetRemoteChecksum(imageName)
 		if e != yamsErrNil {
 			cli.logger.LogErrorGettingRemoteChecksum(imageName, e)
 			// recursive increase error counter
@@ -281,7 +281,7 @@ func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed in
 			return
 		}
 		if remoteImgChecksum != localImageChecksum {
-			if e := cli.yamsService.RemoteDelete(imageName, domain.YAMSForceRemoval); e != yamsErrNil {
+			if e := cli.imageService.RemoteDelete(imageName, domain.YAMSForceRemoval); e != yamsErrNil {
 				cli.logger.LogErrorRemoteDelete(imageName, e)
 				// recursive increase error counter
 				cli.sendErrorControl(image, previousUploadFailed, fmt.Errorf("error deleting remote image"))
@@ -305,7 +305,7 @@ func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed in
 // deleteWorker deletes every image to yams repository
 func (cli *CLIYams) deleteWorker(id int, jobs <-chan string, wg *sync.WaitGroup) {
 	for j := range jobs {
-		if e := cli.yamsService.RemoteDelete(j, domain.YAMSForceRemoval); e != nil {
+		if e := cli.imageService.RemoteDelete(j, domain.YAMSForceRemoval); e != nil {
 			cli.logger.LogErrorRemoteDelete(j, e)
 		}
 	}

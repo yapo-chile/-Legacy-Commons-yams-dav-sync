@@ -8,6 +8,7 @@ import (
 	"path"
 
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
+	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
 
@@ -62,23 +63,7 @@ func (repo *LocalImageRepo) GetLocalImage(imagePath string) (domain.Image, error
 	return image, nil
 }
 
-// GetLocalImageListElement gets tuple element from image List, element format must be
-// [date][space][imagepath]
-func (repo *LocalImageRepo) GetLocalImageListElement() string {
-	return repo.fileSystemView.Text()
-}
-
-// NextImageListElement returns true if there is more elements in Image List, otherwise returns false
-func (repo *LocalImageRepo) NextImageListElement() bool {
-	return repo.fileSystemView.Scan()
-}
-
-// ErrorScanningImageList returns error if the process of get element from image list failed
-func (repo *LocalImageRepo) ErrorScanningImageList() error {
-	return repo.fileSystemView.Err()
-}
-
 // InitImageListScanner initialize scanner to read image list from file
-func (repo *LocalImageRepo) InitImageListScanner(f usecases.File) {
-	repo.fileSystemView.NewScanner(f)
+func (repo *LocalImageRepo) InitImageListScanner(f usecases.File) interfaces.Scanner {
+	return repo.fileSystemView.NewScanner(f)
 }
