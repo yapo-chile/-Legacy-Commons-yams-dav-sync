@@ -8,6 +8,7 @@ import (
 	"path"
 
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
+	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
 
@@ -28,18 +29,18 @@ func NewLocalImageRepo(path string, fileSystemView FileSystemView) *LocalImageRe
 	return &localImageRepo
 }
 
-// Open opens a file from local storage
-func (repo *LocalImageRepo) Open(path string) (usecases.File, error) {
+// OpenFile opens a file from local storage
+func (repo *LocalImageRepo) OpenFile(path string) (usecases.File, error) {
 	return repo.fileSystemView.Open(path)
 }
 
-// GetImage gets a single image from local repository
-func (repo *LocalImageRepo) GetImage(imagePath string) (domain.Image, error) {
+// GetLocalImage gets a single image from local repository
+func (repo *LocalImageRepo) GetLocalImage(imagePath string) (domain.Image, error) {
 	if len(imagePath) < 2 {
 		return domain.Image{}, fmt.Errorf("ImagePath too short: %+v", imagePath)
 	}
 	filePath := path.Join(repo.path, imagePath[:2], imagePath)
-	f, err := repo.Open(filePath)
+	f, err := repo.OpenFile(filePath)
 	if err != nil {
 		return domain.Image{}, err
 	}
@@ -60,4 +61,9 @@ func (repo *LocalImageRepo) GetImage(imagePath string) (domain.Image, error) {
 		},
 	}
 	return image, nil
+}
+
+// InitImageListScanner initialize scanner to read image list from file
+func (repo *LocalImageRepo) InitImageListScanner(f usecases.File) interfaces.Scanner {
+	return repo.fileSystemView.NewScanner(f)
 }

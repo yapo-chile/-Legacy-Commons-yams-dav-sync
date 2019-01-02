@@ -16,7 +16,6 @@ import (
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/loggers"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/repository"
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
 
 // elapsed estimated execution processing time since a defer elapsed is placed
@@ -83,7 +82,11 @@ func main() {
 		conf.YamsConf.MaxConcurrentConns,
 	)
 
-	defaultLastSyncDate, err := time.Parse(conf.LastSync.DefaultLayout, conf.LastSync.DefaultDate)
+	defaultLastSyncDate, err := time.Parse(
+		conf.LastSync.DefaultLayout,
+		conf.LastSync.DefaultDate,
+	)
+
 	if err != nil {
 		fmt.Printf("Wrong date layout %+v for date %+v",
 			conf.LastSync.DefaultLayout,
@@ -97,16 +100,14 @@ func main() {
 		conf.ErrorControl.MaxResultsPerPage,
 	)
 
-	syncInteractor := usecases.SyncInteractor{
-		YamsRepo:         yamsRepo,
-		ImageRepo:        localImageRepo,
-		LastSyncRepo:     lastSyncRepo,
-		ErrorControlRepo: errorControlRepo,
-	}
-	CLIYams := interfaces.CLIYams{
-		Interactor: syncInteractor,
-		Logger:     loggers.MakeCLIYamsLogger(logger),
-	}
+	CLIYams := interfaces.NewCLIYams(
+		yamsRepo,
+		errorControlRepo,
+		lastSyncRepo,
+		localImageRepo,
+		loggers.MakeCLIYamsLogger(logger),
+		conf.LocalStorageConf.DefaultFilesDateLayout,
+	)
 
 	maxErrorQty := conf.ErrorControl.MaxRetriesPerError
 

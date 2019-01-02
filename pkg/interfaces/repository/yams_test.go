@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
+	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
 )
 
@@ -66,13 +67,13 @@ func TestGetMaxConcurrency(t *testing.T) {
 	yamsRepo := YamsRepository{
 		maxConcurrentThreads: 100,
 	}
-	result := yamsRepo.GetMaxConcurrentConns()
+	result := yamsRepo.GetMaxConcurrency()
 	assert.Equal(t, yamsRepo.maxConcurrentThreads, result)
 }
 
 func TestGetDomain(t *testing.T) {
 	yamsRepo := YamsRepository{}
-	result := yamsRepo.GetMaxConcurrentConns()
+	result := yamsRepo.GetMaxConcurrency()
 	assert.Equal(t, yamsRepo.maxConcurrentThreads, result)
 }
 
@@ -121,20 +122,6 @@ func TestGetDomains(t *testing.T) {
 	mHandler.AssertExpectations(t)
 }
 
-type mockReader struct { // nolint
-	mock.Mock
-}
-
-func (m *mockReader) Read(p []byte) (n int, err error) {
-	args := m.Called(p)
-	return args.Get(0).(int), args.Error(1)
-}
-
-func (m *mockReader) Close() error {
-	args := m.Called()
-	return args.Error(0)
-}
-
 type mockFileSystemView struct {
 	mock.Mock
 }
@@ -159,6 +146,11 @@ func (m *mockFileSystemView) ModTime(path string) time.Time {
 	return args.Get(0).(time.Time)
 }
 
+func (m *mockFileSystemView) NewScanner(file usecases.File) interfaces.Scanner {
+	args := m.Called(file)
+	return args.Get(0).(interfaces.Scanner)
+}
+
 type mockFile struct {
 	mock.Mock
 }
@@ -173,7 +165,7 @@ func (m *mockFile) Read(p []byte) (int, error) {
 	return args.Int(0), args.Error(1)
 }
 
-func TestPutImageErrorOpeningFile(t *testing.T) {
+func TestSendErrorOpeningFile(t *testing.T) {
 	mLogger := MockYamsRepoLogger{}
 	mSigner := mockSigner{}
 	mHandler := mockHTTPHandler{}
@@ -197,7 +189,7 @@ func TestPutImageErrorOpeningFile(t *testing.T) {
 	mFileSystemView.On("Open", mock.AnythingOfType("string")).
 		Return(&mFile, fmt.Errorf("err"))
 
-	resp := yamsRepo.PutImage(domain.Image{})
+	resp := yamsRepo.Send(domain.Image{})
 
 	assert.Equal(t, usecases.ErrYamsImage, resp)
 
@@ -209,7 +201,7 @@ func TestPutImageErrorOpeningFile(t *testing.T) {
 	mFileSystemView.AssertExpectations(t)
 }
 
-func TestPutImage(t *testing.T) {
+func TestSend(t *testing.T) {
 	mLogger := MockYamsRepoLogger{}
 	mSigner := mockSigner{}
 	mHandler := mockHTTPHandler{}
@@ -249,7 +241,7 @@ func TestPutImage(t *testing.T) {
 				Code: 200,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			resp := yamsRepo.PutImage(domain.Image{})
+			resp := yamsRepo.Send(domain.Image{})
 			assert.Nil(t, resp)
 
 		case 1: // 400 Internal error
@@ -257,7 +249,7 @@ func TestPutImage(t *testing.T) {
 				Code: 400,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			resp := yamsRepo.PutImage(domain.Image{})
+			resp := yamsRepo.Send(domain.Image{})
 			assert.Equal(t, usecases.ErrYamsInternal, resp)
 
 		case 2: // 403 Unauthorized error
@@ -265,35 +257,35 @@ func TestPutImage(t *testing.T) {
 				Code: 403,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			resp := yamsRepo.PutImage(domain.Image{})
+			resp := yamsRepo.Send(domain.Image{})
 			assert.Equal(t, usecases.ErrYamsUnauthorized, resp)
 		case 3: // 404 Bucket Not Found error
 			response := HTTPResponse{
 				Code: 404,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			resp := yamsRepo.PutImage(domain.Image{})
+			resp := yamsRepo.Send(domain.Image{})
 			assert.Equal(t, usecases.ErrYamsBucketNotFound, resp)
 		case 4: // 409 object duplicated error
 			response := HTTPResponse{
 				Code: 409,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			resp := yamsRepo.PutImage(domain.Image{})
+			resp := yamsRepo.Send(domain.Image{})
 			assert.Equal(t, usecases.ErrYamsDuplicate, resp)
 		case 5: // 500 Internal Server error
 			response := HTTPResponse{
 				Code: 500,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			resp := yamsRepo.PutImage(domain.Image{})
+			resp := yamsRepo.Send(domain.Image{})
 			assert.Equal(t, usecases.ErrYamsInternal, resp)
 		case 6: // 503 Yams internal error
 			response := HTTPResponse{
 				Code: 503,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			resp := yamsRepo.PutImage(domain.Image{})
+			resp := yamsRepo.Send(domain.Image{})
 			assert.Equal(t, usecases.ErrYamsInternal, resp)
 		}
 	}
@@ -306,7 +298,7 @@ func TestPutImage(t *testing.T) {
 	mFileSystemView.AssertExpectations(t)
 }
 
-func TestDeleteImage(t *testing.T) {
+func TestRemoteDelete(t *testing.T) {
 	mLogger := MockYamsRepoLogger{}
 	mSigner := mockSigner{}
 	mHandler := mockHTTPHandler{}
@@ -341,49 +333,49 @@ func TestDeleteImage(t *testing.T) {
 				Code: 202,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			resp := yamsRepo.DeleteImage("foto-sexy.jpg", domain.YAMSForceRemoval)
+			resp := yamsRepo.RemoteDelete("foto-sexy.jpg", domain.YAMSForceRemoval)
 			assert.Nil(t, resp)
 		case 1: // 400 yams internal error
 			response := HTTPResponse{
 				Code: 400,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			resp := yamsRepo.DeleteImage("foto-sexy.jpg", domain.YAMSForceRemoval)
+			resp := yamsRepo.RemoteDelete("foto-sexy.jpg", domain.YAMSForceRemoval)
 			assert.Equal(t, resp, usecases.ErrYamsInternal)
 		case 2: // 403 yams Unauthorized error
 			response := HTTPResponse{
 				Code: 403,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			resp := yamsRepo.DeleteImage("foto-sexy.jpg", domain.YAMSForceRemoval)
+			resp := yamsRepo.RemoteDelete("foto-sexy.jpg", domain.YAMSForceRemoval)
 			assert.Equal(t, resp, usecases.ErrYamsUnauthorized)
 		case 3: // 404 object not found error
 			response := HTTPResponse{
 				Code: 404,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			resp := yamsRepo.DeleteImage("foto-sexy.jpg", domain.YAMSForceRemoval)
+			resp := yamsRepo.RemoteDelete("foto-sexy.jpg", domain.YAMSForceRemoval)
 			assert.Equal(t, resp, usecases.ErrYamsObjectNotFound)
 		case 4: // 500 server error
 			response := HTTPResponse{
 				Code: 500,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			resp := yamsRepo.DeleteImage("foto-sexy.jpg", domain.YAMSForceRemoval)
+			resp := yamsRepo.RemoteDelete("foto-sexy.jpg", domain.YAMSForceRemoval)
 			assert.Equal(t, resp, usecases.ErrYamsInternal)
 		case 5: // 503 Service temporarily unavailable
 			response := HTTPResponse{
 				Code: 503,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			resp := yamsRepo.DeleteImage("foto-sexy.jpg", domain.YAMSForceRemoval)
+			resp := yamsRepo.RemoteDelete("foto-sexy.jpg", domain.YAMSForceRemoval)
 			assert.Equal(t, resp, usecases.ErrYamsInternal)
 		default: // Unknown error
 			response := HTTPResponse{
 				Code: 999,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			resp := yamsRepo.DeleteImage("foto-sexy.jpg", domain.YAMSForceRemoval)
+			resp := yamsRepo.RemoteDelete("foto-sexy.jpg", domain.YAMSForceRemoval)
 			assert.Equal(t, resp, usecases.ErrYamsInternal)
 		}
 	}
@@ -393,7 +385,7 @@ func TestDeleteImage(t *testing.T) {
 	mRequest.AssertExpectations(t)
 }
 
-func TestHeadImage(t *testing.T) {
+func TestGetRemoteChecksum(t *testing.T) {
 	mLogger := MockYamsRepoLogger{}
 	mSigner := mockSigner{}
 	mHandler := mockHTTPHandler{}
@@ -432,7 +424,7 @@ func TestHeadImage(t *testing.T) {
 				},
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			resp, err := yamsRepo.HeadImage("foto-sexy.jpg")
+			resp, err := yamsRepo.GetRemoteChecksum("foto-sexy.jpg")
 			assert.Nil(t, err)
 			assert.Equal(t, expected, resp)
 		case 1: // 400 yams internal error
@@ -440,7 +432,7 @@ func TestHeadImage(t *testing.T) {
 				Code: 404,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			_, err := yamsRepo.HeadImage("foto-sexy.jpg")
+			_, err := yamsRepo.GetRemoteChecksum("foto-sexy.jpg")
 			assert.Equal(t, usecases.ErrYamsObjectNotFound, err)
 
 		case 2: // 500 server error
@@ -448,21 +440,21 @@ func TestHeadImage(t *testing.T) {
 				Code: 500,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			_, err := yamsRepo.HeadImage("foto-sexy.jpg")
+			_, err := yamsRepo.GetRemoteChecksum("foto-sexy.jpg")
 			assert.Equal(t, usecases.ErrYamsInternal, err)
 		case 3: // 503 Service temporarily unavailable
 			response := HTTPResponse{
 				Code: 503,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			_, err := yamsRepo.HeadImage("foto-sexy.jpg")
+			_, err := yamsRepo.GetRemoteChecksum("foto-sexy.jpg")
 			assert.Equal(t, usecases.ErrYamsInternal, err)
 		default: // Unknown error
 			response := HTTPResponse{
 				Code: 999,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			_, err := yamsRepo.HeadImage("foto-sexy.jpg")
+			_, err := yamsRepo.GetRemoteChecksum("foto-sexy.jpg")
 			assert.Equal(t, usecases.ErrYamsInternal, err)
 		}
 	}
@@ -472,7 +464,7 @@ func TestHeadImage(t *testing.T) {
 	mRequest.AssertExpectations(t)
 }
 
-func TestGetImages(t *testing.T) {
+func TestGetLocalImages(t *testing.T) {
 	mLogger := MockYamsRepoLogger{}
 	mSigner := mockSigner{}
 	mHandler := mockHTTPHandler{}
@@ -518,7 +510,7 @@ func TestGetImages(t *testing.T) {
 				Body: body,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			resp, err := yamsRepo.GetImages()
+			resp, err := yamsRepo.List()
 			assert.Nil(t, err)
 			assert.Equal(t, expected, resp)
 		case 1: // 404 yams objects not found
@@ -527,7 +519,7 @@ func TestGetImages(t *testing.T) {
 				Body: body,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			_, err := yamsRepo.GetImages()
+			_, err := yamsRepo.List()
 			assert.Equal(t, usecases.ErrYamsObjectNotFound, err)
 
 		case 2: // 500 object not found error
@@ -536,7 +528,7 @@ func TestGetImages(t *testing.T) {
 				Body: body,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			_, err := yamsRepo.GetImages()
+			_, err := yamsRepo.List()
 			assert.Equal(t, usecases.ErrYamsInternal, err)
 		case 3: // 503 Service temporarily unavailable
 			response := HTTPResponse{
@@ -544,14 +536,14 @@ func TestGetImages(t *testing.T) {
 				Body: body,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			_, err := yamsRepo.GetImages()
+			_, err := yamsRepo.List()
 			assert.Equal(t, usecases.ErrYamsInternal, err)
 		case 4: // Unmarshal error
 			response := HTTPResponse{
 				Body: "+++++++",
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			_, err := yamsRepo.GetImages()
+			_, err := yamsRepo.List()
 			assert.Equal(t, usecases.ErrYamsInternal, err)
 		default: // Unknown error
 			response := HTTPResponse{
@@ -559,7 +551,7 @@ func TestGetImages(t *testing.T) {
 				Body: body,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			_, err := yamsRepo.GetImages()
+			_, err := yamsRepo.List()
 			assert.Equal(t, usecases.ErrYamsInternal, err)
 		}
 	}

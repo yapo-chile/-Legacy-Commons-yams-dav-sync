@@ -1,9 +1,5 @@
 package usecases
 
-import (
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
-)
-
 // YamsRepositoryError erros that could happen in yams repo
 type YamsRepositoryError struct {
 	ErrorString string
@@ -56,12 +52,3 @@ var (
 	// implementations to indicate that it failed to locate the object.
 	ErrYamsObjectNotFound = &YamsRepositoryError{"object not found"}
 )
-
-// YamsRepository interface that allows yams repository operations
-type YamsRepository interface {
-	GetMaxConcurrentConns() int
-	GetImages() ([]YamsObject, *YamsRepositoryError)
-	PutImage(domain.Image) *YamsRepositoryError
-	HeadImage(imageName string) (externalHash string, err *YamsRepositoryError)
-	DeleteImage(imageName string, immediateRemoval bool) *YamsRepositoryError
-}
