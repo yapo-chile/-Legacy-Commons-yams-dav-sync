@@ -1,6 +1,5 @@
-# Reference: https://github.com/calibreapp/floodgate
-## Commit: f77aa74 on 1 May 2017
-
+## Reference: [calibreapp/floodgate](https://github.com/calibreapp/floodgate)
+#### Commit: [f77aa74 on 1 May 2017](https://github.com/calibreapp/floodgate/tree/f77aa744e0d701896167160cbee33dd132c4343a)
 
 <p align="center">
   <img alt="Yarn" src="assets/floodgate.png" width="550">
