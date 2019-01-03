@@ -39,7 +39,7 @@ func (repo *errorControlRepo) GetPreviousErrors(nPage, maxErrorTolerance int) (r
 	defer rows.Close() // nolint
 
 	if err != nil {
-		return result, fmt.Errorf("Error getting synchronization marks: %+v", err)
+		return
 	}
 
 	var imgPath string
@@ -47,7 +47,7 @@ func (repo *errorControlRepo) GetPreviousErrors(nPage, maxErrorTolerance int) (r
 		rows.Scan(&imgPath) // nolint
 		result = append(result, imgPath)
 	}
-	return result, nil
+	return
 }
 
 // GetErrorsPagesQty get the total pages number for pagination
@@ -132,8 +132,5 @@ func (repo *errorControlRepo) IncreaseErrorCounter(imagePath string) (err error)
 			imagePath,
 		))
 	defer row.Close() // nolint
-	if err != nil {
-		err = fmt.Errorf("There was an error creating errors sync: %+v", err)
-	}
 	return
 }
