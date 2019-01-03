@@ -90,3 +90,46 @@ func (m *mockRequest) SetImgBody(body io.Reader) HTTPRequest {
 	args := m.Called(body)
 	return args.Get(0).(HTTPRequest)
 }
+
+type mockDbHandler struct { // nolint: deadcode
+	mock.Mock
+}
+
+func (m *mockDbHandler) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+func (m *mockDbHandler) Query(statement string) (DbResult, error) {
+	args := m.Called(statement)
+	return args.Get(0).(DbResult), args.Error(1)
+}
+
+func (m *mockDbHandler) Insert(statement string) error {
+	args := m.Called(statement)
+	return args.Error(0)
+}
+
+func (m *mockDbHandler) Update(statement string) error {
+	args := m.Called(statement)
+	return args.Error(0)
+}
+
+type mockResult struct { // nolint: deadcode
+	mock.Mock
+}
+
+func (m *mockResult) Next() bool {
+	args := m.Called()
+	return args.Bool(0)
+}
+
+func (m *mockResult) Scan(dest ...interface{}) error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+func (m *mockResult) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
