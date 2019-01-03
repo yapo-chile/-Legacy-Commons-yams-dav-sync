@@ -1,3 +1,7 @@
+# Reference: https://github.com/calibreapp/floodgate
+## Commit: f77aa74 on 1 May 2017
+
+
 <p align="center">
   <img alt="Yarn" src="assets/floodgate.png" width="550">
 </p>
