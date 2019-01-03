@@ -2,6 +2,7 @@ package infrastructure
 
 import (
 	"bufio"
+	"io"
 	"os"
 	"time"
 
@@ -60,4 +61,10 @@ func (l *LocalFileSystemView) Size(name string) int64 {
 func (l *LocalFileSystemView) NewScanner(file usecases.File) interfaces.Scanner {
 	scanner := bufio.NewScanner(file)
 	return scanner
+}
+
+// Copy copies from src to dst until either EOF is reached on src or an error occurs.
+func (l *LocalFileSystemView) Copy(dst io.Writer, src io.Reader) (err error) {
+	_, err = io.Copy(dst, src)
+	return
 }
