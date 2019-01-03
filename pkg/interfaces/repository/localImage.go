@@ -46,7 +46,7 @@ func (repo *LocalImageRepo) GetLocalImage(imagePath string) (domain.Image, error
 	defer f.Close() // nolint:errcheck,gosec
 
 	hash := md5.New() // nolint:gosec
-	_, err = repo.fileSystemView.Copy(hash, f)
+	err = repo.fileSystemView.Copy(hash, f)
 	if err != nil {
 		return domain.Image{}, err
 	}

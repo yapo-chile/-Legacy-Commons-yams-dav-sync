@@ -80,5 +80,5 @@ type FileSystemView interface {
 	Name(name string) string
 	Size(name string) int64
 	NewScanner(usecases.File) interfaces.Scanner
-	Copy(dst io.Writer, src io.Reader) (int64, error)
+	Copy(dst io.Writer, src io.Reader) error
 }

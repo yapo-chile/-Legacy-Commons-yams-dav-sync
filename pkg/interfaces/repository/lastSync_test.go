@@ -98,7 +98,7 @@ func TestSetLastSynchronizationMark(t *testing.T) {
 
 	err := lastSyncRepo.SetLastSynchronizationMark("123")
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	mDbHandler.AssertExpectations(t)
 	mResult.AssertExpectations(t)
 }

@@ -35,7 +35,7 @@ func TestGetPreviousErrors(t *testing.T) {
 	result, err := errCtrlRepo.GetPreviousErrors(1, 1)
 
 	assert.Equal(t, expected, result)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	mDbHandler.AssertExpectations(t)
 	mResult.AssertExpectations(t)
 }
@@ -133,7 +133,7 @@ func TestCleanErrorMarks(t *testing.T) {
 	mResult.On("Close").Return(nil)
 
 	err := errCtrlRepo.CleanErrorMarks("fotito.jpg")
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	mDbHandler.AssertExpectations(t)
 	mResult.AssertExpectations(t)
 }

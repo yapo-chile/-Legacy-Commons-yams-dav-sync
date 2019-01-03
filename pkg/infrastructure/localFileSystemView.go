@@ -64,6 +64,7 @@ func (l *LocalFileSystemView) NewScanner(file usecases.File) interfaces.Scanner 
 }
 
 // Copy copies from src to dst until either EOF is reached on src or an error occurs.
-func (l *LocalFileSystemView) Copy(dst io.Writer, src io.Reader) (int64, error) {
-	return io.Copy(dst, src)
+func (l *LocalFileSystemView) Copy(dst io.Writer, src io.Reader) (err error) {
+	_, err = io.Copy(dst, src)
+	return
 }

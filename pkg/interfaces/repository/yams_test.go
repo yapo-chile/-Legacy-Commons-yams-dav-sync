@@ -152,9 +152,9 @@ func (m *mockFileSystemView) NewScanner(file usecases.File) interfaces.Scanner {
 	return args.Get(0).(interfaces.Scanner)
 }
 
-func (m *mockFileSystemView) Copy(dst io.Writer, src io.Reader) (int64, error) {
+func (m *mockFileSystemView) Copy(dst io.Writer, src io.Reader) error {
 	args := m.Called(dst, src)
-	return args.Get(0).(int64), args.Error(1)
+	return args.Error(0)
 }
 
 type mockFile struct {

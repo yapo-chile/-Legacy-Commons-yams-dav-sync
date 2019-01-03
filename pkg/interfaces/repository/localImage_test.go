@@ -30,7 +30,7 @@ func TestOpenFile(t *testing.T) {
 	mFileSystem.On("Open", mock.AnythingOfType("string")).Return(expected, nil)
 	result, err := imgRepo.OpenFile("")
 	assert.Equal(t, expected, result)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	mFileSystem.AssertExpectations(t)
 }
 
@@ -58,7 +58,7 @@ func TestGetLocalImageOK(t *testing.T) {
 	mFileSystem.On("Open", mock.AnythingOfType("string")).Return(mFile, nil)
 	mFileSystem.On("Copy",
 		mock.AnythingOfType("*md5.digest"),
-		mock.AnythingOfType("*repository.mockFile")).Return(int64Zero, nil)
+		mock.AnythingOfType("*repository.mockFile")).Return(nil)
 	mFileSystem.On("Name", mock.AnythingOfType("string")).Return("", nil)
 	mFileSystem.On("Size", mock.AnythingOfType("string")).Return(int64Zero, nil)
 	mFileSystem.On("ModTime", mock.AnythingOfType("string")).Return(time.Time{}, nil)
@@ -75,7 +75,7 @@ func TestGetLocalImageOK(t *testing.T) {
 
 	result, err := imgRepo.GetLocalImage("foto-sexy.jpg")
 	assert.Equal(t, expected, result)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	mFileSystem.AssertExpectations(t)
 	mFile.AssertExpectations(t)
 }
@@ -106,12 +106,10 @@ func TestGetLocalImageCopyError(t *testing.T) {
 		fileSystemView: mFileSystem,
 	}
 
-	var int64Zero int64
-
 	mFileSystem.On("Open", mock.AnythingOfType("string")).Return(mFile, nil)
 	mFileSystem.On("Copy",
 		mock.AnythingOfType("*md5.digest"),
-		mock.AnythingOfType("*repository.mockFile")).Return(int64Zero, fmt.Errorf("error"))
+		mock.AnythingOfType("*repository.mockFile")).Return(fmt.Errorf("error"))
 
 	mFile.On("Close").Return(nil).Once()
 
