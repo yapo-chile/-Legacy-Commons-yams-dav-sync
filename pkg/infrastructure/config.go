@@ -25,12 +25,13 @@ type LoggerConf struct {
 
 // Config holds all configuration for the service
 type Config struct {
-	LoggerConf       LoggerConf       `env:"LOGGER_"`
-	LocalStorageConf LocalStorage     `env:"IMAGES_"`
-	YamsConf         YamsConf         `env:"YAMS_"`
-	Database         DatabaseConf     `env:"DATABASE_"`
-	ErrorControl     ErrorControlConf `env:"ERRORS_"`
-	LastSync         LastSyncConf     `env:"LAST_SYNC_"`
+	LoggerConf         LoggerConf         `env:"LOGGER_"`
+	LocalStorageConf   LocalStorage       `env:"IMAGES_"`
+	YamsConf           YamsConf           `env:"YAMS_"`
+	Database           DatabaseConf       `env:"DATABASE_"`
+	ErrorControl       ErrorControlConf   `env:"ERRORS_"`
+	LastSync           LastSyncConf       `env:"LAST_SYNC_"`
+	BandwidthProxyConf BandwidthProxyConf `env:"BANDWIDTH_PROXY_"`
 }
 
 // LocalStorage hols all configuration for local storage
@@ -76,6 +77,12 @@ type DatabaseConf struct {
 	MgFolder    string `env:"MIGRATIONS_FOLDER" envDefault:"migrations"`
 	MgDriver    string `env:"MIGRATIONS_DRIVER" envDefault:"postgres"`
 	ConnRetries int    `env:"CONN_RETRIES" envDefault:"60"`
+}
+
+// BandwidthProxyConf holds all configurations to connect with bandwidth limiter proxy
+type BandwidthProxyConf struct {
+	ConnType string `env:"CONN_TYPE" envDefault:"tcp"`
+	Host     string `env:"HOST" envDefault:"localhost:9999"`
 }
 
 // LoadFromEnv loads the config data from the environment variables

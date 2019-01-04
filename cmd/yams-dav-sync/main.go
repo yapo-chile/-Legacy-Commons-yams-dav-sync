@@ -51,7 +51,16 @@ func main() {
 		logger.Error("Error: %+v. Threads set as %+v", e, threads)
 	}
 	// Setting up insfrastructure
-	HTTPHandler := infrastructure.NewHTTPHandler(logger)
+
+	dialer, err := infrastructure.NewProxyDialerHandler(
+		conf.BandwidthProxyConf.ConnType,
+		conf.BandwidthProxyConf.Host,
+	)
+	if err != nil {
+		logger.Error("%s\n", err)
+		os.Exit(2)
+	}
+	HTTPHandler := infrastructure.NewHTTPHandler(dialer, logger)
 
 	signer := infrastructure.NewJWTSigner(conf.YamsConf.PrivateKeyFile, logger)
 

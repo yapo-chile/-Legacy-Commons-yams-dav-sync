@@ -12,6 +12,7 @@ import (
 
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/loggers"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/repository"
+	"golang.org/x/net/proxy"
 )
 
 // errorCodes codes that microservice considered as error code
@@ -22,12 +23,16 @@ var errorCodes = map[int]string{
 
 // HTTPHandler struct to implements http repository operations
 type HTTPHandler struct {
+	dialer proxy.Dialer
 	logger loggers.Logger
 }
 
 // NewHTTPHandler will create a new instance of a custom http request handler
-func NewHTTPHandler(logger loggers.Logger) repository.HTTPHandler {
-	return &HTTPHandler{logger: logger}
+func NewHTTPHandler(dialer interface{}, logger loggers.Logger) repository.HTTPHandler {
+	return &HTTPHandler{
+		dialer: dialer.(proxy.Dialer),
+		logger: logger,
+	}
 }
 
 // Send will execute the sending of a http request
@@ -35,10 +40,17 @@ func NewHTTPHandler(logger loggers.Logger) repository.HTTPHandler {
 func (h *HTTPHandler) Send(req repository.HTTPRequest) (repository.HTTPResponse, error) {
 	h.logger.Debug("HTTP - %s - Sending HTTP request to: %+v", req.GetMethod(), req.GetPath())
 
+	httpTransport := &http.Transport{}
+
 	// this makes a custom http client with a timeout in secs for each request
 	var httpClient = &http.Client{
-		Timeout: time.Second * req.(*request).timeOut,
+		Timeout:   time.Second * req.(*request).timeOut,
+		Transport: httpTransport,
 	}
+	if h.dialer != nil {
+		httpTransport.Dial = h.dialer.Dial
+	}
+
 	resp, err := httpClient.Do(&req.(*request).innerRequest)
 	if err != nil {
 		h.logger.Error("HTTP - %s - Error sending HTTP request: %+v", req.GetMethod(), err)

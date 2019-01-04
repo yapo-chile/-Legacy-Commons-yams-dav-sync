@@ -35,15 +35,33 @@ run:
 runsync:
 	@./${APPNAME}  -command=sync -dumpfile=${YAMS_IMAGES_LIST_FILE} -threads=$(YAMS_MAX_CONCURRENT_CONN)
 
+runlist:
+	@./${APPNAME}  -command=list
+
+rundeleteall:
+	@./${APPNAME}  -command=deleteAll -threads=$(YAMS_MAX_CONCURRENT_CONN)
+
+
+# Build bandwidth proxy limit script
+buildbandwidthlimiter:
+	@scripts/commands/build_bandwidth_proxy.sh
+
+# Run bandwidth proxy limit script
+runbandwidthlimiter:
+	@scripts/commands/run_bandwidth_proxy.sh
+
+killbandwidhlimiter:
+	pkill ${BANDWIDTH_PROXY_PROCESS_NAME}
+
 removedump:
 	rm ${YAMS_IMAGES_LIST_FILE}
 
 ## sync starts dav-yams synchronization
-sync: build sort runsync removedump
-
-## deleteall the images from yams
-deleteall:
- @./${APPNAME}  -command=deleteAll -threads=$(YAMS_MAX_CONCURRENT_CONN)
+sync: build buildbandwidthlimiter runbandwidthlimiter sort runsync killbandwidhlimiter removedump
+## list prints objects in yams bucket
+list: build buildbandwidthlimiter runbandwidthlimiter runlist killbandwidhlimiter
+## deleteall deletes every image in yams
+deleteall: build buildbandwidthlimiter runbandwidthlimiter rundeleteall killbandwidhlimiter
 	
 ## Compile and start the service
 start: build run
