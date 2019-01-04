@@ -3,9 +3,9 @@ DIR="${BASH_SOURCE%/*}"
 if [[ ! -d "$DIR" ]]; then DIR="$PWD"; fi
 . "$DIR/colors.sh"
 
+set -e
 
 echoTitle "Running bandwidth limiter proxy"
-set -e
 
 if [ $(uname -s) = "Linux" ]
 then
@@ -17,5 +17,5 @@ fi
 
 BANDWIDTH_PROXY_PID=$!
 
+echoHeader "Bandwidth limiter proxy running with PID $BANDWIDTH_PROXY_PID ($BANDWIDTH_PROXY_PROCESS_NAME)"
 set +e
-echoHeader "Bandwidh limiter running with PID $BANDWIDTH_PROXY_PID"

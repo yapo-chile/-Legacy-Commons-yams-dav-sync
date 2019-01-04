@@ -28,9 +28,9 @@ type HTTPHandler struct {
 }
 
 // NewHTTPHandler will create a new instance of a custom http request handler
-func NewHTTPHandler(dialer proxy.Dialer, logger loggers.Logger) repository.HTTPHandler {
+func NewHTTPHandler(dialer interface{}, logger loggers.Logger) repository.HTTPHandler {
 	return &HTTPHandler{
-		dialer: dialer,
+		dialer: dialer.(proxy.Dialer),
 		logger: logger,
 	}
 }

@@ -11,7 +11,6 @@ import (
 	"github.com/mattes/migrate"
 	mpgsql "github.com/mattes/migrate/database/postgres"
 	_ "github.com/mattes/migrate/source/file"
-	"golang.org/x/net/proxy"
 
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/infrastructure"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces"
@@ -53,14 +52,14 @@ func main() {
 	}
 	// Setting up insfrastructure
 
-	dialer, err := proxy.SOCKS5("tcp", conf.BandwidthProxyConf.Host, nil, proxy.Direct)
+	dialer, err := infrastructure.NewProxyDialerHandler(
+		conf.BandwidthProxyConf.ConnType,
+		conf.BandwidthProxyConf.Host,
+	)
 	if err != nil {
-		logger.Error("Was not possible to connect to the bandwidth limiter: %+v. Error: %+v",
-			conf.BandwidthProxyConf.Host,
-			err)
-		os.Exit(1)
+		logger.Error("%s\n", err)
+		os.Exit(2)
 	}
-
 	HTTPHandler := infrastructure.NewHTTPHandler(dialer, logger)
 
 	signer := infrastructure.NewJWTSigner(conf.YamsConf.PrivateKeyFile, logger)

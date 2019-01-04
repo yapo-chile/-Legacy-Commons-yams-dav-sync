@@ -81,7 +81,8 @@ type DatabaseConf struct {
 
 // BandwidthProxyConf holds all configurations to connect with bandwidth limiter proxy
 type BandwidthProxyConf struct {
-	Host string `env:"HOST" envDefault:"localhost:9999"`
+	ConnType string `env:"CONN_TYPE" envDefault:"tcp"`
+	Host     string `env:"HOST" envDefault:"localhost:9999"`
 }
 
 // LoadFromEnv loads the config data from the environment variables

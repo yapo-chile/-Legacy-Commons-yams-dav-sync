@@ -52,6 +52,7 @@ export YAMS_TiMEOUT=30
 #Bandwidth proxy limiter variables
 export BANDWIDTH_PROXY_LIMIT=500 # kbps
 export BANDWIDTH_PROXY_HOST=localhost:9999
+export BANDWIDTH_PROXY_CONN_TYPE=tcp
 export BANDWIDTH_PROXY_LATENCY=0
 export BANDWIDTH_PROXY_PROCESS_NAME=floodgate
 
