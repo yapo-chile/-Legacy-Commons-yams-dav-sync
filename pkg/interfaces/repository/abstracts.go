@@ -76,9 +76,14 @@ type HTTPResponse struct {
 // FileSystemView allows FileSystem's operations to view elements in local storage
 type FileSystemView interface {
 	Open(name string) (usecases.File, error)
-	ModTime(name string) time.Time
-	Name(name string) string
-	Size(name string) int64
 	NewScanner(usecases.File) interfaces.Scanner
 	Copy(dst io.Writer, src io.Reader) error
+	Info(name string) (FileInfo, error)
+}
+
+// FileInfo allows operations to get file information in local storage
+type FileInfo interface {
+	ModTime() time.Time
+	Name() string
+	Size() int64
 }
