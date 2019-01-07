@@ -136,11 +136,11 @@ func (repo *YamsRepository) Send(image domain.Image) (checksum string, e *usecas
 	}
 
 	type PutAdditionalInfo struct {
-		etag string `json:"etag"`
+		Etag string `json:"etag"`
 	}
 
 	type PutError struct {
-		additionalInfo PutAdditionalInfo `json:"additional_info"`
+		AdditionalInfo PutAdditionalInfo `json:"additional_info"`
 	}
 
 	path := "/tenants/" + repo.tenantID +
@@ -198,7 +198,7 @@ func (repo *YamsRepository) Send(image domain.Image) (checksum string, e *usecas
 	case 409: // Duplicated image
 		errorInfo := PutError{}
 		json.Unmarshal([]byte(body), errorInfo) // nolint
-		return errorInfo.additionalInfo.etag, usecases.ErrYamsDuplicate
+		return errorInfo.AdditionalInfo.Etag, usecases.ErrYamsDuplicate
 	case 500: // Server error
 		return "", usecases.ErrYamsInternal
 	case 503: // Service temporarily unavailable

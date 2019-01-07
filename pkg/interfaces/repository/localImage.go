@@ -45,18 +45,24 @@ func (repo *LocalImageRepo) GetLocalImage(imagePath string) (domain.Image, error
 	}
 	defer f.Close() // nolint:errcheck,gosec
 
+	fileInfo, err := repo.fileSystemView.Info(filePath)
+	if err != nil {
+		return domain.Image{}, err
+	}
+
 	hash := md5.New() // nolint:gosec
 	err = repo.fileSystemView.Copy(hash, f)
 	if err != nil {
 		return domain.Image{}, err
 	}
+
 	image := domain.Image{
 		FilePath: filePath,
 		Metadata: domain.ImageMetadata{
-			ImageName: repo.fileSystemView.Name(filePath),
-			Size:      repo.fileSystemView.Size(filePath),
+			ImageName: fileInfo.Name(),
+			Size:      fileInfo.Size(),
 			Checksum:  hex.EncodeToString(hash.Sum(nil)),
-			ModTime:   repo.fileSystemView.ModTime(filePath),
+			ModTime:   fileInfo.ModTime(),
 		},
 	}
 	return image, nil

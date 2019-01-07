@@ -132,21 +132,6 @@ func (m *mockFileSystemView) Open(name string) (usecases.File, error) {
 	return args.Get(0).(usecases.File), args.Error(1)
 }
 
-func (m *mockFileSystemView) Name(path string) string {
-	args := m.Called(path)
-	return args.String(0)
-}
-
-func (m *mockFileSystemView) Size(path string) int64 {
-	args := m.Called(path)
-	return args.Get(0).(int64)
-}
-
-func (m *mockFileSystemView) ModTime(path string) time.Time {
-	args := m.Called(path)
-	return args.Get(0).(time.Time)
-}
-
 func (m *mockFileSystemView) NewScanner(file usecases.File) interfaces.Scanner {
 	args := m.Called(file)
 	return args.Get(0).(interfaces.Scanner)
@@ -155,6 +140,30 @@ func (m *mockFileSystemView) NewScanner(file usecases.File) interfaces.Scanner {
 func (m *mockFileSystemView) Copy(dst io.Writer, src io.Reader) error {
 	args := m.Called(dst, src)
 	return args.Error(0)
+}
+
+func (m *mockFileSystemView) Info(filePath string) (FileInfo, error) {
+	args := m.Called(filePath)
+	return args.Get(0).(FileInfo), args.Error(1)
+}
+
+type mockFileInfo struct {
+	mock.Mock
+}
+
+func (m *mockFileInfo) Name() string {
+	args := m.Called()
+	return args.String(0)
+}
+
+func (m *mockFileInfo) Size() int64 {
+	args := m.Called()
+	return args.Get(0).(int64)
+}
+
+func (m *mockFileInfo) ModTime() time.Time {
+	args := m.Called()
+	return args.Get(0).(time.Time)
 }
 
 type mockFile struct {
