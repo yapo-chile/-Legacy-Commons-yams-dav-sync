@@ -88,6 +88,8 @@ func main() {
 		loggers.MakeYamsRepoLogger(logger),
 		HTTPHandler,
 		conf.YamsConf.TimeOut,
+		conf.YamsConf.ErrorControlHeader,
+		conf.YamsConf.ErrorControlValue,
 		conf.YamsConf.MaxConcurrentConns,
 	)
 

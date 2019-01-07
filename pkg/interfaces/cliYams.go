@@ -38,7 +38,7 @@ type ImageService interface {
 	// GetRemoteChecksum gets the checksum of image in YAMS
 	GetRemoteChecksum(imageName string) (string, *usecases.YamsRepositoryError)
 	// Send sends images from local storage to yams bucket
-	Send(image domain.Image) *usecases.YamsRepositoryError
+	Send(image domain.Image) (checksum string, err *usecases.YamsRepositoryError)
 	// List gets list of available images in yams bucket
 	List() ([]usecases.YamsObject, *usecases.YamsRepositoryError)
 	// RemoteDelete deletes image from yams bucket
@@ -97,6 +97,9 @@ type CLIYamsLogger interface {
 	LogErrorResetingErrorCounter(imgName string, err error)
 	LogErrorIncreasingErrorCounter(imgName string, err error)
 	LogErrorGettingRemoteChecksum(imgName string, err error)
+	LogRetryPreviousFailedUploads()
+	LogReadingNewImages()
+	LogUploadingNewImages()
 }
 
 // retryPreviousFailedUploads gets images from errorControlRepository and try
@@ -141,8 +144,9 @@ func (cli *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string) er
 		threads = maxConcurrency
 	}
 
-	cli.retryPreviousFailedUploads(threads, maxErrorQty)
+	cli.logger.LogRetryPreviousFailedUploads()
 
+	cli.retryPreviousFailedUploads(threads, maxErrorQty)
 	jobs := make(chan domain.Image)
 	var waitGroup sync.WaitGroup
 
@@ -150,6 +154,7 @@ func (cli *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string) er
 		waitGroup.Add(1)
 		go cli.sendWorker(w, jobs, &waitGroup, domain.SWUpload)
 	}
+	cli.logger.LogReadingNewImages()
 
 	// Get the data file with list of images to upload
 	file, e := cli.localImage.OpenFile(imagesDumpYamsPath)
@@ -161,6 +166,8 @@ func (cli *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string) er
 
 	latestSynchronizedImageDate := cli.lastSync.GetLastSynchronizationMark()
 	var imagePath, imageDateStr string
+
+	cli.logger.LogUploadingNewImages()
 
 	scanner := cli.localImage.InitImageListScanner(file)
 	// for each element read from file
@@ -252,13 +259,13 @@ func (cli *CLIYams) DeleteAll(threads int) error {
 func (cli *CLIYams) sendWorker(id int, jobs <-chan domain.Image, wg *sync.WaitGroup, previousUploadFailed int) {
 	defer wg.Done()
 	for image := range jobs {
-		err := cli.imageService.Send(image)
-		cli.sendErrorControl(image, previousUploadFailed, err)
+		externalChecksum, err := cli.imageService.Send(image)
+		cli.sendErrorControl(image, previousUploadFailed, externalChecksum, err)
 	}
 }
 
 // sendErrorControl takes action depending of error type retuned by send method
-func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed int, err error) {
+func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed int, externalChecksum string, err error) {
 	imageName := image.Metadata.ImageName
 	localImageChecksum := image.Metadata.Checksum
 	yamsErrNil := (*usecases.YamsRepositoryError)(nil)
@@ -273,18 +280,11 @@ func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed in
 		}
 		return
 	case usecases.ErrYamsDuplicate:
-		remoteImgChecksum, e := cli.imageService.GetRemoteChecksum(imageName)
-		if e != yamsErrNil {
-			cli.logger.LogErrorGettingRemoteChecksum(imageName, e)
-			// recursive increase error counter
-			cli.sendErrorControl(image, previousUploadFailed, fmt.Errorf("error getting checksum"))
-			return
-		}
-		if remoteImgChecksum != localImageChecksum {
+		if externalChecksum != localImageChecksum {
 			if e := cli.imageService.RemoteDelete(imageName, domain.YAMSForceRemoval); e != yamsErrNil {
 				cli.logger.LogErrorRemoteDelete(imageName, e)
 				// recursive increase error counter
-				cli.sendErrorControl(image, previousUploadFailed, fmt.Errorf("error deleting remote image"))
+				cli.sendErrorControl(image, previousUploadFailed, externalChecksum, e)
 				return
 			}
 			// mark to upload in the next sync process (because yams cache)
@@ -292,8 +292,8 @@ func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed in
 				cli.logger.LogErrorResetingErrorCounter(imageName, e)
 			}
 		} else {
-			// recursive clean up marks with nil error
-			cli.sendErrorControl(image, previousUploadFailed, nil)
+			// recursive clean up marks with nil error in case of previousUploadFailed true
+			cli.sendErrorControl(image, previousUploadFailed, externalChecksum, nil)
 		}
 	default: // any other kind of error increase error counter
 		if e := cli.errorControl.IncreaseErrorCounter(imageName); e != nil {

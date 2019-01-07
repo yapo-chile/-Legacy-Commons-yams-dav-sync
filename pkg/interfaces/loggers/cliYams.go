@@ -51,3 +51,15 @@ func (l *cliYamsLogger) LogErrorGettingRemoteChecksum(imgName string, err error)
 func (l *cliYamsLogger) LogErrorGettingImagesList(listPath string, err error) {
 	l.logger.Error("Error getting images list in path %+v, error: %+v", listPath, err)
 }
+
+func (l *cliYamsLogger) LogRetryPreviousFailedUploads() {
+	l.logger.Info("Retrying to upload previous failed uploads...")
+}
+
+func (l *cliYamsLogger) LogReadingNewImages() {
+	l.logger.Info("Reading new images from dump file...")
+}
+
+func (l *cliYamsLogger) LogUploadingNewImages() {
+	l.logger.Info("Uploading new images to yams...")
+}
