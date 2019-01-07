@@ -49,6 +49,8 @@ type YamsConf struct {
 	BucketID           string `env:"BUCKET_ID"`
 	PrivateKeyFile     string `env:"PRIVATE_KEY" envDefault:"writer-key.rsa"`
 	TimeOut            int    `env:"TiMEOUT" envDefault:"30"`
+	ErrorControlHeader string `env:"ERROR_CONTROL_HEADER" envDefault:"X-YAMS-ERROR"`
+	ErrorControlValue  string `env:"ERROR_CONTROL_VALUE" envDefault:"true"`
 	MaxConcurrentConns int    `env:"MAX_CONCURRENT_CONN" envDefault:"100"`
 }
 

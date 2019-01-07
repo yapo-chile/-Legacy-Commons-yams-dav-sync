@@ -30,8 +30,13 @@ type YamsRepository struct {
 	bucketID string
 	// http is the http client to connect to yams using http protocol
 	http *HTTPRepository
-	// localImageRepo  repo to execute operations in local storage
+	// localImageRepo repo to execute operations in local storage
 	localImageRepo interfaces.LocalImage
+	// yamsErrorControlHeader is the yams error control header required to display
+	// remote checksum in case of error response from yams
+	yamsErrorControlHeader string
+	// yamsErrorControlValue is the value to display error control in yams response
+	yamsErrorControlValue string
 	// logger logs yams repository events
 	logger YamsRepositoryLogger
 }
@@ -44,7 +49,7 @@ type Signer interface {
 // NewYamsRepository creates a new instance of YamsRepository
 func NewYamsRepository(jwtSigner Signer, mgmtURL, accessKeyID, tenantID,
 	domainID, bucketID string, localImageRepo interfaces.LocalImage, logger YamsRepositoryLogger, handler HTTPHandler,
-	timeOut int, maxConcurrentThreads int) *YamsRepository {
+	timeOut int, yamsErrorControlHeader, yamsErrorControlValue string, maxConcurrentThreads int) *YamsRepository {
 	return &YamsRepository{
 		jwtSigner:   jwtSigner,
 		mgmtURL:     mgmtURL,
@@ -57,8 +62,10 @@ func NewYamsRepository(jwtSigner Signer, mgmtURL, accessKeyID, tenantID,
 			Handler: handler,
 			TimeOut: timeOut,
 		},
-		maxConcurrentThreads: maxConcurrentThreads,
-		localImageRepo:       localImageRepo,
+		yamsErrorControlHeader: yamsErrorControlHeader,
+		yamsErrorControlValue:  yamsErrorControlValue,
+		maxConcurrentThreads:   maxConcurrentThreads,
+		localImageRepo:         localImageRepo,
 	}
 }
 
@@ -117,7 +124,7 @@ func (repo *YamsRepository) GetDomains() string {
 }
 
 // Send puts a image in yams repository
-func (repo *YamsRepository) Send(image domain.Image) *usecases.YamsRepositoryError {
+func (repo *YamsRepository) Send(image domain.Image) (checksum string, e *usecases.YamsRepositoryError) {
 	type PutMetadata struct {
 		ObjectID string `json:"oid"`
 	}
@@ -127,6 +134,15 @@ func (repo *YamsRepository) Send(image domain.Image) *usecases.YamsRepositoryErr
 		Rqs      string      `json:"rqs"`
 		Metadata PutMetadata `json:"metadata"`
 	}
+
+	type PutAdditionalInfo struct {
+		etag string `json:"etag"`
+	}
+
+	type PutError struct {
+		additionalInfo PutAdditionalInfo `json:"additional_info"`
+	}
+
 	path := "/tenants/" + repo.tenantID +
 		"/domains/" + repo.domainID +
 		"/buckets/" + repo.bucketID +
@@ -153,17 +169,19 @@ func (repo *YamsRepository) Send(image domain.Image) *usecases.YamsRepositoryErr
 
 	imageFile, err := repo.localImageRepo.OpenFile(image.FilePath)
 	if err != nil {
-		return usecases.ErrYamsImage
+		return "", usecases.ErrYamsImage
 	}
 	defer imageFile.Close() // nolint
-
 	request := repo.http.Handler.
 		NewRequest().
 		SetMethod("POST").
 		SetPath(requestURI).
 		SetImgBody(imageFile).
 		SetQueryParams(queryParams).
-		SetTimeOut(repo.http.TimeOut)
+		SetTimeOut(repo.http.TimeOut).
+		SetHeaders(map[string]string{
+			repo.yamsErrorControlHeader: repo.yamsErrorControlValue,
+		})
 
 	resp, err := repo.http.Handler.Send(request)
 	repo.logger.LogStatus(resp.Code)
@@ -172,20 +190,22 @@ func (repo *YamsRepository) Send(image domain.Image) *usecases.YamsRepositoryErr
 
 	switch resp.Code {
 	case 400: // Bad Request
-		return usecases.ErrYamsInternal
+		return "", usecases.ErrYamsInternal
 	case 403:
-		return usecases.ErrYamsUnauthorized
+		return "", usecases.ErrYamsUnauthorized
 	case 404:
-		return usecases.ErrYamsBucketNotFound
-	case 409:
-		return usecases.ErrYamsDuplicate
+		return "", usecases.ErrYamsBucketNotFound
+	case 409: // Duplicated image
+		errorInfo := PutError{}
+		json.Unmarshal([]byte(body), errorInfo) // nolint
+		return errorInfo.additionalInfo.etag, usecases.ErrYamsDuplicate
 	case 500: // Server error
-		return usecases.ErrYamsInternal
+		return "", usecases.ErrYamsInternal
 	case 503: // Service temporarily unavailable
-		return usecases.ErrYamsInternal
+		return "", usecases.ErrYamsInternal
 	}
 
-	return nil
+	return image.Metadata.Checksum, nil
 }
 
 // RemoteDelete deletes a specific image of yams repository

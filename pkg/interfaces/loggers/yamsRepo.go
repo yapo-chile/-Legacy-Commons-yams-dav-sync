@@ -13,7 +13,7 @@ func (l *yamsRepoLogger) LogRequestURI(url string) {
 }
 
 func (l *yamsRepoLogger) LogResponse(body string, err error) {
-	l.logger.Debug("> Yams body: %+v, err: %+v", body, err)
+	l.logger.Debug("> Yams body: %+v err: %+v", body, err)
 }
 
 func (l *yamsRepoLogger) LogStatus(statusCode int) {
