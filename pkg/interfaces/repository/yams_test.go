@@ -60,7 +60,7 @@ func TestNewYamsRepository(t *testing.T) {
 	}
 	result := NewYamsRepository(yamsRepo.jwtSigner, yamsRepo.mgmtURL, yamsRepo.accessKeyID,
 		yamsRepo.tenantID, yamsRepo.domainID, yamsRepo.bucketID, nil, yamsRepo.logger, http, 0,
-		yamsRepo.maxConcurrentThreads)
+		"", "", yamsRepo.maxConcurrentThreads)
 	assert.Equal(t, &yamsRepo, result)
 }
 
@@ -195,9 +195,10 @@ func TestSendErrorOpeningFile(t *testing.T) {
 	mFileSystemView.On("Open", mock.AnythingOfType("string")).
 		Return(&mFile, fmt.Errorf("err"))
 
-	resp := yamsRepo.Send(domain.Image{})
+	externalChecksum, resp := yamsRepo.Send(domain.Image{})
 
 	assert.Equal(t, usecases.ErrYamsImage, resp)
+	assert.Equal(t, "", externalChecksum)
 
 	mLogger.AssertExpectations(t)
 	mSigner.AssertExpectations(t)
@@ -234,12 +235,13 @@ func TestSend(t *testing.T) {
 	mRequest.On("SetQueryParams", mock.AnythingOfType("map[string]string")).Return(&mRequest)
 	mRequest.On("SetImgBody", mock.AnythingOfType("*repository.mockFile")).Return(&mRequest)
 	mRequest.On("SetTimeOut", mock.AnythingOfType("int")).Return(&mRequest)
+	mRequest.On("SetHeaders", mock.AnythingOfType("map[string]string")).Return(&mRequest)
 
 	mFile.On("Close").Return(nil)
 	mLogger.On("LogStatus", mock.AnythingOfType("int")).Return()
 	mLogger.On("LogResponse", mock.AnythingOfType("string"), nil).Return()
 	mSigner.On("GenerateTokenString", mock.AnythingOfType("PutClaims")).Return("claims")
-
+	expected := ""
 	for cases := 0; cases < 7; cases++ {
 		switch cases {
 		case 0: // everything OK
@@ -247,7 +249,8 @@ func TestSend(t *testing.T) {
 				Code: 200,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			resp := yamsRepo.Send(domain.Image{})
+			externalChecksum, resp := yamsRepo.Send(domain.Image{})
+			assert.Equal(t, expected, externalChecksum)
 			assert.Nil(t, resp)
 
 		case 1: // 400 Internal error
@@ -255,7 +258,8 @@ func TestSend(t *testing.T) {
 				Code: 400,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			resp := yamsRepo.Send(domain.Image{})
+			externalChecksum, resp := yamsRepo.Send(domain.Image{})
+			assert.Equal(t, expected, externalChecksum)
 			assert.Equal(t, usecases.ErrYamsInternal, resp)
 
 		case 2: // 403 Unauthorized error
@@ -263,35 +267,40 @@ func TestSend(t *testing.T) {
 				Code: 403,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			resp := yamsRepo.Send(domain.Image{})
+			externalChecksum, resp := yamsRepo.Send(domain.Image{})
+			assert.Equal(t, expected, externalChecksum)
 			assert.Equal(t, usecases.ErrYamsUnauthorized, resp)
 		case 3: // 404 Bucket Not Found error
 			response := HTTPResponse{
 				Code: 404,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			resp := yamsRepo.Send(domain.Image{})
+			externalChecksum, resp := yamsRepo.Send(domain.Image{})
+			assert.Equal(t, expected, externalChecksum)
 			assert.Equal(t, usecases.ErrYamsBucketNotFound, resp)
 		case 4: // 409 object duplicated error
 			response := HTTPResponse{
 				Code: 409,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			resp := yamsRepo.Send(domain.Image{})
+			externalChecksum, resp := yamsRepo.Send(domain.Image{})
+			assert.Equal(t, expected, externalChecksum)
 			assert.Equal(t, usecases.ErrYamsDuplicate, resp)
 		case 5: // 500 Internal Server error
 			response := HTTPResponse{
 				Code: 500,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			resp := yamsRepo.Send(domain.Image{})
+			externalChecksum, resp := yamsRepo.Send(domain.Image{})
+			assert.Equal(t, expected, externalChecksum)
 			assert.Equal(t, usecases.ErrYamsInternal, resp)
 		case 6: // 503 Yams internal error
 			response := HTTPResponse{
 				Code: 503,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			resp := yamsRepo.Send(domain.Image{})
+			externalChecksum, resp := yamsRepo.Send(domain.Image{})
+			assert.Equal(t, expected, externalChecksum)
 			assert.Equal(t, usecases.ErrYamsInternal, resp)
 		}
 	}
