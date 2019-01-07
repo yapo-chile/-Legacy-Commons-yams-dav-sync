@@ -483,57 +483,57 @@ func TestErrorControl(t *testing.T) {
 	yamsErrNil := (*usecases.YamsRepositoryError)(nil)
 	for i, testcases := 0, 7; i < testcases; i++ {
 		image := domain.Image{}
-		externalChecksum := ""
+		remoteChecksum := ""
 		switch i {
 		case 0: // Error nil, clean error marks ok
 			mErrorControl.On("CleanErrorMarks", mock.AnythingOfType("string")).
 				Return(nil).Once()
-			cli.sendErrorControl(image, domain.SWRetry, externalChecksum, nil)
+			cli.sendErrorControl(image, domain.SWRetry, remoteChecksum, nil)
 
 		case 1: // Error nil, clean error marks error
 			mErrorControl.On("CleanErrorMarks", mock.AnythingOfType("string")).
 				Return(fmt.Errorf("err")).Once()
 			mLogger.On("LogErrorCleaningMarks", mock.AnythingOfType("string"),
 				mock.AnythingOfType("*errors.errorString")).Once()
-			cli.sendErrorControl(image, domain.SWRetry, externalChecksum, nil)
+			cli.sendErrorControl(image, domain.SWRetry, remoteChecksum, nil)
 
 		case 2: // Error duplicated, different checksums
-			image.Metadata.Checksum, externalChecksum = "the same", "not the same"
+			image.Metadata.Checksum, remoteChecksum = "the same", "not the same"
 			mImageService.On("RemoteDelete", mock.AnythingOfType("string"), true).
 				Return(yamsErrNil).Once()
 			mErrorControl.On("SetErrorCounter", mock.AnythingOfType("string"), 0).
 				Return(nil).Once()
-			cli.sendErrorControl(image, domain.SWRetry, externalChecksum, usecases.ErrYamsDuplicate)
+			cli.sendErrorControl(image, domain.SWRetry, remoteChecksum, usecases.ErrYamsDuplicate)
 
 		case 3: // Error duplicated, different checksums & error with remote delete
-			image.Metadata.Checksum, externalChecksum = "the same", "not the same"
+			image.Metadata.Checksum, remoteChecksum = "the same", "not the same"
 			mImageService.On("RemoteDelete", mock.AnythingOfType("string"), true).
 				Return(usecases.ErrYamsInternal).Once()
 			mLogger.On("LogErrorRemoteDelete", mock.AnythingOfType("string"), usecases.ErrYamsInternal).
 				Return().Once()
 			mErrorControl.On("IncreaseErrorCounter", mock.AnythingOfType("string")).
 				Return(nil).Once()
-			cli.sendErrorControl(image, domain.SWRetry, externalChecksum, usecases.ErrYamsDuplicate)
+			cli.sendErrorControl(image, domain.SWRetry, remoteChecksum, usecases.ErrYamsDuplicate)
 
 		case 4: // Error duplicated, different checksums & error with SetErrorCounter()
-			image.Metadata.Checksum, externalChecksum = "the same", "not the same"
+			image.Metadata.Checksum, remoteChecksum = "the same", "not the same"
 			mImageService.On("RemoteDelete", mock.AnythingOfType("string"), true).
 				Return(yamsErrNil).Once()
 			mErrorControl.On("SetErrorCounter", mock.AnythingOfType("string"), 0).
 				Return(fmt.Errorf("error")).Once()
 			mLogger.On("LogErrorResetingErrorCounter", mock.AnythingOfType("string"),
 				mock.AnythingOfType("*errors.errorString")).Once()
-			cli.sendErrorControl(image, domain.SWRetry, externalChecksum, usecases.ErrYamsDuplicate)
+			cli.sendErrorControl(image, domain.SWRetry, remoteChecksum, usecases.ErrYamsDuplicate)
 
 		case 5: // Error duplicated, same checksums, skip because it was already uploaded
-			image.Metadata.Checksum, externalChecksum = "the same", "the same"
-			cli.sendErrorControl(image, domain.SWUpload, externalChecksum, usecases.ErrYamsDuplicate)
+			image.Metadata.Checksum, remoteChecksum = "the same", "the same"
+			cli.sendErrorControl(image, domain.SWUpload, remoteChecksum, usecases.ErrYamsDuplicate)
 		case 6: // Error default, increase error counter error
 			mErrorControl.On("IncreaseErrorCounter", mock.AnythingOfType("string")).
 				Return(fmt.Errorf("error")).Once()
 			mLogger.On("LogErrorIncreasingErrorCounter", mock.AnythingOfType("string"),
 				mock.AnythingOfType("*errors.errorString")).Once()
-			cli.sendErrorControl(image, domain.SWUpload, externalChecksum, usecases.ErrYamsInternal)
+			cli.sendErrorControl(image, domain.SWUpload, remoteChecksum, usecases.ErrYamsInternal)
 		}
 	}
 	mImageService.AssertExpectations(t)

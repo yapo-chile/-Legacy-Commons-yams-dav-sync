@@ -259,13 +259,13 @@ func (cli *CLIYams) DeleteAll(threads int) error {
 func (cli *CLIYams) sendWorker(id int, jobs <-chan domain.Image, wg *sync.WaitGroup, previousUploadFailed int) {
 	defer wg.Done()
 	for image := range jobs {
-		externalChecksum, err := cli.imageService.Send(image)
-		cli.sendErrorControl(image, previousUploadFailed, externalChecksum, err)
+		remoteChecksum, err := cli.imageService.Send(image)
+		cli.sendErrorControl(image, previousUploadFailed, remoteChecksum, err)
 	}
 }
 
 // sendErrorControl takes action depending of error type retuned by send method
-func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed int, externalChecksum string, err error) {
+func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed int, remoteChecksum string, err error) {
 	imageName := image.Metadata.ImageName
 	localImageChecksum := image.Metadata.Checksum
 	yamsErrNil := (*usecases.YamsRepositoryError)(nil)
@@ -280,11 +280,11 @@ func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed in
 		}
 		return
 	case usecases.ErrYamsDuplicate:
-		if externalChecksum != localImageChecksum {
+		if remoteChecksum != localImageChecksum {
 			if e := cli.imageService.RemoteDelete(imageName, domain.YAMSForceRemoval); e != yamsErrNil {
 				cli.logger.LogErrorRemoteDelete(imageName, e)
 				// recursive increase error counter
-				cli.sendErrorControl(image, previousUploadFailed, externalChecksum, e)
+				cli.sendErrorControl(image, previousUploadFailed, remoteChecksum, e)
 				return
 			}
 			// mark to upload in the next sync process (because yams cache)
@@ -293,7 +293,7 @@ func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed in
 			}
 		} else {
 			// recursive clean up marks with nil error in case of previousUploadFailed true
-			cli.sendErrorControl(image, previousUploadFailed, externalChecksum, nil)
+			cli.sendErrorControl(image, previousUploadFailed, remoteChecksum, nil)
 		}
 	default: // any other kind of error increase error counter
 		if e := cli.errorControl.IncreaseErrorCounter(imageName); e != nil {

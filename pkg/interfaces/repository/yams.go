@@ -33,7 +33,7 @@ type YamsRepository struct {
 	// localImageRepo repo to execute operations in local storage
 	localImageRepo interfaces.LocalImage
 	// yamsErrorControlHeader is the yams error control header required to display
-	// external checksum in case of error response from yams
+	// remote checksum in case of error response from yams
 	yamsErrorControlHeader string
 	// yamsErrorControlValue is the value to display error control in yams response
 	yamsErrorControlValue string
