@@ -101,13 +101,13 @@ func TestGetDomains(t *testing.T) {
 	mRequest.On("SetPath", mock.AnythingOfType("string")).Return(&mRequest)
 	mRequest.On("SetQueryParams", mock.AnythingOfType("map[string]string")).Return(&mRequest)
 
-	mLogger.On("LogRequestURI", mock.AnythingOfType("string")).Return()
-	mLogger.On("LogStatus", mock.AnythingOfType("int")).Return()
+	mLogger.On("LogRequestURI", mock.AnythingOfType("string"))
+	mLogger.On("LogStatus", mock.AnythingOfType("int"))
 	mLogger.On(
 		"LogResponse",
 		mock.AnythingOfType("string"),
 		nil,
-	).Return()
+	)
 
 	mHandler.On("Send", &mRequest).Return(response, nil).Once()
 
@@ -238,8 +238,8 @@ func TestSend(t *testing.T) {
 	mRequest.On("SetHeaders", mock.AnythingOfType("map[string]string")).Return(&mRequest)
 
 	mFile.On("Close").Return(nil)
-	mLogger.On("LogStatus", mock.AnythingOfType("int")).Return()
-	mLogger.On("LogResponse", mock.AnythingOfType("string"), nil).Return()
+	mLogger.On("LogStatus", mock.AnythingOfType("int"))
+	mLogger.On("LogResponse", mock.AnythingOfType("string"), nil)
 	mSigner.On("GenerateTokenString", mock.AnythingOfType("PutClaims")).Return("claims")
 	expected := ""
 	for cases := 0; cases < 7; cases++ {
@@ -336,9 +336,9 @@ func TestRemoteDelete(t *testing.T) {
 	mRequest.On("SetQueryParams", mock.AnythingOfType("map[string]string")).Return(&mRequest)
 	mRequest.On("SetTimeOut", mock.AnythingOfType("int")).Return(&mRequest)
 
-	mLogger.On("LogStatus", mock.AnythingOfType("int")).Return()
-	mLogger.On("LogRequestURI", mock.AnythingOfType("string")).Return()
-	mLogger.On("LogResponse", mock.AnythingOfType("string"), nil).Return()
+	mLogger.On("LogStatus", mock.AnythingOfType("int"))
+	mLogger.On("LogRequestURI", mock.AnythingOfType("string"))
+	mLogger.On("LogResponse", mock.AnythingOfType("string"), nil)
 	mSigner.On("GenerateTokenString", mock.AnythingOfType("DeleteClaims")).Return("claims")
 
 	for cases := 0; cases < 7; cases++ {
@@ -423,9 +423,9 @@ func TestGetRemoteChecksum(t *testing.T) {
 	mRequest.On("SetQueryParams", mock.AnythingOfType("map[string]string")).Return(&mRequest)
 	mRequest.On("SetTimeOut", mock.AnythingOfType("int")).Return(&mRequest)
 
-	mLogger.On("LogStatus", mock.AnythingOfType("int")).Return()
-	mLogger.On("LogRequestURI", mock.AnythingOfType("string")).Return()
-	mLogger.On("LogResponse", mock.AnythingOfType("string"), nil).Return()
+	mLogger.On("LogStatus", mock.AnythingOfType("int"))
+	mLogger.On("LogRequestURI", mock.AnythingOfType("string"))
+	mLogger.On("LogResponse", mock.AnythingOfType("string"), nil)
 	mSigner.On("GenerateTokenString", mock.AnythingOfType("InfoClaims")).Return("claims")
 
 	for cases := 0; cases < 5; cases++ {
@@ -502,8 +502,8 @@ func TestGetLocalImages(t *testing.T) {
 	mRequest.On("SetQueryParams", mock.AnythingOfType("map[string]string")).Return(&mRequest)
 	mRequest.On("SetTimeOut", mock.AnythingOfType("int")).Return(&mRequest)
 
-	mLogger.On("LogRequestURI", mock.AnythingOfType("string")).Return()
-	mLogger.On("LogResponse", mock.AnythingOfType("string"), nil).Return()
+	mLogger.On("LogRequestURI", mock.AnythingOfType("string"))
+	mLogger.On("LogResponse", mock.AnythingOfType("string"), nil)
 	mSigner.On("GenerateTokenString", mock.AnythingOfType("InfoClaims")).Return("claims")
 
 	body := []byte(`{"objects":[{"object_id":"123","md5":"algo en md5",` +

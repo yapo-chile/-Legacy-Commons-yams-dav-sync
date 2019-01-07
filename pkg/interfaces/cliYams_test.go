@@ -212,9 +212,9 @@ func TestSyncProcess(t *testing.T) {
 	mErrorControl.On("GetPreviousErrors",
 		mock.AnythingOfType("int"),
 		mock.AnythingOfType("int")).Return(imagesToRetrySend, nil)
-	mLogger.On("LogRetryPreviousFailedUploads").Return().Once()
-	mLogger.On("LogReadingNewImages").Return().Once()
-	mLogger.On("LogUploadingNewImages").Return().Once()
+	mLogger.On("LogRetryPreviousFailedUploads").Once()
+	mLogger.On("LogReadingNewImages").Once()
+	mLogger.On("LogUploadingNewImages").Once()
 
 	mLocalImage.On("OpenFile", mock.AnythingOfType("string")).Return(mFile, nil).Once()
 	mLocalImage.On("InitImageListScanner", mock.AnythingOfType("*interfaces.mockFile")).
@@ -292,9 +292,9 @@ func TestSyncProcessErrorScanning(t *testing.T) {
 	layout := "20060102T150405"
 	date, _ := time.Parse(layout, "20180102T150405")
 
-	mLogger.On("LogRetryPreviousFailedUploads").Return()
-	mLogger.On("LogReadingNewImages").Return()
-	mLogger.On("LogUploadingNewImages").Return()
+	mLogger.On("LogRetryPreviousFailedUploads")
+	mLogger.On("LogReadingNewImages")
+	mLogger.On("LogUploadingNewImages")
 
 	mLastSync.On("GetLastSynchronizationMark", mock.AnythingOfType("string")).Return(date)
 	mScanner.On("Scan").Return(false).Once()
@@ -340,9 +340,9 @@ func TestSyncProcessErrorSettingMark(t *testing.T) {
 	mLocalImage.On("InitImageListScanner",
 		mock.AnythingOfType("*interfaces.mockFile")).Return(mScanner)
 
-	mLogger.On("LogRetryPreviousFailedUploads").Return()
-	mLogger.On("LogReadingNewImages").Return()
-	mLogger.On("LogUploadingNewImages").Return()
+	mLogger.On("LogRetryPreviousFailedUploads")
+	mLogger.On("LogReadingNewImages")
+	mLogger.On("LogUploadingNewImages")
 
 	layout := "20060102T150405"
 	date, _ := time.Parse(layout, "20180102T150405")
@@ -388,13 +388,13 @@ func TestSyncErrorOpeningFile(t *testing.T) {
 		mock.AnythingOfType("int"),
 		mock.AnythingOfType("int")).Return([]string{}, nil)
 
-	mLogger.On("LogRetryPreviousFailedUploads").Return()
-	mLogger.On("LogReadingNewImages").Return()
+	mLogger.On("LogRetryPreviousFailedUploads")
+	mLogger.On("LogReadingNewImages")
 
 	mLocalImage.On("OpenFile", mock.AnythingOfType("string")).Return(mFile, fmt.Errorf("err"))
 	mLogger.On("LogErrorGettingImagesList",
 		mock.AnythingOfType("string"),
-		mock.AnythingOfType("*errors.errorString")).Return()
+		mock.AnythingOfType("*errors.errorString"))
 	cli := CLIYams{imageService: mImageService,
 		errorControl: mErrorControl,
 		lastSync:     mLastSync,
@@ -494,7 +494,7 @@ func TestErrorControl(t *testing.T) {
 			mErrorControl.On("CleanErrorMarks", mock.AnythingOfType("string")).
 				Return(fmt.Errorf("err")).Once()
 			mLogger.On("LogErrorCleaningMarks", mock.AnythingOfType("string"),
-				mock.AnythingOfType("*errors.errorString")).Return().Once()
+				mock.AnythingOfType("*errors.errorString")).Once()
 			cli.sendErrorControl(image, domain.SWRetry, externalChecksum, nil)
 
 		case 2: // Error duplicated, different checksums
@@ -522,7 +522,7 @@ func TestErrorControl(t *testing.T) {
 			mErrorControl.On("SetErrorCounter", mock.AnythingOfType("string"), 0).
 				Return(fmt.Errorf("error")).Once()
 			mLogger.On("LogErrorResetingErrorCounter", mock.AnythingOfType("string"),
-				mock.AnythingOfType("*errors.errorString")).Return().Once()
+				mock.AnythingOfType("*errors.errorString")).Once()
 			cli.sendErrorControl(image, domain.SWRetry, externalChecksum, usecases.ErrYamsDuplicate)
 
 		case 5: // Error duplicated, same checksums, skip because it was already uploaded
@@ -532,7 +532,7 @@ func TestErrorControl(t *testing.T) {
 			mErrorControl.On("IncreaseErrorCounter", mock.AnythingOfType("string")).
 				Return(fmt.Errorf("error")).Once()
 			mLogger.On("LogErrorIncreasingErrorCounter", mock.AnythingOfType("string"),
-				mock.AnythingOfType("*errors.errorString")).Return().Once()
+				mock.AnythingOfType("*errors.errorString")).Once()
 			cli.sendErrorControl(image, domain.SWUpload, externalChecksum, usecases.ErrYamsInternal)
 		}
 	}
@@ -540,6 +540,7 @@ func TestErrorControl(t *testing.T) {
 	mErrorControl.AssertExpectations(t)
 	mLocalImage.AssertExpectations(t)
 	mLastSync.AssertExpectations(t)
+	mLogger.AssertExpectations(t)
 }
 
 func TestValidateTuple(t *testing.T) {
@@ -587,7 +588,7 @@ func TestList(t *testing.T) {
 	mImageService.On("List").Return(yamsObjectResponse, yamsErrResponse)
 	mLogger.On("LogImage",
 		mock.AnythingOfType("int"),
-		mock.AnythingOfType("usecases.YamsObject")).Return()
+		mock.AnythingOfType("usecases.YamsObject"))
 	err := cli.List()
 	assert.Nil(t, err)
 	mImageService.AssertExpectations(t)
