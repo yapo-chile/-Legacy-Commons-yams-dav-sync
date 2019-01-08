@@ -45,7 +45,7 @@ export YAMS_BUCKET_ID=8c2ab775-a9a5-48fb-966f-b1a1b154af13
 #POYA 1: b98f66eb-bd6b-47fa-b125-5da03b7534ab
 export YAMS_ACCESS_KEY_ID=b73145eec0bd48a2
 export YAMS_PRIVATE_KEY=writer-dev.rsa
-export YAMS_IMAGES_LIST_FILE:=dump_$(shell date -u '+%Y%m%dT%H%M%S').yams
+export YAMS_IMAGES_LIST_FILE:=dump_images.yams
 export YAMS_MAX_CONCURRENT_CONN=100
 export YAMS_TiMEOUT=30
 
