@@ -93,8 +93,7 @@ func TestSetLastSynchronizationMark(t *testing.T) {
 		db: mDbHandler,
 	}
 
-	mDbHandler.On("Query", mock.AnythingOfType("string")).Return(mResult, nil)
-	mResult.On("Close").Return(nil)
+	mDbHandler.On("Insert", mock.AnythingOfType("string")).Return(nil)
 
 	err := lastSyncRepo.SetLastSynchronizationMark(time.Now())
 
