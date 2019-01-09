@@ -2,6 +2,7 @@ package interfaces
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -122,8 +123,8 @@ func (m *mockLastSync) GetLastSynchronizationMark() time.Time {
 	return args.Get(0).(time.Time)
 }
 
-func (m *mockLastSync) SetLastSynchronizationMark(imageDateStr string) error {
-	args := m.Called(imageDateStr)
+func (m *mockLastSync) SetLastSynchronizationMark(imageDate time.Time) error {
+	args := m.Called(imageDate)
 	return args.Error(0)
 }
 
@@ -185,14 +186,21 @@ func (m *mockLogger) LogUploadingNewImages() {
 }
 
 func TestNewSync(t *testing.T) {
+	now := time.Now()
+	date := make(chan time.Time, 1)
+	date <- now
 	expected := &CLIYams{}
-	result := NewCLIYams(expected.imageService,
+	expected.lastDate = date
+	result := NewCLIYams(
+		expected.imageService,
 		expected.errorControl,
 		expected.lastSync,
 		expected.localImage,
 		expected.logger,
-		expected.dateLayout)
-	assert.Equal(t, expected, result)
+		now,
+		expected.dateLayout,
+	)
+	assert.ObjectsAreEqualValues(expected, result)
 }
 
 func TestSyncProcess(t *testing.T) {
@@ -252,14 +260,16 @@ func TestSyncProcess(t *testing.T) {
 
 	mFile.On("Close").Return(nil)
 
-	mLastSync.On("SetLastSynchronizationMark", mock.AnythingOfType("string")).Return(nil)
-
-	cli := CLIYams{imageService: mImageService,
-		errorControl: mErrorControl,
-		lastSync:     mLastSync,
-		localImage:   mLocalImage,
-		logger:       mLogger,
-		dateLayout:   layout}
+	newDate, _ := time.Parse(layout, "20170102T150405")
+	cli := NewCLIYams(
+		mImageService,
+		mErrorControl,
+		mLastSync,
+		mLocalImage,
+		mLogger,
+		newDate,
+		layout,
+	)
 
 	cli.Sync(3, 1, "/")
 
@@ -302,12 +312,16 @@ func TestSyncProcessErrorScanning(t *testing.T) {
 
 	mFile.On("Close").Return(nil)
 
-	cli := CLIYams{imageService: mImageService,
-		errorControl: mErrorControl,
-		lastSync:     mLastSync,
-		localImage:   mLocalImage,
-		logger:       mLogger,
-		dateLayout:   layout}
+	newDate, _ := time.Parse(layout, "20170102T150405")
+	cli := NewCLIYams(
+		mImageService,
+		mErrorControl,
+		mLastSync,
+		mLocalImage,
+		mLogger,
+		newDate,
+		layout,
+	)
 
 	err := cli.Sync(3, 1, "/")
 	assert.Error(t, err)
@@ -318,59 +332,6 @@ func TestSyncProcessErrorScanning(t *testing.T) {
 	mScanner.AssertExpectations(t)
 	mLogger.AssertExpectations(t)
 	mFile.AssertExpectations(t)
-}
-
-func TestSyncProcessErrorSettingMark(t *testing.T) {
-	mImageService := &mockImageService{}
-	mErrorControl := &mockErrorControl{}
-	mLastSync := &mockLastSync{}
-	mLocalImage := &mockLocalImage{}
-	mFile := &mockFile{}
-	mScanner := &mockScanner{}
-	mLogger := &mockLogger{}
-	// images to send
-	mImageService.On("GetMaxConcurrency").Return(1)
-	mErrorControl.On("GetErrorsPagesQty", mock.AnythingOfType("int")).Return(1)
-
-	mErrorControl.On("GetPreviousErrors",
-		mock.AnythingOfType("int"),
-		mock.AnythingOfType("int")).Return([]string{}, nil)
-
-	mLocalImage.On("OpenFile", mock.AnythingOfType("string")).Return(mFile, nil)
-	mLocalImage.On("InitImageListScanner",
-		mock.AnythingOfType("*interfaces.mockFile")).Return(mScanner)
-
-	mLogger.On("LogRetryPreviousFailedUploads")
-	mLogger.On("LogReadingNewImages")
-	mLogger.On("LogUploadingNewImages")
-
-	layout := "20060102T150405"
-	date, _ := time.Parse(layout, "20180102T150405")
-	mLastSync.On("GetLastSynchronizationMark", mock.AnythingOfType("string")).Return(date)
-
-	mScanner.On("Scan").Return(false).Once()
-	mScanner.On("Err").Return(nil).Once()
-
-	mFile.On("Close").Return(nil)
-
-	mLastSync.On("SetLastSynchronizationMark", mock.AnythingOfType("string")).Return(fmt.Errorf("err"))
-
-	cli := CLIYams{imageService: mImageService,
-		errorControl: mErrorControl,
-		lastSync:     mLastSync,
-		localImage:   mLocalImage,
-		logger:       mLogger,
-		dateLayout:   layout}
-	err := cli.Sync(3, 1, "/")
-	assert.Error(t, err)
-
-	mImageService.AssertExpectations(t)
-	mErrorControl.AssertExpectations(t)
-	mLocalImage.AssertExpectations(t)
-	mLastSync.AssertExpectations(t)
-	mLogger.AssertExpectations(t)
-	mFile.AssertExpectations(t)
-	mScanner.AssertExpectations(t)
 }
 
 func TestSyncErrorOpeningFile(t *testing.T) {
@@ -395,12 +356,18 @@ func TestSyncErrorOpeningFile(t *testing.T) {
 	mLogger.On("LogErrorGettingImagesList",
 		mock.AnythingOfType("string"),
 		mock.AnythingOfType("*errors.errorString"))
-	cli := CLIYams{imageService: mImageService,
-		errorControl: mErrorControl,
-		lastSync:     mLastSync,
-		localImage:   mLocalImage,
-		logger:       mLogger,
-	}
+
+	layout := "20060102T150405"
+	newDate, _ := time.Parse(layout, "20170102T150405")
+	cli := NewCLIYams(
+		mImageService,
+		mErrorControl,
+		mLastSync,
+		mLocalImage,
+		mLogger,
+		newDate,
+		layout,
+	)
 
 	err := cli.Sync(3, 1, "/")
 	assert.Error(t, err)
@@ -438,10 +405,17 @@ func TestRetryPreviousFailedUploads(t *testing.T) {
 				Return(domain.Image{}, err).Once()
 		}
 	}
-	cli := CLIYams{imageService: mImageService,
-		errorControl: mErrorControl,
-		lastSync:     mLastSync,
-		localImage:   mLocalImage}
+	layout := "20060102T150405"
+	newDate, _ := time.Parse(layout, "20170102T150405")
+	cli := NewCLIYams(
+		mImageService,
+		mErrorControl,
+		mLastSync,
+		mLocalImage,
+		nil,
+		newDate,
+		layout,
+	)
 	cli.retryPreviousFailedUploads(3, 1)
 
 	mImageService.AssertExpectations(t)
@@ -461,9 +435,17 @@ func TestRetryPreviousFailedUploadsErrorGettingErrors(t *testing.T) {
 		mock.AnythingOfType("int"),
 		mock.AnythingOfType("int")).Return([]string{}, err).Once()
 
-	cli := CLIYams{imageService: mImageService,
-		errorControl: mErrorControl,
-	}
+	layout := "20060102T150405"
+	newDate, _ := time.Parse(layout, "20170102T150405")
+	cli := NewCLIYams(
+		mImageService,
+		mErrorControl,
+		nil,
+		nil,
+		nil,
+		newDate,
+		layout,
+	)
 	cli.retryPreviousFailedUploads(3, 1)
 	mImageService.AssertExpectations(t)
 	mErrorControl.AssertExpectations(t)
@@ -634,5 +616,79 @@ func TestDeleteAllListError(t *testing.T) {
 
 	err := cli.DeleteAll(100)
 	assert.Equal(t, usecases.ErrYamsInternal, err)
+	mImageService.AssertExpectations(t)
+}
+
+func TestClose(t *testing.T) {
+	mLastSync := &mockLastSync{}
+	lastSyncDate := make(chan time.Time, 1)
+	lastSyncDate <- time.Now()
+	cli := CLIYams{lastSync: mLastSync, lastDate: lastSyncDate}
+
+	mLastSync.On("SetLastSynchronizationMark", mock.AnythingOfType("time.Time")).Return(nil)
+	cli.isSync = true
+	err := cli.Close()
+	assert.NoError(t, err)
+	mLastSync.AssertExpectations(t)
+}
+
+func TestSendWorker(t *testing.T) {
+	mImageService := &mockImageService{}
+	lastSyncDate := make(chan time.Time, 1)
+	lastSyncDate <- time.Now()
+	var waitGroup sync.WaitGroup
+
+	jobs := make(chan domain.Image)
+	yamsErrNil := (*usecases.YamsRepositoryError)(nil)
+
+	mImageService.On("Send", mock.AnythingOfType("domain.Image")).Return("", yamsErrNil)
+
+	cli := CLIYams{imageService: mImageService, lastDate: lastSyncDate}
+
+	for w := 0; w < 1; w++ {
+		waitGroup.Add(1)
+
+		go cli.sendWorker(w, jobs, &waitGroup, domain.SWUpload)
+	}
+	testImages := []string{"1.jpg", "2.jpg"}
+	image := domain.Image{}
+	for i, imageName := range testImages {
+		image.Metadata.ImageName = imageName
+		image.Metadata.ModTime = time.Now()
+		jobs <- image
+		if i > 0 { // in case of sys interrumption
+			cli.quit = true
+			break
+		}
+	}
+	mImageService.AssertExpectations(t)
+}
+
+func TestDeleteWorker(t *testing.T) {
+	mImageService := &mockImageService{}
+	lastSyncDate := make(chan time.Time, 1)
+	lastSyncDate <- time.Now()
+	var waitGroup sync.WaitGroup
+
+	jobs := make(chan string)
+	yamsErrNil := (*usecases.YamsRepositoryError)(nil)
+
+	mImageService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(yamsErrNil)
+
+	cli := CLIYams{imageService: mImageService, lastDate: lastSyncDate}
+
+	for w := 0; w < 1; w++ {
+		waitGroup.Add(1)
+		go cli.deleteWorker(w, jobs, &waitGroup)
+	}
+
+	testImages := []string{"1.jpg", "2.jpg"}
+	for i, imageName := range testImages {
+		jobs <- imageName
+		if i > 0 { // in case of sys interrumption
+			cli.quit = true
+			break
+		}
+	}
 	mImageService.AssertExpectations(t)
 }
