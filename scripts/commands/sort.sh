@@ -25,5 +25,3 @@ echoHeader "Ended at $(date +%T)"
 echoHeader "Sorting took $DIFF seconds"
 echoTitle "Output size      :$(du -h ${YAMS_IMAGES_LIST_FILE})"
 echoTitle "Listed images    :$(wc -l ${YAMS_IMAGES_LIST_FILE}| grep -oE '\d+')"
-
-

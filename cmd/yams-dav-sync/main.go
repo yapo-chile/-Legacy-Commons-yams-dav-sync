@@ -26,10 +26,10 @@ func elapsed(process string) func() {
 	}
 }
 
-var shutdownSequence = infrastructure.NewShutdownSequence()
-
 func main() {
 	defer elapsed("exec")()
+
+	shutdownSequence := infrastructure.NewShutdownSequence()
 
 	shutdownSequence.Listen()
 
@@ -179,6 +179,7 @@ func main() {
 
 	default:
 		logger.Error("Make start command=[commmand]\nCommand list:\n- sync \n- list\n- deleteAll\n")
+		shutdownSequence.Done()
 	}
 	shutdownSequence.Wait()
 }

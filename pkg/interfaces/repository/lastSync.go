@@ -46,11 +46,9 @@ func (repo *lastSyncRepo) GetLastSynchronizationMark() (lastSyncDate time.Time) 
 
 // SetLastSynchronizationMark saves a new synchronization date mark
 func (repo *lastSyncRepo) SetLastSynchronizationMark(date time.Time) (err error) {
-	row, err := repo.db.Query(fmt.Sprintf(`
+	return repo.db.Insert(fmt.Sprintf(`
 		INSERT INTO last_sync(last_sync_date)
 		VALUES ('%+v')`,
 		date.Format(repo.dateLayout),
 	))
-	defer row.Close() // nolint
-	return err
 }
