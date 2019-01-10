@@ -1,6 +1,7 @@
 package interfaces
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -18,15 +19,40 @@ type CLIYams struct {
 	logger       CLIYamsLogger
 	dateLayout   string
 	lastSyncDate chan time.Time
+	stats        Stats
 	quit         bool
 	isSync       bool
 }
+
+type Stats struct {
+	sent       chan int
+	errors     chan int
+	duplicated chan int
+	processed  chan int
+	skipped    chan int
+	notFound   chan int
+}
+
+var inc = func(i int) int { return i + 1 }
 
 // NewCLIYams creates a new instance of CLIYams
 func NewCLIYams(imageService ImageService, errorControl ErrorControl, lastSync LastSync,
 	localImage LocalImage, logger CLIYamsLogger, defaultLastSyncDate time.Time, dateLayout string) *CLIYams {
 
 	lastSyncDate := make(chan time.Time, 1)
+	processed := make(chan int, 1)
+	skipped := make(chan int, 1)
+	notFound := make(chan int, 1)
+	sent := make(chan int, 1)
+	duplicated := make(chan int, 1)
+	errors := make(chan int, 1)
+	processed <- 0
+	skipped <- 0
+	notFound <- 0
+	sent <- 0
+	errors <- 0
+	duplicated <- 0
+
 	lastSyncDate <- defaultLastSyncDate
 
 	return &CLIYams{
@@ -37,6 +63,14 @@ func NewCLIYams(imageService ImageService, errorControl ErrorControl, lastSync L
 		logger:       logger,
 		dateLayout:   dateLayout,
 		lastSyncDate: lastSyncDate,
+		stats: Stats{
+			sent:       sent,
+			processed:  processed,
+			errors:     errors,
+			duplicated: duplicated,
+			skipped:    skipped,
+			notFound:   notFound,
+		},
 	}
 }
 
@@ -145,23 +179,25 @@ func (cli *CLIYams) retryPreviousFailedUploads(threads, maxErrorTolerance int) {
 
 // Sync synchronizes images between local repository and yams repository
 // using go concurrency
-func (cli *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string) error {
+func (cli *CLIYams) Sync(threads, syncLimit, maxErrorTolerance int, imagesDumpYamsPath string) error {
 	cli.isSync = true
 	maxConcurrency := cli.imageService.GetMaxConcurrency()
 	if threads > maxConcurrency {
 		threads = maxConcurrency
 	}
-
+	cli.showStats()
 	cli.logger.LogRetryPreviousFailedUploads()
 
-	cli.retryPreviousFailedUploads(threads, maxErrorQty)
+	cli.retryPreviousFailedUploads(threads, maxErrorTolerance)
+
+	// prepare to upload using concurrent workers
 	jobs := make(chan domain.Image)
 	var waitGroup sync.WaitGroup
-
 	for w := 0; w < threads; w++ {
 		waitGroup.Add(1)
 		go cli.sendWorker(w, jobs, &waitGroup, domain.SWUpload)
 	}
+
 	cli.logger.LogReadingNewImages()
 
 	// Get the data file with list of images to upload
@@ -179,13 +215,16 @@ func (cli *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string) er
 	scanner := cli.localImage.InitImageListScanner(file)
 	// for each element read from file
 	for scanner.Scan() {
+		cli.stats.processed <- inc(<-cli.stats.processed)
 		tuple := strings.Split(scanner.Text(), " ")
 		if !validateTuple(tuple, latestSynchronizedImageDate, cli.dateLayout) {
+			cli.stats.skipped <- inc(<-cli.stats.skipped)
 			continue
 		}
 		_, imagePath := tuple[0], tuple[1]
 		image, err := cli.localImage.GetLocalImage(imagePath)
 		if err != nil {
+			cli.stats.notFound <- inc(<-cli.stats.notFound)
 			continue
 		}
 		jobs <- image
@@ -231,6 +270,7 @@ func (cli *CLIYams) Delete(imageName string) error {
 
 // DeleteAll deletes every imagen in yams repository and redis using concurency
 func (cli *CLIYams) DeleteAll(threads int) error {
+	cli.showStats()
 	images, err := cli.imageService.List()
 	if err != nil {
 		return err
@@ -245,6 +285,7 @@ func (cli *CLIYams) DeleteAll(threads int) error {
 	}
 
 	for _, image := range images {
+		cli.stats.processed <- inc(<-cli.stats.processed)
 		jobs <- image.ID
 	}
 
@@ -284,10 +325,13 @@ func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed in
 			if e := cli.errorControl.CleanErrorMarks(imageName); e != nil {
 				cli.logger.LogErrorCleaningMarks(imageName, e)
 			}
+			return
 		}
+		cli.stats.sent <- inc(<-cli.stats.sent)
 		return
 	case usecases.ErrYamsDuplicate:
 		if remoteChecksum != localImageChecksum {
+			cli.stats.duplicated <- inc(<-cli.stats.duplicated)
 			if e := cli.imageService.RemoteDelete(imageName, domain.YAMSForceRemoval); e != yamsErrNil {
 				cli.logger.LogErrorRemoteDelete(imageName, e)
 				// recursive increase error counter
@@ -303,6 +347,7 @@ func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed in
 			cli.sendErrorControl(image, previousUploadFailed, remoteChecksum, nil)
 		}
 	default: // any other kind of error increase error counter
+		cli.stats.errors <- inc(<-cli.stats.errors)
 		if e := cli.errorControl.IncreaseErrorCounter(imageName); e != nil {
 			cli.logger.LogErrorIncreasingErrorCounter(imageName, e)
 		}
@@ -334,4 +379,33 @@ func (cli *CLIYams) Close() (err error) {
 		cli.quit = true
 	}
 	return
+}
+
+func (cli *CLIYams) showStats() {
+	go func() {
+		sent, errors, duplicated, processed, skipped, notFound := 0, 0, 0, 0, 0, 0
+		for !cli.quit {
+			sent = <-cli.stats.sent
+			errors = <-cli.stats.errors
+			processed = <-cli.stats.processed
+			duplicated = <-cli.stats.duplicated
+			skipped = <-cli.stats.skipped
+			notFound = <-cli.stats.notFound
+
+			fmt.Printf("\r[ \033[32mSent images: %d \033[0m "+
+				"\033[31m Errors: %d \033[0m "+
+				"\033[31m Duplicated: %d \033[0m "+
+				"\033[33m Processed: %d \033[0m "+
+				"\033[33m Skipped: %d \033[0m "+
+				"\033[33m Not Found: %d \033[0m ]",
+				sent, errors, duplicated, processed, skipped, notFound)
+
+			cli.stats.sent <- sent
+			cli.stats.errors <- errors
+			cli.stats.duplicated <- duplicated
+			cli.stats.processed <- processed
+			cli.stats.skipped <- skipped
+			cli.stats.notFound <- notFound
+		}
+	}()
 }

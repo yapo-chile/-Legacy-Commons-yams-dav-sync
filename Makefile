@@ -33,7 +33,7 @@ run:
 	@./${APPNAME}  -command=$(command)  -object=$(object) -threads=$(threads)
 
 runsync:
-	@./${APPNAME}  -command=sync -dumpfile=${YAMS_IMAGES_LIST_FILE} -threads=$(YAMS_MAX_CONCURRENT_CONN)
+	@./${APPNAME}  -command=sync -dumpfile=${YAMS_IMAGES_LIST_FILE} -threads=$(YAMS_MAX_CONCURRENT_CONN) -limit=$(YAMS_UPLOAD_LIMIT)
 
 runlist:
 	@./${APPNAME}  -command=list
