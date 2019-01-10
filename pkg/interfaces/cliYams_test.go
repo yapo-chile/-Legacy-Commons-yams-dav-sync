@@ -275,7 +275,68 @@ func TestSyncProcess(t *testing.T) {
 		layout,
 	)
 
-	cli.Sync(3, 1, "/")
+	cli.Sync(3, 0, 1, "/")
+
+	mImageService.AssertExpectations(t)
+	mErrorControl.AssertExpectations(t)
+	mLocalImage.AssertExpectations(t)
+	mLastSync.AssertExpectations(t)
+	mLogger.AssertExpectations(t)
+	mFile.AssertExpectations(t)
+	mScanner.AssertExpectations(t)
+}
+
+func TestSyncProcessWithSendLimit(t *testing.T) {
+	mImageService := &mockImageService{}
+	mErrorControl := &mockErrorControl{}
+	mLastSync := &mockLastSync{}
+	mLocalImage := &mockLocalImage{}
+	mFile := &mockFile{}
+	mScanner := &mockScanner{}
+	mLogger := &mockLogger{}
+	// images to send
+	mImageService.On("GetMaxConcurrency").Return(1)
+	mErrorControl.On("GetErrorsPagesQty", mock.AnythingOfType("int")).Return(1)
+
+	imagesToRetrySend := []string{}
+
+	mErrorControl.On("GetPreviousErrors",
+		mock.AnythingOfType("int"),
+		mock.AnythingOfType("int")).Return(imagesToRetrySend, nil)
+	mLogger.On("LogRetryPreviousFailedUploads").Once()
+	mLogger.On("LogReadingNewImages").Once()
+	mLogger.On("LogUploadingNewImages").Once()
+
+	mLocalImage.On("OpenFile", mock.AnythingOfType("string")).Return(mFile, nil).Once()
+	mLocalImage.On("InitImageListScanner", mock.AnythingOfType("*interfaces.mockFile")).
+		Return(mScanner).Once()
+
+	layout := "20060102T150405"
+	date, _ := time.Parse(layout, "20180102T150405")
+	mLastSync.On("GetLastSynchronizationMark", mock.AnythingOfType("string")).Return(date)
+
+	mScanner.On("Scan").Return(true).Once()
+
+	mScanner.On("Err").Return(nil).Once()
+
+	mFile.On("Close").Return(nil)
+
+	newDate, _ := time.Parse(layout, "20170102T150405")
+	cli := NewCLIYams(
+		mImageService,
+		mErrorControl,
+		mLastSync,
+		mLocalImage,
+		mLogger,
+		newDate,
+		layout,
+	)
+	limit := 1
+	sent := <-cli.stats.sent
+	sent = 10 // over the limit
+	cli.stats.sent <- sent
+
+	cli.Sync(1, limit, 1, "/")
 
 	mImageService.AssertExpectations(t)
 	mErrorControl.AssertExpectations(t)
@@ -327,7 +388,7 @@ func TestSyncProcessErrorScanning(t *testing.T) {
 		layout,
 	)
 
-	err := cli.Sync(3, 1, "/")
+	err := cli.Sync(3, 0, 1, "/")
 	assert.Error(t, err)
 	mImageService.AssertExpectations(t)
 	mErrorControl.AssertExpectations(t)
@@ -373,7 +434,7 @@ func TestSyncErrorOpeningFile(t *testing.T) {
 		layout,
 	)
 
-	err := cli.Sync(3, 1, "/")
+	err := cli.Sync(3, 0, 1, "/")
 	assert.Error(t, err)
 	mImageService.AssertExpectations(t)
 	mErrorControl.AssertExpectations(t)
@@ -461,11 +522,27 @@ func TestErrorControl(t *testing.T) {
 	mLastSync := &mockLastSync{}
 	mLocalImage := &mockLocalImage{}
 	mLogger := &mockLogger{}
-	cli := CLIYams{imageService: mImageService,
+
+	sent := make(chan int, 1)
+	duplicated := make(chan int, 1)
+	errors := make(chan int, 1)
+	sent <- 0
+	duplicated <- 0
+	errors <- 0
+
+	cli := CLIYams{
+		imageService: mImageService,
 		errorControl: mErrorControl,
 		lastSync:     mLastSync,
 		localImage:   mLocalImage,
-		logger:       mLogger}
+		logger:       mLogger,
+		stats: Stats{
+			sent:       sent,
+			duplicated: duplicated,
+			errors:     errors,
+		},
+	}
+
 	yamsErrNil := (*usecases.YamsRepositoryError)(nil)
 	for i, testcases := 0, 7; i < testcases; i++ {
 		image := domain.Image{}
@@ -595,7 +672,16 @@ func TestDeleteAll(t *testing.T) {
 	mImageService := &mockImageService{}
 	mLogger := &mockLogger{}
 
-	cli := CLIYams{imageService: mImageService, logger: mLogger}
+	processed := make(chan int, 1)
+	processed <- 0
+
+	cli := CLIYams{
+		imageService: mImageService,
+		logger:       mLogger,
+		stats: Stats{
+			processed: processed,
+		},
+	}
 	yamsObjectResponse := []usecases.YamsObject{{ID: "12"}, {ID: "12"}}
 	yamsErrResponse := (*usecases.YamsRepositoryError)(nil)
 
@@ -651,9 +737,16 @@ func TestSendWorker(t *testing.T) {
 	jobs := make(chan domain.Image)
 	yamsErrNil := (*usecases.YamsRepositoryError)(nil)
 
+	sent := make(chan int, 1)
+	sent <- 0
 	mImageService.On("Send", mock.AnythingOfType("domain.Image")).Return("", yamsErrNil)
 
-	cli := CLIYams{imageService: mImageService, lastSyncDate: lastSyncDate}
+	cli := CLIYams{
+		imageService: mImageService,
+		lastSyncDate: lastSyncDate,
+		stats: Stats{
+			sent: sent,
+		}}
 
 	for w := 0; w < 1; w++ {
 		waitGroup.Add(1)
