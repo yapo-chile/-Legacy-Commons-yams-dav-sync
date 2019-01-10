@@ -88,7 +88,6 @@ func TestGetLastSynchronizationMarkErrScan(t *testing.T) {
 
 func TestSetLastSynchronizationMark(t *testing.T) {
 	mDbHandler := &mockDbHandler{}
-	mResult := &mockResult{}
 	lastSyncRepo := &lastSyncRepo{
 		db: mDbHandler,
 	}
@@ -99,21 +98,4 @@ func TestSetLastSynchronizationMark(t *testing.T) {
 
 	assert.NoError(t, err)
 	mDbHandler.AssertExpectations(t)
-	mResult.AssertExpectations(t)
-}
-
-func TestSetLastSynchronizationMarkQueryError(t *testing.T) {
-	mDbHandler := &mockDbHandler{}
-	mResult := &mockResult{}
-	lastSyncRepo := &lastSyncRepo{
-		db: mDbHandler,
-	}
-
-	mDbHandler.On("Insert", mock.AnythingOfType("string")).Return(fmt.Errorf("err"))
-
-	err := lastSyncRepo.SetLastSynchronizationMark(time.Now())
-
-	assert.Error(t, err)
-	mDbHandler.AssertExpectations(t)
-	mResult.AssertExpectations(t)
 }

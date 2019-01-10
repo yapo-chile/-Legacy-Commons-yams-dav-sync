@@ -17,7 +17,7 @@ type CLIYams struct {
 	localImage   LocalImage
 	logger       CLIYamsLogger
 	dateLayout   string
-	lastDate     chan time.Time
+	lastSyncDate chan time.Time
 	quit         bool
 	isSync       bool
 }
@@ -36,7 +36,7 @@ func NewCLIYams(imageService ImageService, errorControl ErrorControl, lastSync L
 		localImage:   localImage,
 		logger:       logger,
 		dateLayout:   dateLayout,
-		lastDate:     lastSyncDate,
+		lastSyncDate: lastSyncDate,
 	}
 }
 
@@ -104,6 +104,7 @@ type CLIYamsLogger interface {
 	LogErrorResetingErrorCounter(imgName string, err error)
 	LogErrorIncreasingErrorCounter(imgName string, err error)
 	LogErrorGettingRemoteChecksum(imgName string, err error)
+	LogErrorSettingSyncMark(mark time.Time, err error)
 	LogRetryPreviousFailedUploads()
 	LogReadingNewImages()
 	LogUploadingNewImages()
@@ -259,11 +260,11 @@ func (cli *CLIYams) sendWorker(id int, jobs <-chan domain.Image, wg *sync.WaitGr
 	for image := range jobs {
 		remoteChecksum, err := cli.imageService.Send(image)
 		cli.sendErrorControl(image, previousUploadFailed, remoteChecksum, err)
-		date := <-cli.lastDate
+		date := <-cli.lastSyncDate
 		if image.Metadata.ModTime.After(date) {
 			date = image.Metadata.ModTime
 		}
-		cli.lastDate <- date
+		cli.lastSyncDate <- date
 		if cli.quit {
 			return
 		}
@@ -324,8 +325,12 @@ func (cli *CLIYams) deleteWorker(id int, jobs <-chan string, wg *sync.WaitGroup)
 // Close closes cliYams execution
 func (cli *CLIYams) Close() (err error) {
 	if cli.isSync {
-		close(cli.lastDate)
-		err = cli.lastSync.SetLastSynchronizationMark(<-cli.lastDate)
+		close(cli.lastSyncDate)
+		mark := <-cli.lastSyncDate
+		err = cli.lastSync.SetLastSynchronizationMark(mark)
+		if err != nil {
+			cli.logger.LogErrorSettingSyncMark(mark, err)
+		}
 		cli.quit = true
 	}
 	return

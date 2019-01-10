@@ -173,6 +173,10 @@ func (m *mockLogger) LogErrorGettingImagesList(listPath string, err error) {
 	m.Called(listPath, err)
 }
 
+func (m *mockLogger) LogErrorSettingSyncMark(mark time.Time, err error) {
+	m.Called(mark, err)
+}
+
 func (m *mockLogger) LogRetryPreviousFailedUploads() {
 	m.Called()
 }
@@ -190,7 +194,7 @@ func TestNewSync(t *testing.T) {
 	date := make(chan time.Time, 1)
 	date <- now
 	expected := &CLIYams{}
-	expected.lastDate = date
+	expected.lastSyncDate = date
 	result := NewCLIYams(
 		expected.imageService,
 		expected.errorControl,
@@ -621,14 +625,20 @@ func TestDeleteAllListError(t *testing.T) {
 
 func TestClose(t *testing.T) {
 	mLastSync := &mockLastSync{}
+	mLogger := &mockLogger{}
+
 	lastSyncDate := make(chan time.Time, 1)
 	lastSyncDate <- time.Now()
-	cli := CLIYams{lastSync: mLastSync, lastDate: lastSyncDate}
+	cli := CLIYams{lastSync: mLastSync, logger: mLogger, lastSyncDate: lastSyncDate}
 
-	mLastSync.On("SetLastSynchronizationMark", mock.AnythingOfType("time.Time")).Return(nil)
+	mLastSync.On("SetLastSynchronizationMark", mock.AnythingOfType("time.Time")).
+		Return(fmt.Errorf("err"))
+	mLogger.On("LogErrorSettingSyncMark",
+		mock.AnythingOfType("time.Time"),
+		mock.AnythingOfType("*errors.errorString"))
 	cli.isSync = true
 	err := cli.Close()
-	assert.NoError(t, err)
+	assert.Error(t, err)
 	mLastSync.AssertExpectations(t)
 }
 
@@ -643,7 +653,7 @@ func TestSendWorker(t *testing.T) {
 
 	mImageService.On("Send", mock.AnythingOfType("domain.Image")).Return("", yamsErrNil)
 
-	cli := CLIYams{imageService: mImageService, lastDate: lastSyncDate}
+	cli := CLIYams{imageService: mImageService, lastSyncDate: lastSyncDate}
 
 	for w := 0; w < 1; w++ {
 		waitGroup.Add(1)
@@ -675,7 +685,7 @@ func TestDeleteWorker(t *testing.T) {
 
 	mImageService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(yamsErrNil)
 
-	cli := CLIYams{imageService: mImageService, lastDate: lastSyncDate}
+	cli := CLIYams{imageService: mImageService, lastSyncDate: lastSyncDate}
 
 	for w := 0; w < 1; w++ {
 		waitGroup.Add(1)
