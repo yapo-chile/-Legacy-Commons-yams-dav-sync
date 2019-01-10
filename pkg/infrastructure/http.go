@@ -48,7 +48,7 @@ func (h *HTTPHandler) Send(req repository.HTTPRequest) (repository.HTTPResponse,
 		Transport: httpTransport,
 	}
 	if h.dialer != nil {
-		httpTransport.Dial = h.dialer.Dial
+		httpTransport.Dial = h.dialer.Dial // nolint
 	}
 
 	resp, err := httpClient.Do(&req.(*request).innerRequest)

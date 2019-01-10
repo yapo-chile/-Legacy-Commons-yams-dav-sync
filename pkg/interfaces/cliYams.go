@@ -24,6 +24,7 @@ type CLIYams struct {
 	isSync       bool
 }
 
+// Stats holds sync process stats
 type Stats struct {
 	sent       chan int
 	errors     chan int
@@ -33,6 +34,7 @@ type Stats struct {
 	notFound   chan int
 }
 
+// inc increments a a given int var, this is useful to increment channel values
 var inc = func(i int) int { return i + 1 }
 
 // NewCLIYams creates a new instance of CLIYams

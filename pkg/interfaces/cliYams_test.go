@@ -333,7 +333,7 @@ func TestSyncProcessWithSendLimit(t *testing.T) {
 	)
 	limit := 1
 	sent := <-cli.stats.sent
-	sent = 10 // over the limit
+	sent = sent + limit + 1 // over the limit
 	cli.stats.sent <- sent
 
 	cli.Sync(1, limit, 1, "/")

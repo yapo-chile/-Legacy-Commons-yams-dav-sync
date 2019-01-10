@@ -13,8 +13,7 @@ import (
 
 // LocalFileSystemView implements fileSystem using the local disk.
 type LocalFileSystemView struct {
-	fileInfo repository.FileInfo
-	logger   loggers.Logger
+	logger loggers.Logger
 }
 
 // NewLocalFileSystemView will create a new instance of a custom fileSystem
