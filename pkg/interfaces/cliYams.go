@@ -1,7 +1,6 @@
 package interfaces
 
 import (
-	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -26,12 +25,12 @@ type CLIYams struct {
 
 // Stats holds sync process stats
 type Stats struct {
-	sent       chan int
-	errors     chan int
-	duplicated chan int
-	processed  chan int
-	skipped    chan int
-	notFound   chan int
+	Sent       chan int
+	Errors     chan int
+	Duplicated chan int
+	Processed  chan int
+	Skipped    chan int
+	NotFound   chan int
 }
 
 // inc increments a a given int var, this is useful to increment channel values
@@ -66,12 +65,12 @@ func NewCLIYams(imageService ImageService, errorControl ErrorControl, lastSync L
 		dateLayout:   dateLayout,
 		lastSyncDate: lastSyncDate,
 		stats: Stats{
-			sent:       sent,
-			processed:  processed,
-			errors:     errors,
-			duplicated: duplicated,
-			skipped:    skipped,
-			notFound:   notFound,
+			Sent:       sent,
+			Processed:  processed,
+			Errors:     errors,
+			Duplicated: duplicated,
+			Skipped:    skipped,
+			NotFound:   notFound,
 		},
 	}
 }
@@ -144,6 +143,7 @@ type CLIYamsLogger interface {
 	LogRetryPreviousFailedUploads()
 	LogReadingNewImages()
 	LogUploadingNewImages()
+	LogStats(stats *Stats)
 }
 
 // retryPreviousFailedUploads gets images from errorControlRepository and try
@@ -217,21 +217,21 @@ func (cli *CLIYams) Sync(threads, syncLimit, maxErrorTolerance int, imagesDumpYa
 	scanner := cli.localImage.InitImageListScanner(file)
 	// for each element read from file
 	for scanner.Scan() {
-		cli.stats.processed <- inc(<-cli.stats.processed)
-		sentImages := <-cli.stats.sent
-		cli.stats.sent <- sentImages
+		cli.stats.Processed <- inc(<-cli.stats.Processed)
+		sentImages := <-cli.stats.Sent
+		cli.stats.Sent <- sentImages
 		if sentImages > syncLimit && syncLimit > 0 {
 			break
 		}
 		tuple := strings.Split(scanner.Text(), " ")
 		if !validateTuple(tuple, latestSynchronizedImageDate, cli.dateLayout) {
-			cli.stats.skipped <- inc(<-cli.stats.skipped)
+			cli.stats.Skipped <- inc(<-cli.stats.Skipped)
 			continue
 		}
 		_, imagePath := tuple[0], tuple[1]
 		image, err := cli.localImage.GetLocalImage(imagePath)
 		if err != nil {
-			cli.stats.notFound <- inc(<-cli.stats.notFound)
+			cli.stats.NotFound <- inc(<-cli.stats.NotFound)
 			continue
 		}
 		jobs <- image
@@ -292,7 +292,7 @@ func (cli *CLIYams) DeleteAll(threads int) error {
 	}
 
 	for _, image := range images {
-		cli.stats.processed <- inc(<-cli.stats.processed)
+		cli.stats.Processed <- inc(<-cli.stats.Processed)
 		jobs <- image.ID
 	}
 
@@ -334,11 +334,11 @@ func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed in
 			}
 			return
 		}
-		cli.stats.sent <- inc(<-cli.stats.sent)
+		cli.stats.Sent <- inc(<-cli.stats.Sent)
 		return
 	case usecases.ErrYamsDuplicate:
 		if remoteChecksum != localImageChecksum {
-			cli.stats.duplicated <- inc(<-cli.stats.duplicated)
+			cli.stats.Duplicated <- inc(<-cli.stats.Duplicated)
 			if e := cli.imageService.RemoteDelete(imageName, domain.YAMSForceRemoval); e != yamsErrNil {
 				cli.logger.LogErrorRemoteDelete(imageName, e)
 				// recursive increase error counter
@@ -354,7 +354,7 @@ func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed in
 			cli.sendErrorControl(image, previousUploadFailed, remoteChecksum, nil)
 		}
 	default: // any other kind of error increase error counter
-		cli.stats.errors <- inc(<-cli.stats.errors)
+		cli.stats.Errors <- inc(<-cli.stats.Errors)
 		if e := cli.errorControl.IncreaseErrorCounter(imageName); e != nil {
 			cli.logger.LogErrorIncreasingErrorCounter(imageName, e)
 		}
@@ -390,29 +390,8 @@ func (cli *CLIYams) Close() (err error) {
 
 func (cli *CLIYams) showStats() {
 	go func() {
-		sent, errors, duplicated, processed, skipped, notFound := 0, 0, 0, 0, 0, 0
 		for !cli.quit {
-			sent = <-cli.stats.sent
-			errors = <-cli.stats.errors
-			processed = <-cli.stats.processed
-			duplicated = <-cli.stats.duplicated
-			skipped = <-cli.stats.skipped
-			notFound = <-cli.stats.notFound
-
-			fmt.Printf("\r[ \033[32mSent images: %d \033[0m "+
-				"\033[31m Errors: %d \033[0m "+
-				"\033[31m Duplicated: %d \033[0m "+
-				"\033[33m Processed: %d \033[0m "+
-				"\033[33m Skipped: %d \033[0m "+
-				"\033[33m Not Found: %d \033[0m ]",
-				sent, errors, duplicated, processed, skipped, notFound)
-
-			cli.stats.sent <- sent
-			cli.stats.errors <- errors
-			cli.stats.duplicated <- duplicated
-			cli.stats.processed <- processed
-			cli.stats.skipped <- skipped
-			cli.stats.notFound <- notFound
+			cli.logger.LogStats(&cli.stats)
 		}
 	}()
 }
