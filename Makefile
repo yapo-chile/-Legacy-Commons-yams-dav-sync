@@ -57,11 +57,22 @@ removedump:
 	rm ${YAMS_IMAGES_LIST_FILE}
 
 ## sync starts dav-yams synchronization
-sync: build buildbandwidthlimiter runbandwidthlimiter sort runsync killbandwidhlimiter removedump
+sync:
+	bash -c "trap 'trap - SIGINT SIGTERM ERR;${MAKE} killbandwidhlimiter removedump; exit 1' SIGINT SIGTERM ERR;${MAKE} trapped-sync"
+
 ## list prints objects in yams bucket
-list: build buildbandwidthlimiter runbandwidthlimiter runlist killbandwidhlimiter
+list:
+	bash -c "trap 'trap - SIGINT SIGTERM ERR;${MAKE} killbandwidhlimiter; exit 1' SIGINT SIGTERM ERR;${MAKE} trapped-list"
+
 ## deleteall deletes every image in yams
-deleteall: build buildbandwidthlimiter runbandwidthlimiter rundeleteall killbandwidhlimiter
+deleteall:
+	bash -c "trap 'trap - SIGINT SIGTERM ERR;${MAKE} killbandwidhlimiter; exit 1' SIGINT SIGTERM ERR;${MAKE} trapped-deleteall"
+
+trapped-sync: build buildbandwidthlimiter runbandwidthlimiter sort runsync killbandwidhlimiter removedump
+
+trapped-list: build buildbandwidthlimiter runbandwidthlimiter runlist killbandwidhlimiter
+
+trapped-deleteall: build buildbandwidthlimiter runbandwidthlimiter rundeleteall killbandwidhlimiter
 	
 ## Compile and start the service
 start: build run

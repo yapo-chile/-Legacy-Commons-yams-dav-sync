@@ -29,6 +29,10 @@ func elapsed(process string) func() {
 func main() {
 	defer elapsed("exec")()
 
+	shutdownSequence := infrastructure.NewShutdownSequence()
+
+	shutdownSequence.Listen()
+
 	var conf infrastructure.Config
 	infrastructure.LoadFromEnv(&conf)
 
@@ -70,6 +74,8 @@ func main() {
 		os.Exit(2)
 	}
 
+	shutdownSequence.Push(dbHandler)
+
 	setUpMigrations(conf, dbHandler, logger)
 
 	localImageRepo := repository.NewLocalImageRepo(
@@ -104,7 +110,12 @@ func main() {
 			conf.LastSync.DefaultDate)
 		os.Exit(3)
 	}
-	lastSyncRepo := repository.NewLastSyncRepo(dbHandler, defaultLastSyncDate)
+
+	lastSyncRepo := repository.NewLastSyncRepo(
+		dbHandler,
+		conf.LocalStorageConf.DefaultFilesDateLayout,
+		defaultLastSyncDate,
+	)
 
 	errorControlRepo := repository.NewErrorControlRepo(
 		dbHandler,
@@ -117,39 +128,60 @@ func main() {
 		lastSyncRepo,
 		localImageRepo,
 		loggers.MakeCLIYamsLogger(logger),
+		defaultLastSyncDate,
 		conf.LocalStorageConf.DefaultFilesDateLayout,
 	)
+
+	shutdownSequence.Push(CLIYams)
 
 	maxErrorQty := conf.ErrorControl.MaxRetriesPerError
 
 	switch *opt {
 	case "sync":
-		if *dumpFile != "" && threads > 0 {
-			if e := CLIYams.Sync(threads, maxErrorQty, *dumpFile); e != nil {
-				logger.Error("Error with synchornization: %+v", e)
+		go func() {
+			if *dumpFile != "" && threads > 0 {
+				if e := CLIYams.Sync(threads, maxErrorQty, *dumpFile); e != nil {
+					logger.Error("Error with synchornization: %+v", e)
+				}
+			} else {
+				logger.Error("make start command=sync threads=[number] dump-file=[path]")
 			}
-		} else {
-			logger.Error("make start command=sync threads=[number] dump-file=[path]")
-		}
+			shutdownSequence.Done()
+		}()
+
 	case "list":
-		if e := CLIYams.List(); e != nil {
-			logger.Error("Error listing: %+v", e)
-		}
-	case "deleteAll":
-		if threads > 0 {
-			if e := CLIYams.DeleteAll(threads); e != nil {
-				logger.Error("Error deleting: %+v ", e)
+		go func() {
+			if e := CLIYams.List(); e != nil {
+				logger.Error("Error listing: %+v", e)
 			}
-		} else {
-			logger.Error("make start command=deleteAll threads=[number]")
-		}
+			shutdownSequence.Done()
+		}()
+
+	case "deleteAll":
+		go func() {
+			if threads > 0 {
+				if e := CLIYams.DeleteAll(threads); e != nil {
+					logger.Error("Error deleting: %+v ", e)
+				}
+			} else {
+				logger.Error("make start command=deleteAll threads=[number]")
+			}
+			shutdownSequence.Done()
+		}()
+
 	case "delete":
-		if e := CLIYams.Delete(*object); e != nil {
-			logger.Error("Error deleting: %+v", e)
-		}
+		go func() {
+			if e := CLIYams.Delete(*object); e != nil {
+				logger.Error("Error deleting: %+v", e)
+			}
+			shutdownSequence.Done()
+		}()
+
 	default:
 		logger.Error("Make start command=[commmand]\nCommand list:\n- sync \n- list\n- deleteAll\n")
+		shutdownSequence.Done()
 	}
+	shutdownSequence.Wait()
 }
 
 // Autoexecute database migrations

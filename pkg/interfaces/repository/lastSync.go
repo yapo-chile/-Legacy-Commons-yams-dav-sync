@@ -11,13 +11,15 @@ import (
 type lastSyncRepo struct {
 	db          DbHandler
 	defaultDate time.Time
+	dateLayout  string
 }
 
 // NewLastSyncRepo makes a new LastSyncRepo instance
-func NewLastSyncRepo(dbHandler DbHandler, defaultLastSyncDate time.Time) interfaces.LastSync {
+func NewLastSyncRepo(dbHandler DbHandler, dateLayout string, defaultLastSyncDate time.Time) interfaces.LastSync {
 	return &lastSyncRepo{
 		db:          dbHandler,
 		defaultDate: defaultLastSyncDate,
+		dateLayout:  dateLayout,
 	}
 }
 
@@ -43,16 +45,10 @@ func (repo *lastSyncRepo) GetLastSynchronizationMark() (lastSyncDate time.Time) 
 }
 
 // SetLastSynchronizationMark saves a new synchronization date mark
-func (repo *lastSyncRepo) SetLastSynchronizationMark(dateMark string) (err error) {
-	if dateMark == "" {
-		return fmt.Errorf("dateMark is empty")
-	}
-
-	row, err := repo.db.Query(fmt.Sprintf(`
+func (repo *lastSyncRepo) SetLastSynchronizationMark(date time.Time) (err error) {
+	return repo.db.Insert(fmt.Sprintf(`
 		INSERT INTO last_sync(last_sync_date)
-		VALUES ('%s')`,
-		dateMark,
+		VALUES ('%+v')`,
+		date.Format(repo.dateLayout),
 	))
-	defer row.Close() // nolint
-	return err
 }

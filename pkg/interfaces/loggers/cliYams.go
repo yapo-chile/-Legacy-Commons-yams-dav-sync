@@ -2,6 +2,7 @@ package loggers
 
 import (
 	"fmt"
+	"time"
 
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
@@ -50,6 +51,10 @@ func (l *cliYamsLogger) LogErrorGettingRemoteChecksum(imgName string, err error)
 
 func (l *cliYamsLogger) LogErrorGettingImagesList(listPath string, err error) {
 	l.logger.Error("Error getting images list in path %+v, error: %+v", listPath, err)
+}
+
+func (l *cliYamsLogger) LogErrorSettingSyncMark(mark time.Time, err error) {
+	l.logger.Error("Error setting synchronization mark %+v error: %+v", mark, err)
 }
 
 func (l *cliYamsLogger) LogRetryPreviousFailedUploads() {

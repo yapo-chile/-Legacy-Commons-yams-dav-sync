@@ -15,7 +15,7 @@ func TestNewLastSyncRepo(t *testing.T) {
 		db:          dbHandler,
 		defaultDate: time.Time{},
 	}
-	result := NewLastSyncRepo(dbHandler, time.Time{})
+	result := NewLastSyncRepo(dbHandler, "", time.Time{})
 	assert.Equal(t, lastSyncRepo, result)
 }
 
@@ -88,48 +88,14 @@ func TestGetLastSynchronizationMarkErrScan(t *testing.T) {
 
 func TestSetLastSynchronizationMark(t *testing.T) {
 	mDbHandler := &mockDbHandler{}
-	mResult := &mockResult{}
 	lastSyncRepo := &lastSyncRepo{
 		db: mDbHandler,
 	}
 
-	mDbHandler.On("Query", mock.AnythingOfType("string")).Return(mResult, nil)
-	mResult.On("Close").Return(nil)
+	mDbHandler.On("Insert", mock.AnythingOfType("string")).Return(nil)
 
-	err := lastSyncRepo.SetLastSynchronizationMark("123")
+	err := lastSyncRepo.SetLastSynchronizationMark(time.Now())
 
 	assert.NoError(t, err)
 	mDbHandler.AssertExpectations(t)
-	mResult.AssertExpectations(t)
-}
-
-func TestSetLastSynchronizationMarkQueryError(t *testing.T) {
-	mDbHandler := &mockDbHandler{}
-	mResult := &mockResult{}
-	lastSyncRepo := &lastSyncRepo{
-		db: mDbHandler,
-	}
-
-	mDbHandler.On("Query", mock.AnythingOfType("string")).Return(mResult, fmt.Errorf("err"))
-	mResult.On("Close").Return(nil)
-
-	err := lastSyncRepo.SetLastSynchronizationMark("123")
-
-	assert.Error(t, err)
-	mDbHandler.AssertExpectations(t)
-	mResult.AssertExpectations(t)
-}
-
-func TestSetLastSynchronizationMarkMarkError(t *testing.T) {
-	mDbHandler := &mockDbHandler{}
-	mResult := &mockResult{}
-	lastSyncRepo := &lastSyncRepo{
-		db: mDbHandler,
-	}
-
-	err := lastSyncRepo.SetLastSynchronizationMark("")
-
-	assert.Error(t, err)
-	mDbHandler.AssertExpectations(t)
-	mResult.AssertExpectations(t)
 }
