@@ -216,6 +216,11 @@ func (cli *CLIYams) Sync(threads, syncLimit, maxErrorTolerance int, imagesDumpYa
 	// for each element read from file
 	for scanner.Scan() {
 		cli.stats.processed <- inc(<-cli.stats.processed)
+		sentImages := <-cli.stats.sent
+		cli.stats.sent <- sentImages
+		if sentImages > syncLimit && syncLimit > 0 {
+			break
+		}
 		tuple := strings.Split(scanner.Text(), " ")
 		if !validateTuple(tuple, latestSynchronizedImageDate, cli.dateLayout) {
 			cli.stats.skipped <- inc(<-cli.stats.skipped)
