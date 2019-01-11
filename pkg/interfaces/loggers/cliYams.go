@@ -69,7 +69,7 @@ func (l *cliYamsLogger) LogUploadingNewImages() {
 	l.logger.Info("Uploading new images to yams...")
 }
 
-func (l *cliYamsLogger) LogStats(stats *interfaces.Stats) {
+func (l *cliYamsLogger) LogStats(timer int, stats *interfaces.Stats) {
 	sent := <-stats.Sent
 	errors := <-stats.Errors
 	processed := <-stats.Processed
@@ -77,12 +77,12 @@ func (l *cliYamsLogger) LogStats(stats *interfaces.Stats) {
 	skipped := <-stats.Skipped
 	notFound := <-stats.NotFound
 
-	fmt.Printf("\r[ \033[32mSent images: %d \033[0m "+
+	fmt.Printf("\r[ Timer: %ds ] ( \033[32mSent images: %d \033[0m "+
 		"\033[31m Errors: %d \033[0m "+
 		"\033[31m Duplicated: %d \033[0m "+
 		"\033[33m Processed: %d \033[0m "+
 		"\033[33m Skipped: %d \033[0m "+
-		"\033[33m Not Found: %d \033[0m ]",
+		"\033[33m Not Found: %d \033[0m ) ", timer,
 		sent, errors, duplicated, processed, skipped, notFound)
 
 	stats.Sent <- sent

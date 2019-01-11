@@ -19,42 +19,19 @@ type CLIYams struct {
 	dateLayout   string
 	lastSyncDate chan time.Time
 	stats        Stats
-	quit         bool
+	quit         chan bool
 	isSync       bool
 }
 
-// Stats holds sync process stats
-type Stats struct {
-	Sent       chan int
-	Errors     chan int
-	Duplicated chan int
-	Processed  chan int
-	Skipped    chan int
-	NotFound   chan int
-}
-
-// inc increments a a given int var, this is useful to increment channel values
-var inc = func(i int) int { return i + 1 }
-
 // NewCLIYams creates a new instance of CLIYams
 func NewCLIYams(imageService ImageService, errorControl ErrorControl, lastSync LastSync,
-	localImage LocalImage, logger CLIYamsLogger, defaultLastSyncDate time.Time, dateLayout string) *CLIYams {
+	localImage LocalImage, logger CLIYamsLogger, defaultLastSyncDate time.Time, stats Stats, dateLayout string) *CLIYams {
 
 	lastSyncDate := make(chan time.Time, 1)
-	processed := make(chan int, 1)
-	skipped := make(chan int, 1)
-	notFound := make(chan int, 1)
-	sent := make(chan int, 1)
-	duplicated := make(chan int, 1)
-	errors := make(chan int, 1)
-	processed <- 0
-	skipped <- 0
-	notFound <- 0
-	sent <- 0
-	errors <- 0
-	duplicated <- 0
-
 	lastSyncDate <- defaultLastSyncDate
+
+	quit := make(chan bool, 1)
+	quit <- false
 
 	return &CLIYams{
 		imageService: imageService,
@@ -64,14 +41,8 @@ func NewCLIYams(imageService ImageService, errorControl ErrorControl, lastSync L
 		logger:       logger,
 		dateLayout:   dateLayout,
 		lastSyncDate: lastSyncDate,
-		stats: Stats{
-			Sent:       sent,
-			Processed:  processed,
-			Errors:     errors,
-			Duplicated: duplicated,
-			Skipped:    skipped,
-			NotFound:   notFound,
-		},
+		quit:         quit,
+		stats:        stats,
 	}
 }
 
@@ -143,7 +114,7 @@ type CLIYamsLogger interface {
 	LogRetryPreviousFailedUploads()
 	LogReadingNewImages()
 	LogUploadingNewImages()
-	LogStats(stats *Stats)
+	LogStats(timer int, stats *Stats)
 }
 
 // retryPreviousFailedUploads gets images from errorControlRepository and try
@@ -313,7 +284,13 @@ func (cli *CLIYams) sendWorker(id int, jobs <-chan domain.Image, wg *sync.WaitGr
 			date = image.Metadata.ModTime
 		}
 		cli.lastSyncDate <- date
-		if cli.quit {
+
+		if quit, ok := <-cli.quit; ok {
+			cli.quit <- quit
+			if quit {
+				return
+			}
+		} else {
 			return
 		}
 	}
@@ -367,7 +344,9 @@ func (cli *CLIYams) deleteWorker(id int, jobs <-chan string, wg *sync.WaitGroup)
 		if e := cli.imageService.RemoteDelete(j, domain.YAMSForceRemoval); e != nil {
 			cli.logger.LogErrorRemoteDelete(j, e)
 		}
-		if cli.quit {
+		quit := <-cli.quit
+		cli.quit <- quit
+		if quit {
 			return
 		}
 	}
@@ -383,15 +362,30 @@ func (cli *CLIYams) Close() (err error) {
 		if err != nil {
 			cli.logger.LogErrorSettingSyncMark(mark, err)
 		}
-		cli.quit = true
+		quit := <-cli.quit
+		cli.quit <- !quit
 	}
 	return
 }
 
 func (cli *CLIYams) showStats() {
 	go func() {
-		for !cli.quit {
-			cli.logger.LogStats(&cli.stats)
+		quit, ok := <-cli.quit
+		if ok {
+			cli.quit <- quit
 		}
+		timer := 0
+		ticker := time.Tick(time.Second)
+		for !quit {
+			cli.logger.LogStats(timer, &cli.stats)
+			<-ticker
+			timer++
+			quit, ok := <-cli.quit
+			if ok {
+				cli.quit <- quit
+			}
+		}
+		cli.stats.Close()
+		close(cli.quit)
 	}()
 }

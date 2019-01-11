@@ -127,17 +127,18 @@ func main() {
 		conf.ErrorControl.MaxResultsPerPage,
 	)
 
-	CLIYams := interfaces.NewCLIYams(
+	cliYams := interfaces.NewCLIYams(
 		yamsRepo,
 		errorControlRepo,
 		lastSyncRepo,
 		localImageRepo,
 		loggers.MakeCLIYamsLogger(logger),
 		defaultLastSyncDate,
+		interfaces.NewStats(),
 		conf.LocalStorageConf.DefaultFilesDateLayout,
 	)
 
-	shutdownSequence.Push(CLIYams)
+	shutdownSequence.Push(cliYams)
 
 	maxErrorTolerance := conf.ErrorControl.MaxRetriesPerError
 
@@ -145,7 +146,7 @@ func main() {
 	case "sync":
 		go func() {
 			if *dumpFile != "" && threads > 0 {
-				if e := CLIYams.Sync(threads, limit, maxErrorTolerance, *dumpFile); e != nil {
+				if e := cliYams.Sync(threads, limit, maxErrorTolerance, *dumpFile); e != nil {
 					logger.Error("Error with synchornization: %+v", e)
 				}
 			} else {
@@ -156,7 +157,7 @@ func main() {
 
 	case "list":
 		go func() {
-			if e := CLIYams.List(); e != nil {
+			if e := cliYams.List(); e != nil {
 				logger.Error("Error listing: %+v", e)
 			}
 			shutdownSequence.Done()
@@ -165,7 +166,7 @@ func main() {
 	case "deleteAll":
 		go func() {
 			if threads > 0 {
-				if e := CLIYams.DeleteAll(threads); e != nil {
+				if e := cliYams.DeleteAll(threads); e != nil {
 					logger.Error("Error deleting: %+v ", e)
 				}
 			} else {
@@ -176,7 +177,7 @@ func main() {
 
 	case "delete":
 		go func() {
-			if e := CLIYams.Delete(*object); e != nil {
+			if e := cliYams.Delete(*object); e != nil {
 				logger.Error("Error deleting: %+v", e)
 			}
 			shutdownSequence.Done()
