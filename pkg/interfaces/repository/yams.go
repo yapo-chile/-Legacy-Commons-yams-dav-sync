@@ -74,6 +74,7 @@ type YamsRepositoryLogger interface {
 	LogRequestURI(url string)
 	LogStatus(statusCode int)
 	LogResponse(body string, err error)
+	LogCannotDecodeErrorMessage(err error)
 }
 
 // GetMaxConcurrency gets the max number of concurrent connections to yams
@@ -140,7 +141,7 @@ func (repo *YamsRepository) Send(image domain.Image) (checksum string, e *usecas
 	}
 
 	type PutError struct {
-		AdditionalInfo PutAdditionalInfo `json:"additional_info"`
+		AdditionalInfo PutAdditionalInfo `json:"additionalInfo"`
 	}
 
 	path := "/tenants/" + repo.tenantID +
@@ -197,7 +198,9 @@ func (repo *YamsRepository) Send(image domain.Image) (checksum string, e *usecas
 		return "", usecases.ErrYamsBucketNotFound
 	case 409: // Duplicated image
 		errorInfo := PutError{}
-		json.Unmarshal([]byte(body), errorInfo) // nolint
+		if e := json.Unmarshal([]byte(body), &errorInfo); e != nil {
+			repo.logger.LogCannotDecodeErrorMessage(e)
+		}
 		return errorInfo.AdditionalInfo.Etag, usecases.ErrYamsDuplicate
 	case 500: // Server error
 		return "", usecases.ErrYamsInternal

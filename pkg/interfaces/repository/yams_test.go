@@ -40,6 +40,10 @@ func (m *MockYamsRepoLogger) LogResponse(body string, err error) {
 	m.Called(body, err)
 }
 
+func (m *MockYamsRepoLogger) LogCannotDecodeErrorMessage(err error) {
+	m.Called(err)
+}
+
 func TestNewYamsRepository(t *testing.T) {
 	var jwtSigner Signer
 	var logger YamsRepositoryLogger
@@ -250,6 +254,7 @@ func TestSend(t *testing.T) {
 	mLogger.On("LogStatus", mock.AnythingOfType("int"))
 	mLogger.On("LogResponse", mock.AnythingOfType("string"), nil)
 	mSigner.On("GenerateTokenString", mock.AnythingOfType("PutClaims")).Return("claims")
+	mLogger.On("LogCannotDecodeErrorMessage", mock.AnythingOfType("*json.SyntaxError"))
 	expected := ""
 	for cases := 0; cases < 7; cases++ {
 		switch cases {
