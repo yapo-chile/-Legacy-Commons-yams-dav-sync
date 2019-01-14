@@ -368,6 +368,7 @@ func (cli *CLIYams) Close() (err error) {
 	return
 }
 
+// showStats displays synchronization stats in screen while yams-dav-sync script is running
 func (cli *CLIYams) showStats() {
 	go func() {
 		quit, ok := <-cli.quit
