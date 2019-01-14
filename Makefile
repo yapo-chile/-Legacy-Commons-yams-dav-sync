@@ -33,7 +33,7 @@ run:
 	@./${APPNAME}  -command=$(command)  -object=$(object) -threads=$(threads)
 
 runsync:
-	@./${APPNAME}  -command=sync -dumpfile=${YAMS_IMAGES_LIST_FILE} -threads=$(YAMS_MAX_CONCURRENT_CONN)
+	@./${APPNAME}  -command=sync -dumpfile=${YAMS_IMAGES_LIST_FILE} -threads=$(YAMS_MAX_CONCURRENT_CONN) -limit=$(YAMS_UPLOAD_LIMIT)
 
 runlist:
 	@./${APPNAME}  -command=list
@@ -50,7 +50,7 @@ buildbandwidthlimiter:
 runbandwidthlimiter:
 	@scripts/commands/run_bandwidth_proxy.sh
 
-killbandwidhlimiter:
+killbandwidthlimiter:
 	pkill ${BANDWIDTH_PROXY_PROCESS_NAME}
 
 removedump:
@@ -58,21 +58,21 @@ removedump:
 
 ## sync starts dav-yams synchronization
 sync:
-	bash -c "trap 'trap - SIGINT SIGTERM ERR;${MAKE} killbandwidhlimiter removedump; exit 1' SIGINT SIGTERM ERR;${MAKE} trapped-sync"
+	bash -c "trap 'trap - SIGINT SIGTERM ERR;${MAKE} killbandwidthlimiter removedump; exit 1' SIGINT SIGTERM ERR;${MAKE} trapped-sync"
 
 ## list prints objects in yams bucket
 list:
-	bash -c "trap 'trap - SIGINT SIGTERM ERR;${MAKE} killbandwidhlimiter; exit 1' SIGINT SIGTERM ERR;${MAKE} trapped-list"
+	bash -c "trap 'trap - SIGINT SIGTERM ERR;${MAKE} killbandwidthlimiter; exit 1' SIGINT SIGTERM ERR;${MAKE} trapped-list"
 
 ## deleteall deletes every image in yams
 deleteall:
-	bash -c "trap 'trap - SIGINT SIGTERM ERR;${MAKE} killbandwidhlimiter; exit 1' SIGINT SIGTERM ERR;${MAKE} trapped-deleteall"
+	bash -c "trap 'trap - SIGINT SIGTERM ERR;${MAKE} killbandwidthlimiter; exit 1' SIGINT SIGTERM ERR;${MAKE} trapped-deleteall"
 
-trapped-sync: build buildbandwidthlimiter runbandwidthlimiter sort runsync killbandwidhlimiter removedump
+trapped-sync: build buildbandwidthlimiter runbandwidthlimiter sort runsync killbandwidthlimiter removedump
 
-trapped-list: build buildbandwidthlimiter runbandwidthlimiter runlist killbandwidhlimiter
+trapped-list: build buildbandwidthlimiter runbandwidthlimiter runlist killbandwidthlimiter
 
-trapped-deleteall: build buildbandwidthlimiter runbandwidthlimiter rundeleteall killbandwidhlimiter
+trapped-deleteall: build buildbandwidthlimiter runbandwidthlimiter rundeleteall killbandwidthlimiter
 	
 ## Compile and start the service
 start: build run

@@ -18,16 +18,20 @@ type CLIYams struct {
 	logger       CLIYamsLogger
 	dateLayout   string
 	lastSyncDate chan time.Time
-	quit         bool
+	stats        Stats
+	quit         chan bool
 	isSync       bool
 }
 
 // NewCLIYams creates a new instance of CLIYams
 func NewCLIYams(imageService ImageService, errorControl ErrorControl, lastSync LastSync,
-	localImage LocalImage, logger CLIYamsLogger, defaultLastSyncDate time.Time, dateLayout string) *CLIYams {
+	localImage LocalImage, logger CLIYamsLogger, defaultLastSyncDate time.Time, stats Stats, dateLayout string) *CLIYams {
 
 	lastSyncDate := make(chan time.Time, 1)
 	lastSyncDate <- defaultLastSyncDate
+
+	quit := make(chan bool, 1)
+	quit <- false
 
 	return &CLIYams{
 		imageService: imageService,
@@ -37,6 +41,8 @@ func NewCLIYams(imageService ImageService, errorControl ErrorControl, lastSync L
 		logger:       logger,
 		dateLayout:   dateLayout,
 		lastSyncDate: lastSyncDate,
+		quit:         quit,
+		stats:        stats,
 	}
 }
 
@@ -108,6 +114,7 @@ type CLIYamsLogger interface {
 	LogRetryPreviousFailedUploads()
 	LogReadingNewImages()
 	LogUploadingNewImages()
+	LogStats(timer int, stats *Stats)
 }
 
 // retryPreviousFailedUploads gets images from errorControlRepository and try
@@ -145,23 +152,25 @@ func (cli *CLIYams) retryPreviousFailedUploads(threads, maxErrorTolerance int) {
 
 // Sync synchronizes images between local repository and yams repository
 // using go concurrency
-func (cli *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string) error {
+func (cli *CLIYams) Sync(threads, syncLimit, maxErrorTolerance int, imagesDumpYamsPath string) error {
 	cli.isSync = true
 	maxConcurrency := cli.imageService.GetMaxConcurrency()
 	if threads > maxConcurrency {
 		threads = maxConcurrency
 	}
-
+	cli.showStats()
 	cli.logger.LogRetryPreviousFailedUploads()
 
-	cli.retryPreviousFailedUploads(threads, maxErrorQty)
+	cli.retryPreviousFailedUploads(threads, maxErrorTolerance)
+
+	// prepare to upload using concurrent workers
 	jobs := make(chan domain.Image)
 	var waitGroup sync.WaitGroup
-
 	for w := 0; w < threads; w++ {
 		waitGroup.Add(1)
 		go cli.sendWorker(w, jobs, &waitGroup, domain.SWUpload)
 	}
+
 	cli.logger.LogReadingNewImages()
 
 	// Get the data file with list of images to upload
@@ -179,13 +188,21 @@ func (cli *CLIYams) Sync(threads, maxErrorQty int, imagesDumpYamsPath string) er
 	scanner := cli.localImage.InitImageListScanner(file)
 	// for each element read from file
 	for scanner.Scan() {
+		cli.stats.Processed <- inc(<-cli.stats.Processed)
+		sentImages := <-cli.stats.Sent
+		cli.stats.Sent <- sentImages
+		if sentImages > syncLimit && syncLimit > 0 {
+			break
+		}
 		tuple := strings.Split(scanner.Text(), " ")
 		if !validateTuple(tuple, latestSynchronizedImageDate, cli.dateLayout) {
+			cli.stats.Skipped <- inc(<-cli.stats.Skipped)
 			continue
 		}
 		_, imagePath := tuple[0], tuple[1]
 		image, err := cli.localImage.GetLocalImage(imagePath)
 		if err != nil {
+			cli.stats.NotFound <- inc(<-cli.stats.NotFound)
 			continue
 		}
 		jobs <- image
@@ -231,6 +248,7 @@ func (cli *CLIYams) Delete(imageName string) error {
 
 // DeleteAll deletes every imagen in yams repository and redis using concurency
 func (cli *CLIYams) DeleteAll(threads int) error {
+	cli.showStats()
 	images, err := cli.imageService.List()
 	if err != nil {
 		return err
@@ -245,6 +263,7 @@ func (cli *CLIYams) DeleteAll(threads int) error {
 	}
 
 	for _, image := range images {
+		cli.stats.Processed <- inc(<-cli.stats.Processed)
 		jobs <- image.ID
 	}
 
@@ -265,7 +284,13 @@ func (cli *CLIYams) sendWorker(id int, jobs <-chan domain.Image, wg *sync.WaitGr
 			date = image.Metadata.ModTime
 		}
 		cli.lastSyncDate <- date
-		if cli.quit {
+
+		if quit, ok := <-cli.quit; ok {
+			cli.quit <- quit
+			if quit {
+				return
+			}
+		} else {
 			return
 		}
 	}
@@ -284,10 +309,13 @@ func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed in
 			if e := cli.errorControl.CleanErrorMarks(imageName); e != nil {
 				cli.logger.LogErrorCleaningMarks(imageName, e)
 			}
+			return
 		}
+		cli.stats.Sent <- inc(<-cli.stats.Sent)
 		return
 	case usecases.ErrYamsDuplicate:
 		if remoteChecksum != localImageChecksum {
+			cli.stats.Duplicated <- inc(<-cli.stats.Duplicated)
 			if e := cli.imageService.RemoteDelete(imageName, domain.YAMSForceRemoval); e != yamsErrNil {
 				cli.logger.LogErrorRemoteDelete(imageName, e)
 				// recursive increase error counter
@@ -303,6 +331,7 @@ func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed in
 			cli.sendErrorControl(image, previousUploadFailed, remoteChecksum, nil)
 		}
 	default: // any other kind of error increase error counter
+		cli.stats.Errors <- inc(<-cli.stats.Errors)
 		if e := cli.errorControl.IncreaseErrorCounter(imageName); e != nil {
 			cli.logger.LogErrorIncreasingErrorCounter(imageName, e)
 		}
@@ -315,7 +344,9 @@ func (cli *CLIYams) deleteWorker(id int, jobs <-chan string, wg *sync.WaitGroup)
 		if e := cli.imageService.RemoteDelete(j, domain.YAMSForceRemoval); e != nil {
 			cli.logger.LogErrorRemoteDelete(j, e)
 		}
-		if cli.quit {
+		quit := <-cli.quit
+		cli.quit <- quit
+		if quit {
 			return
 		}
 	}
@@ -331,7 +362,31 @@ func (cli *CLIYams) Close() (err error) {
 		if err != nil {
 			cli.logger.LogErrorSettingSyncMark(mark, err)
 		}
-		cli.quit = true
+		quit := <-cli.quit
+		cli.quit <- !quit
 	}
 	return
+}
+
+// showStats displays synchronization stats in screen while yams-dav-sync script is running
+func (cli *CLIYams) showStats() {
+	go func() {
+		quit, ok := <-cli.quit
+		if ok {
+			cli.quit <- quit
+		}
+		timer := 0
+		ticker := time.Tick(time.Second)
+		for !quit {
+			cli.logger.LogStats(timer, &cli.stats)
+			<-ticker
+			timer++
+			quit, ok := <-cli.quit
+			if ok {
+				cli.quit <- quit
+			}
+		}
+		cli.stats.Close()
+		close(cli.quit)
+	}()
 }

@@ -45,7 +45,8 @@ func main() {
 
 	opt := flag.String("command", "list", "command to execute syncher script")
 	dumpFile := flag.String("dumpfile", "", "dump file with the list of images to upload")
-	threadsStr := flag.String("threads", "5", "threads limit to be synchronized with yams")
+	threadsStr := flag.String("threads", "5", "threads limit to make sync with yams")
+	limitStr := flag.String("limit", "0", "images qty. limit to upload to yams")
 
 	object := flag.String("object", "", "image name to be deleted in yams")
 	flag.Parse()
@@ -53,6 +54,10 @@ func main() {
 	threads, e := strconv.Atoi(*threadsStr)
 	if e != nil {
 		logger.Error("Error: %+v. Threads set as %+v", e, threads)
+	}
+	limit, e := strconv.Atoi(*limitStr)
+	if e != nil {
+		logger.Error("Error: %+v. Limit set as %+v", e, limit)
 	}
 	// Setting up insfrastructure
 
@@ -122,36 +127,37 @@ func main() {
 		conf.ErrorControl.MaxResultsPerPage,
 	)
 
-	CLIYams := interfaces.NewCLIYams(
+	cliYams := interfaces.NewCLIYams(
 		yamsRepo,
 		errorControlRepo,
 		lastSyncRepo,
 		localImageRepo,
 		loggers.MakeCLIYamsLogger(logger),
 		defaultLastSyncDate,
+		interfaces.NewStats(),
 		conf.LocalStorageConf.DefaultFilesDateLayout,
 	)
 
-	shutdownSequence.Push(CLIYams)
+	shutdownSequence.Push(cliYams)
 
-	maxErrorQty := conf.ErrorControl.MaxRetriesPerError
+	maxErrorTolerance := conf.ErrorControl.MaxRetriesPerError
 
 	switch *opt {
 	case "sync":
 		go func() {
 			if *dumpFile != "" && threads > 0 {
-				if e := CLIYams.Sync(threads, maxErrorQty, *dumpFile); e != nil {
+				if e := cliYams.Sync(threads, limit, maxErrorTolerance, *dumpFile); e != nil {
 					logger.Error("Error with synchornization: %+v", e)
 				}
 			} else {
-				logger.Error("make start command=sync threads=[number] dump-file=[path]")
+				logger.Error("make start command=sync threads=[number] limit=[limit] dump-file=[path]")
 			}
 			shutdownSequence.Done()
 		}()
 
 	case "list":
 		go func() {
-			if e := CLIYams.List(); e != nil {
+			if e := cliYams.List(); e != nil {
 				logger.Error("Error listing: %+v", e)
 			}
 			shutdownSequence.Done()
@@ -160,7 +166,7 @@ func main() {
 	case "deleteAll":
 		go func() {
 			if threads > 0 {
-				if e := CLIYams.DeleteAll(threads); e != nil {
+				if e := cliYams.DeleteAll(threads); e != nil {
 					logger.Error("Error deleting: %+v ", e)
 				}
 			} else {
@@ -171,7 +177,7 @@ func main() {
 
 	case "delete":
 		go func() {
-			if e := CLIYams.Delete(*object); e != nil {
+			if e := cliYams.Delete(*object); e != nil {
 				logger.Error("Error deleting: %+v", e)
 			}
 			shutdownSequence.Done()
