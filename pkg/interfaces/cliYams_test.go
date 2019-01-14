@@ -518,6 +518,7 @@ func TestRetryPreviousFailedUploads(t *testing.T) {
 
 	mImageService.AssertExpectations(t)
 	mErrorControl.AssertExpectations(t)
+	mLogger.AssertExpectations(t)
 	mLocalImage.AssertExpectations(t)
 	mLastSync.AssertExpectations(t)
 }
@@ -751,6 +752,7 @@ func TestClose(t *testing.T) {
 	cli.isSync = true
 	err := cli.Close()
 	assert.Error(t, err)
+	mLogger.AssertExpectations(t)
 	mLastSync.AssertExpectations(t)
 }
 
