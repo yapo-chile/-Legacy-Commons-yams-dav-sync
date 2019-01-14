@@ -393,17 +393,19 @@ func (cli *CLIYams) showStats() {
 			cli.quit <- quit
 		}
 		timer := 0
-		ticker := time.Tick(time.Second)
+		ticker := time.NewTicker(time.Second)
 		for !quit {
 			cli.logger.LogStats(timer, &cli.stats)
-			<-ticker
+			<-ticker.C
 			timer++
 			quit, ok := <-cli.quit
 			if ok {
 				cli.quit <- quit
 			}
 		}
-		cli.stats.Close()
+
+		cli.stats.Close() // nolint
 		close(cli.quit)
+		ticker.Stop()
 	}()
 }
