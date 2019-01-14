@@ -439,7 +439,6 @@ func TestSyncErrorOpeningFile(t *testing.T) {
 	layout := "20060102T150405"
 	newDate, _ := time.Parse(layout, "20170102T150405")
 	mLastSync.On("GetLastSynchronizationMark").Return(newDate.Add(time.Second - 1))
-
 	cli := NewCLIYams(
 		mImageService,
 		mErrorControl,
@@ -452,6 +451,9 @@ func TestSyncErrorOpeningFile(t *testing.T) {
 	)
 
 	err := cli.Sync(3, 0, 1, "/")
+
+	time.Sleep(2 * time.Second) // wait for showStats method calling
+
 	assert.Error(t, err)
 	mImageService.AssertExpectations(t)
 	mErrorControl.AssertExpectations(t)
