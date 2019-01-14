@@ -43,6 +43,7 @@ var inc = func(i int) int { return i + 1 }
 func (s *Stats) Close() error {
 	close(s.Sent)
 	close(s.Processed)
+	close(s.Errors)
 	close(s.Duplicated)
 	close(s.Skipped)
 	close(s.NotFound)
