@@ -120,7 +120,7 @@ type CLIYamsLogger interface {
 // retryPreviousFailedUploads gets images from errorControlRepository and try
 // to upload those images to yams one more time. If fails increase the counter of errors
 // in repo. Repository only returns images with less than a specific number of errors.
-func (cli *CLIYams) retryPreviousFailedUploads(threads, maxErrorTolerance int) {
+func (cli *CLIYams) retryPreviousFailedUploads(threads, maxErrorTolerance int, latestSynchronizedImageDate time.Time) {
 	maxConcurrency := cli.imageService.GetMaxConcurrency()
 	if threads > maxConcurrency {
 		threads = maxConcurrency
@@ -142,6 +142,21 @@ func (cli *CLIYams) retryPreviousFailedUploads(threads, maxErrorTolerance int) {
 			if err != nil {
 				continue
 			}
+
+			// removing difference between image timezone and synchronization mark
+			_, diff := image.Metadata.ModTime.Zone()
+			imageDate := image.Metadata.ModTime.
+				UTC().
+				Add(time.Duration(float64(diff)) * time.Second).
+				Truncate(time.Second)
+
+			if imageDate.Equal(latestSynchronizedImageDate) ||
+				imageDate.After(latestSynchronizedImageDate) {
+				if e := cli.errorControl.CleanErrorMarks(image.Metadata.ImageName); e != nil {
+					cli.logger.LogErrorCleaningMarks(image.Metadata.ImageName, e)
+				}
+				continue
+			}
 			jobs <- image
 		}
 	}
@@ -161,9 +176,10 @@ func (cli *CLIYams) Sync(threads, syncLimit, maxErrorTolerance int, imagesDumpYa
 	cli.showStats()
 	cli.logger.LogRetryPreviousFailedUploads()
 
-	cli.retryPreviousFailedUploads(threads, maxErrorTolerance)
-
 	// prepare to upload using concurrent workers
+	latestSynchronizedImageDate := cli.lastSync.GetLastSynchronizationMark()
+
+	cli.retryPreviousFailedUploads(threads, maxErrorTolerance, latestSynchronizedImageDate)
 	jobs := make(chan domain.Image)
 	var waitGroup sync.WaitGroup
 	for w := 0; w < threads; w++ {
@@ -180,8 +196,6 @@ func (cli *CLIYams) Sync(threads, syncLimit, maxErrorTolerance int, imagesDumpYa
 		return e
 	}
 	defer file.Close() // nolint
-
-	latestSynchronizedImageDate := cli.lastSync.GetLastSynchronizationMark()
 
 	cli.logger.LogUploadingNewImages()
 
@@ -357,10 +371,13 @@ func (cli *CLIYams) deleteWorker(id int, jobs <-chan string, wg *sync.WaitGroup)
 func (cli *CLIYams) Close() (err error) {
 	if cli.isSync {
 		close(cli.lastSyncDate)
-		mark := <-cli.lastSyncDate
-		err = cli.lastSync.SetLastSynchronizationMark(mark)
-		if err != nil {
-			cli.logger.LogErrorSettingSyncMark(mark, err)
+		newMark := <-cli.lastSyncDate
+		oldMark := cli.lastSync.GetLastSynchronizationMark()
+		if newMark.After(oldMark) {
+			err = cli.lastSync.SetLastSynchronizationMark(newMark)
+			if err != nil {
+				cli.logger.LogErrorSettingSyncMark(newMark, err)
+			}
 		}
 		quit := <-cli.quit
 		cli.quit <- !quit
