@@ -22,7 +22,6 @@ func (l *yamsRepoLogger) LogStatus(statusCode int) {
 
 func (l *yamsRepoLogger) LogCannotDecodeErrorMessage(err error) {
 	l.logger.Error("> Error: Can not decode Yams error message: %+v", err)
-
 }
 
 // MakeYamsRepoLogger sets up a SyncLogger instrumented via the provided logger
