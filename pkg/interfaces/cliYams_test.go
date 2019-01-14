@@ -438,6 +438,8 @@ func TestSyncErrorOpeningFile(t *testing.T) {
 
 	layout := "20060102T150405"
 	newDate, _ := time.Parse(layout, "20170102T150405")
+	mLastSync.On("GetLastSynchronizationMark").Return(newDate.Add(time.Second - 1))
+
 	cli := NewCLIYams(
 		mImageService,
 		mErrorControl,
@@ -464,25 +466,40 @@ func TestRetryPreviousFailedUploads(t *testing.T) {
 	mErrorControl := &mockErrorControl{}
 	mLastSync := &mockLastSync{}
 	mLocalImage := &mockLocalImage{}
+	mLogger := &mockLogger{}
 	mImageService.On("GetMaxConcurrency").Return(1)
 	mErrorControl.On("GetErrorsPagesQty", mock.AnythingOfType("int")).Return(1)
 
-	imagesToRetrySend := []string{"0.jpg", "1.jpg"}
+	imagesToRetrySend := []string{"0.jpg", "1.jpg", "2.jpg"}
 	mErrorControl.On("GetPreviousErrors",
 		mock.AnythingOfType("int"),
 		mock.AnythingOfType("int")).Return(imagesToRetrySend, nil).Once()
 	for i, testCases := 0, len(imagesToRetrySend); i < testCases; i++ {
 		switch i {
 		case 0: // Happy case: Everything OK
-			mLocalImage.On("GetLocalImage", mock.AnythingOfType("string")).
+			mLocalImage.On("GetLocalImage", imagesToRetrySend[i]).
 				Return(domain.Image{}, nil).Once()
 			yamsResponse := (*usecases.YamsRepositoryError)(nil)
 			mImageService.On("Send", mock.AnythingOfType("domain.Image")).Return("", yamsResponse).Once()
 			mErrorControl.On("CleanErrorMarks", mock.AnythingOfType("string")).Return(nil).Once()
 		case 1: // error getting local image
 			err := fmt.Errorf("Error")
-			mLocalImage.On("GetLocalImage", mock.AnythingOfType("string")).
+			mLocalImage.On("GetLocalImage", imagesToRetrySend[i]).
 				Return(domain.Image{}, err).Once()
+		case 2: // Image will be synchronized in this process and is not necessary to upload again
+			err := fmt.Errorf("Error")
+			image := domain.Image{
+				Metadata: domain.ImageMetadata{
+					ModTime: time.Now(), // new image
+				},
+			}
+			mLogger.On("LogErrorCleaningMarks",
+				mock.AnythingOfType("string"),
+				mock.AnythingOfType("*errors.errorString"))
+			mLocalImage.On("GetLocalImage", imagesToRetrySend[i]).
+				Return(image, nil).Once()
+			mErrorControl.On("CleanErrorMarks", mock.AnythingOfType("string")).Return(err)
+
 		}
 	}
 	layout := "20060102T150405"
@@ -492,12 +509,12 @@ func TestRetryPreviousFailedUploads(t *testing.T) {
 		mErrorControl,
 		mLastSync,
 		mLocalImage,
-		nil,
+		mLogger,
 		newDate,
 		NewStats(),
 		layout,
 	)
-	cli.retryPreviousFailedUploads(3, 1)
+	cli.retryPreviousFailedUploads(3, 1, newDate)
 
 	mImageService.AssertExpectations(t)
 	mErrorControl.AssertExpectations(t)
@@ -528,7 +545,7 @@ func TestRetryPreviousFailedUploadsErrorGettingErrors(t *testing.T) {
 		NewStats(),
 		layout,
 	)
-	cli.retryPreviousFailedUploads(3, 1)
+	cli.retryPreviousFailedUploads(3, 1, newDate.Add(time.Second-1))
 	mImageService.AssertExpectations(t)
 	mErrorControl.AssertExpectations(t)
 }
@@ -724,6 +741,8 @@ func TestClose(t *testing.T) {
 	quit := <-cli.quit
 	cli.quit <- !quit
 
+	mLastSync.On("GetLastSynchronizationMark").Return(time.Now().Add(-2 * time.Hour))
+
 	mLastSync.On("SetLastSynchronizationMark", mock.AnythingOfType("time.Time")).
 		Return(fmt.Errorf("err"))
 	mLogger.On("LogErrorSettingSyncMark",
@@ -738,6 +757,7 @@ func TestClose(t *testing.T) {
 func TestSendWorker(t *testing.T) {
 	mImageService := &mockImageService{}
 
+	mLastSync := &mockLastSync{}
 	var waitGroup sync.WaitGroup
 
 	jobs := make(chan domain.Image)
@@ -749,7 +769,7 @@ func TestSendWorker(t *testing.T) {
 
 	layout := "20060102T150405"
 
-	cli := NewCLIYams(mImageService, nil, nil, nil, nil, time.Now(), NewStats(), layout)
+	cli := NewCLIYams(mImageService, nil, mLastSync, nil, nil, time.Now(), NewStats(), layout)
 
 	for w := 0; w < 1; w++ {
 		waitGroup.Add(1)
