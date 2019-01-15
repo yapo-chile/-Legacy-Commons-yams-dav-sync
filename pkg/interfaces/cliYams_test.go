@@ -213,6 +213,7 @@ func TestNewSync(t *testing.T) {
 }
 
 func TestSyncProcess(t *testing.T) {
+	t.Parallel()
 	mImageService := &mockImageService{}
 	mErrorControl := &mockErrorControl{}
 	mLastSync := &mockLastSync{}
@@ -295,6 +296,7 @@ func TestSyncProcess(t *testing.T) {
 }
 
 func TestSyncProcessWithSendLimit(t *testing.T) {
+	t.Parallel()
 	mImageService := &mockImageService{}
 	mErrorControl := &mockErrorControl{}
 	mLastSync := &mockLastSync{}
@@ -359,6 +361,7 @@ func TestSyncProcessWithSendLimit(t *testing.T) {
 }
 
 func TestSyncProcessErrorScanning(t *testing.T) {
+	t.Parallel()
 	mImageService := &mockImageService{}
 	mErrorControl := &mockErrorControl{}
 	mLastSync := &mockLastSync{}
@@ -413,6 +416,7 @@ func TestSyncProcessErrorScanning(t *testing.T) {
 }
 
 func TestSyncErrorOpeningFile(t *testing.T) {
+	t.Parallel()
 	mImageService := &mockImageService{}
 	mErrorControl := &mockErrorControl{}
 	mLastSync := &mockLastSync{}
@@ -452,8 +456,6 @@ func TestSyncErrorOpeningFile(t *testing.T) {
 
 	err := cli.Sync(3, 0, 1, "/")
 
-	time.Sleep(2 * time.Second) // wait for showStats method calling
-
 	assert.Error(t, err)
 	mImageService.AssertExpectations(t)
 	mErrorControl.AssertExpectations(t)
@@ -464,6 +466,7 @@ func TestSyncErrorOpeningFile(t *testing.T) {
 }
 
 func TestRetryPreviousFailedUploads(t *testing.T) {
+	t.Parallel()
 	mImageService := &mockImageService{}
 	mErrorControl := &mockErrorControl{}
 	mLastSync := &mockLastSync{}
@@ -526,6 +529,7 @@ func TestRetryPreviousFailedUploads(t *testing.T) {
 }
 
 func TestRetryPreviousFailedUploadsErrorGettingErrors(t *testing.T) {
+	t.Parallel()
 	mImageService := &mockImageService{}
 	mErrorControl := &mockErrorControl{}
 
@@ -554,6 +558,7 @@ func TestRetryPreviousFailedUploadsErrorGettingErrors(t *testing.T) {
 }
 
 func TestErrorControl(t *testing.T) {
+	t.Parallel()
 	mImageService := &mockImageService{}
 	mErrorControl := &mockErrorControl{}
 	mLastSync := &mockLastSync{}
@@ -673,6 +678,7 @@ func TestValidateTuple(t *testing.T) {
 }
 
 func TestList(t *testing.T) {
+	t.Parallel()
 	mImageService := &mockImageService{}
 	mLogger := &mockLogger{}
 	yamsErrResponse := (*usecases.YamsRepositoryError)(nil)
@@ -699,6 +705,7 @@ func TestDelete(t *testing.T) {
 }
 
 func TestDeleteAll(t *testing.T) {
+	t.Parallel()
 	mImageService := &mockImageService{}
 	mLogger := &mockLogger{}
 
@@ -720,6 +727,7 @@ func TestDeleteAll(t *testing.T) {
 }
 
 func TestDeleteAllListError(t *testing.T) {
+	t.Parallel()
 	mImageService := &mockImageService{}
 	mLogger := &mockLogger{}
 
@@ -736,6 +744,7 @@ func TestDeleteAllListError(t *testing.T) {
 }
 
 func TestClose(t *testing.T) {
+	t.Parallel()
 	mLastSync := &mockLastSync{}
 	mLogger := &mockLogger{}
 
@@ -759,6 +768,7 @@ func TestClose(t *testing.T) {
 }
 
 func TestSendWorker(t *testing.T) {
+	t.Parallel()
 	mImageService := &mockImageService{}
 
 	mLastSync := &mockLastSync{}
@@ -795,6 +805,7 @@ func TestSendWorker(t *testing.T) {
 }
 
 func TestSendWorkerWithClosedChannel(t *testing.T) {
+	t.Parallel()
 	mImageService := &mockImageService{}
 
 	var waitGroup sync.WaitGroup
@@ -831,6 +842,7 @@ func TestSendWorkerWithClosedChannel(t *testing.T) {
 }
 
 func TestDeleteWorker(t *testing.T) {
+	t.Parallel()
 	mImageService := &mockImageService{}
 	mLogger := &mockLogger{}
 
@@ -862,6 +874,7 @@ func TestDeleteWorker(t *testing.T) {
 }
 
 func TestShowStats(t *testing.T) {
+	t.Parallel()
 	mLogger := &mockLogger{}
 	layout := "20060102T150405"
 	cli := NewCLIYams(nil, nil, nil, nil, mLogger, time.Now(), NewStats(), layout)
