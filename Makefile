@@ -73,7 +73,10 @@ trapped-sync: build buildbandwidthlimiter runbandwidthlimiter sort runsync killb
 trapped-list: build buildbandwidthlimiter runbandwidthlimiter runlist killbandwidthlimiter
 
 trapped-deleteall: build buildbandwidthlimiter runbandwidthlimiter rundeleteall killbandwidthlimiter
-	
+
+build-bin:
+	@scripts/commands/build_bin.sh
+
 ## Compile and start the service
 start: build run
 

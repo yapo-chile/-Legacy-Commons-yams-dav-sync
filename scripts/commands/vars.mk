@@ -44,7 +44,7 @@ export YAMS_DOMAIN_ID=d2b88e84-d868-43b2-af96-456464ba9f5f
 export YAMS_BUCKET_ID=8c2ab775-a9a5-48fb-966f-b1a1b154af13
 #POYA 1: b98f66eb-bd6b-47fa-b125-5da03b7534ab
 export YAMS_ACCESS_KEY_ID=b73145eec0bd48a2
-export YAMS_PRIVATE_KEY=writer-dev.rsa
+export YAMS_PRIVATE_KEY=${PWD}/writer-dev.rsa
 export YAMS_IMAGES_LIST_FILE:=dump_images_list.yams
 export YAMS_UPLOAD_LIMIT=0
 export YAMS_MAX_CONCURRENT_CONN=100
