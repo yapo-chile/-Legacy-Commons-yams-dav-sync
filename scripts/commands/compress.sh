@@ -10,10 +10,10 @@ echoTitle "Building binaries"
 set -e
 
 echoTitle "Building linux_${GOARCH} binaries"
-GOOS="linux" GOARCH=$GOARCH  go build -v -o ./output/${APPNAME}_linux_${GOARCH} ./${MAIN_FILE}
+GOOS="linux" GOARCH=$GOARCH  go build -v -o ./output/${APPNAME}/${APPNAME}_linux_${GOARCH} ./${MAIN_FILE}
 
 echoTitle "Building darwin_${GOARCH} binaries"
-GOOS="darwin" GOARCH=$GOARCH  go build -v -o ./output/${APPNAME}_darwin_${GOARCH} ./${MAIN_FILE}
+GOOS="darwin" GOARCH=$GOARCH  go build -v -o ./output/${APPNAME}/${APPNAME}_darwin_${GOARCH} ./${MAIN_FILE}
 
 echoTitle "Copying essentials files"
 
