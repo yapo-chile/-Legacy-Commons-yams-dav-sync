@@ -30,16 +30,16 @@ sort:
 
 ## Execute the service
 run:
-	@./${APPNAME}  -command=$(command)  -object=$(object) -threads=$(threads)
+	@./${APPNAME}_${OS}_${GOARCH}  -command=$(command)  -object=$(object) -threads=$(threads)
 
 runsync:
-	@./${APPNAME}  -command=sync -dumpfile=${YAMS_IMAGES_LIST_FILE} -threads=$(YAMS_MAX_CONCURRENT_CONN) -limit=$(YAMS_UPLOAD_LIMIT)
+	@./${APPNAME}_${OS}_${GOARCH}  -command=sync -dumpfile=${YAMS_IMAGES_LIST_FILE} -threads=$(YAMS_MAX_CONCURRENT_CONN) -limit=$(YAMS_UPLOAD_LIMIT)
 
 runlist:
-	@./${APPNAME}  -command=list
+	@./${APPNAME}_${OS}_${GOARCH}  -command=list
 
 rundeleteall:
-	@./${APPNAME}  -command=deleteAll -threads=$(YAMS_MAX_CONCURRENT_CONN)
+	@./${APPNAME}_${OS}_${GOARCH}  -command=deleteAll -threads=$(YAMS_MAX_CONCURRENT_CONN)
 
 
 # Build bandwidth proxy limit script
@@ -74,8 +74,8 @@ trapped-list: build buildbandwidthlimiter runbandwidthlimiter runlist killbandwi
 
 trapped-deleteall: build buildbandwidthlimiter runbandwidthlimiter rundeleteall killbandwidthlimiter
 
-build-bin:
-	@scripts/commands/build_bin.sh
+compress:
+	@scripts/commands/compress.sh
 
 ## Compile and start the service
 start: build run

@@ -15,6 +15,8 @@ export REPORT_ARTIFACTS=reports
 # This variables are for the use of your microservice. This variables must be updated each time you are creating a new microservice
 export APPNAME=yams-dav-sync
 export YO=`whoami`
+export OS:=$(shell uname -s | tr '[:upper:]' '[:lower:]')
+export GOARCH=amd64
 export SERVICE_HOST=:$(call genport,2)
 export SERVER_ROOT=${PWD}
 export BASE_URL="http://${SERVICE_HOST}"
@@ -34,7 +36,7 @@ export DATABASE_MAX_IDLE=10
 export DATABASE_MAX_OPEN=100
 export DATABASE_BASE_URL="psql -h "${DATABASE_HOST}" -p "${DATABASE_PORT}" "${DATABASE_NAME}
 export DATABASE_MIGRATIONS_FOLDER=migrations
-export DATABASE_CONN_RETRIES=10
+export DATABASE_CONN_RETRIES=3
 
 # YAMS variables
 

@@ -33,8 +33,8 @@ export BANDWIDTH_PROXY_LIMIT=500 # kbps
 export IMAGES_PATH=/images/uploads/
 ```
 
- - `make build-bin` to generate the binaries in `./output/`
- -  `cd ./output/yams-dav-syncher/` and type `make sync` to do:
+ - `make compress` to generate the ready-to-deploy binaries compressed in `./output/`
+ - `cd ./output/yams-dav-syncher/` and type `make sync` to do:
     1) Generate a file sorted-list with images of `IMAGES_PATH` sorted by date 
     2) Upload each image of the list using concurrency
     3) In case of error then mark in DB the retry to upload in the next script execution

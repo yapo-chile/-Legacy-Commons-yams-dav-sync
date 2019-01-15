@@ -9,7 +9,13 @@ if [[ ! -d "$DIR" ]]; then DIR="$PWD"; fi
 echoTitle "Building binaries"
 set -e
 
-go build -v -o ./output/${APPNAME}/${APPNAME} ./${MAIN_FILE}
+echoTitle "Building linux_${GOARCH} binaries"
+GOOS="linux" GOARCH=$GOARCH  go build -v -o ./output/${APPNAME}_linux_${GOARCH} ./${MAIN_FILE}
+
+echoTitle "Building darwin_${GOARCH} binaries"
+GOOS="darwin" GOARCH=$GOARCH  go build -v -o ./output/${APPNAME}_darwin_${GOARCH} ./${MAIN_FILE}
+
+echoTitle "Copying essentials files"
 
 mkdir -p ./output/${APPNAME}/scripts/commands/ && cp -r ./scripts/commands/* ./output/${APPNAME}/scripts/commands/
 mkdir -p ./output/${APPNAME}/third-party/ && cp -r ./third-party/* ./output/${APPNAME}/third-party/
@@ -23,4 +29,4 @@ echoTitle "Compressing"
 cd ./output/ && tar -czvf ${APPNAME}.tar.gz ${APPNAME}/*
 
 set +e
-echoTitle "Done. File generated. Check: /output/${APPNAME}.tar.gz "
+echoTitle "Done.\nDecompress this file on your server: /output/${APPNAME}.tar.gz "
