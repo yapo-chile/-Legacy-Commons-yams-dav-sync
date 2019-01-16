@@ -44,7 +44,7 @@ export IMAGES_PATH=/images/uploads/
 ###### Other commnads
 
 - `make list` to list the images in yams bucket
-- `make deleteall` to delete everything images in yams bucket
+- `make deleteall` to delete everything stored in yams bucket
 
 NOTE: Do not use this commnads when you have too many images in yams bucket. They are only for test purpose.
 
