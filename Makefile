@@ -30,16 +30,16 @@ sort:
 
 ## Execute the service
 run:
-	@./${APPNAME}  -command=$(command)  -object=$(object) -threads=$(threads)
+	@./${APPNAME}_${OS}_${GOARCH}  -command=$(command)  -object=$(object) -threads=$(threads)
 
 runsync:
-	@./${APPNAME}  -command=sync -dumpfile=${YAMS_IMAGES_LIST_FILE} -threads=$(YAMS_MAX_CONCURRENT_CONN) -limit=$(YAMS_UPLOAD_LIMIT)
+	@./${APPNAME}_${OS}_${GOARCH}  -command=sync -dumpfile=${YAMS_IMAGES_LIST_FILE} -threads=$(YAMS_MAX_CONCURRENT_CONN) -limit=$(YAMS_UPLOAD_LIMIT)
 
 runlist:
-	@./${APPNAME}  -command=list
+	@./${APPNAME}_${OS}_${GOARCH}  -command=list
 
 rundeleteall:
-	@./${APPNAME}  -command=deleteAll -threads=$(YAMS_MAX_CONCURRENT_CONN)
+	@./${APPNAME}_${OS}_${GOARCH}  -command=deleteAll -threads=$(YAMS_MAX_CONCURRENT_CONN)
 
 
 # Build bandwidth proxy limit script
@@ -64,7 +64,7 @@ sync:
 list:
 	bash -c "trap 'trap - SIGINT SIGTERM ERR;${MAKE} killbandwidthlimiter; exit 1' SIGINT SIGTERM ERR;${MAKE} trapped-list"
 
-## deleteall deletes every image in yams
+## deleteall deletes everything stored in yams bucket
 deleteall:
 	bash -c "trap 'trap - SIGINT SIGTERM ERR;${MAKE} killbandwidthlimiter; exit 1' SIGINT SIGTERM ERR;${MAKE} trapped-deleteall"
 
@@ -73,7 +73,10 @@ trapped-sync: build buildbandwidthlimiter runbandwidthlimiter sort runsync killb
 trapped-list: build buildbandwidthlimiter runbandwidthlimiter runlist killbandwidthlimiter
 
 trapped-deleteall: build buildbandwidthlimiter runbandwidthlimiter rundeleteall killbandwidthlimiter
-	
+
+compress:
+	@scripts/commands/compress.sh
+
 ## Compile and start the service
 start: build run
 

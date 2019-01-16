@@ -78,7 +78,7 @@ type DatabaseConf struct {
 	MaxOpen     int    `env:"MAX_OPEN" envDefault:"100"`
 	MgFolder    string `env:"MIGRATIONS_FOLDER" envDefault:"migrations"`
 	MgDriver    string `env:"MIGRATIONS_DRIVER" envDefault:"postgres"`
-	ConnRetries int    `env:"CONN_RETRIES" envDefault:"60"`
+	ConnRetries int    `env:"CONN_RETRIES" envDefault:"3"`
 }
 
 // BandwidthProxyConf holds all configurations to connect with bandwidth limiter proxy
