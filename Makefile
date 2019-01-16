@@ -64,7 +64,7 @@ sync:
 list:
 	bash -c "trap 'trap - SIGINT SIGTERM ERR;${MAKE} killbandwidthlimiter; exit 1' SIGINT SIGTERM ERR;${MAKE} trapped-list"
 
-## deleteall deletes every image in yams
+## deleteall deletes everything stored in yams bucket
 deleteall:
 	bash -c "trap 'trap - SIGINT SIGTERM ERR;${MAKE} killbandwidthlimiter; exit 1' SIGINT SIGTERM ERR;${MAKE} trapped-deleteall"
 
