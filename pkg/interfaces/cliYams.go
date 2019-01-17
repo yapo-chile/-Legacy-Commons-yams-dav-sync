@@ -248,10 +248,11 @@ func validateTuple(tuple []string, date time.Time, dateLayout string) bool {
 }
 
 // List prints a list of available images in yams repository
-func (cli *CLIYams) List(limit int) error {
+func (cli *CLIYams) List(limit int) (err error) {
 	counter := 0
 	yamsErrNil := (*usecases.YamsRepositoryError)(nil)
-	list, continuationToken, err := []usecases.YamsObject{}, "", yamsErrNil
+	var list []usecases.YamsObject
+	var continuationToken string
 	// do while
 	for ok := true; ok; ok = (continuationToken != "" && (counter < limit || limit <= 0)) {
 		list, continuationToken, err = cli.imageService.List(continuationToken, 0)
@@ -286,9 +287,11 @@ func (cli *CLIYams) DeleteAll(threads, limit int) (err error) {
 		go cli.deleteWorker(w, jobs, &waitGroup)
 	}
 
-	counter := 0
 	yamsErrNil := (*usecases.YamsRepositoryError)(nil)
-	list, continuationToken, err := []usecases.YamsObject{}, "", yamsErrNil
+	var list []usecases.YamsObject
+	var continuationToken string
+	var counter int
+
 	// do while
 	for ok := true; ok; ok = (continuationToken != "" && (counter < limit || limit <= 0)) {
 		list, continuationToken, err = cli.imageService.List(continuationToken, threads)

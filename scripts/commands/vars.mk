@@ -50,25 +50,25 @@ export YAMS_TENTAND_ID=f502a79d-9ec7-4778-a580-205223e4d620
 export YAMS_DOMAIN_ID=d2b88e84-d868-43b2-af96-456464ba9f5f
 export YAMS_BUCKET_ID=8c2ab775-a9a5-48fb-966f-b1a1b154af13
 export YAMS_ACCESS_KEY_ID=b73145eec0bd48a2
-export YAMS_PRIVATE_KEY=${PWD}/writer-dev.rsa # Your RSA key filepath
-export YAMS_IMAGES_LIST_FILE:=dump_images_list.yams # Temp file used to list images to upload
+export YAMS_PRIVATE_KEY=${PWD}/writer-dev.rsa# Your RSA key filepath
+export YAMS_IMAGES_LIST_FILE:=dump_images_list.yams# Temp file used to list images to upload
 export YAMS_UPLOAD_LIMIT=0
-export YAMS_MAX_CONCURRENT_CONN=100 # Threads qty used to upload images
+export YAMS_MAX_CONCURRENT_CONN=100# Threads qty used to upload images
 export YAMS_TIMEOUT=120
 export YAMS_LISTING_LIMIT=0
 export YAMS_DELETING_LIMIT=0
 
 
 #Bandwidth proxy limiter variables
-export BANDWIDTH_PROXY_LIMIT=20000 # kbps
+export BANDWIDTH_PROXY_LIMIT=20000# kbps
 export BANDWIDTH_PROXY_HOST=localhost:9999
 export BANDWIDTH_PROXY_CONN_TYPE=tcp
 export BANDWIDTH_PROXY_LATENCY=0
 export BANDWIDTH_PROXY_PROCESS_NAME=floodgate
 
-export LAST_SYNC_DEFAULT_DATE=30-12-2015 # First execution: skip older images than this date
+export LAST_SYNC_DEFAULT_DATE=30-12-2015# First execution: skip older images than this date
 
-export ERRORS_MAX_RETRIES_PER_ERROR=3 # Skip if the error counter is bigger than this number
-export ERRORS_MAX_RESULTS_PER_PAGE=10000 # Pagination for error list stored in DB
+export ERRORS_MAX_RETRIES_PER_ERROR=3# Skip if the error counter is bigger than this number
+export ERRORS_MAX_RESULTS_PER_PAGE=10000# Pagination for error list stored in DB
 
 export IMAGES_PATH=/opt/images/images
