@@ -3,6 +3,7 @@ package repository
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
@@ -172,7 +173,7 @@ func (repo *YamsRepository) Send(image domain.Image) (checksum string, e *usecas
 	if err != nil {
 		return "", usecases.ErrYamsImage
 	}
-	defer imageFile.Close() // nolint
+
 	request := repo.http.Handler.
 		NewRequest().
 		SetMethod("POST").
@@ -185,6 +186,8 @@ func (repo *YamsRepository) Send(image domain.Image) (checksum string, e *usecas
 		})
 
 	resp, err := repo.http.Handler.Send(request)
+
+	imageFile.Close() // nolint
 	repo.logger.LogStatus(resp.Code)
 	body := fmt.Sprintf("%s", resp.Body)
 	repo.logger.LogResponse(body, err)
@@ -345,8 +348,7 @@ func (repo *YamsRepository) GetRemoteChecksum(imageName string) (string, *usecas
 }
 
 // List gets a list of available images in yams repository
-func (repo *YamsRepository) List() ([]usecases.YamsObject, *usecases.YamsRepositoryError) {
-
+func (repo *YamsRepository) List(continuationToken string, step int) ([]usecases.YamsObject, string, *usecases.YamsRepositoryError) {
 	type InfoClaims struct {
 		jwt.StandardClaims
 		Rqs string `json:"rqs"`
@@ -376,6 +378,13 @@ func (repo *YamsRepository) List() ([]usecases.YamsObject, *usecases.YamsReposit
 		"AccessKeyId": repo.accessKeyID,
 	}
 
+	if continuationToken != "" {
+		queryParams["continuation-token"] = continuationToken
+	}
+	if step > 0 {
+		queryParams["max-keys"] = strconv.Itoa(step)
+	}
+
 	request := repo.http.Handler.
 		NewRequest().
 		SetMethod("GET").
@@ -391,18 +400,18 @@ func (repo *YamsRepository) List() ([]usecases.YamsObject, *usecases.YamsReposit
 	var response usecases.YamsGetResponse
 	err = json.Unmarshal([]byte(body), &response)
 	if err != nil {
-		return nil, usecases.ErrYamsInternal
+		return nil, "", usecases.ErrYamsInternal
 	}
 	switch resp.Code {
 	case 200: // Headers are set and returned
-		return response.Images, nil
+		return response.Images, response.ContinuationToken, nil
 	case 404:
-		return nil, usecases.ErrYamsObjectNotFound
+		return nil, "", usecases.ErrYamsObjectNotFound
 	case 500: // Server error
-		return nil, usecases.ErrYamsInternal
+		return nil, "", usecases.ErrYamsInternal
 	case 503: // Service temporarily unavailable
-		return nil, usecases.ErrYamsInternal
+		return nil, "", usecases.ErrYamsInternal
 	default: // Unkown error
-		return nil, usecases.ErrYamsInternal
+		return nil, response.ContinuationToken, usecases.ErrYamsInternal
 	}
 }

@@ -50,8 +50,8 @@ func (h *HTTPHandler) Send(req repository.HTTPRequest) (repository.HTTPResponse,
 	if h.dialer != nil {
 		httpTransport.Dial = h.dialer.Dial // nolint
 	}
-
-	resp, err := httpClient.Do(&req.(*request).innerRequest)
+	request := &req.(*request).innerRequest
+	resp, err := httpClient.Do(request)
 	if err != nil {
 		h.logger.Error("HTTP - %s - Error sending HTTP request: %+v", req.GetMethod(), err)
 		return repository.HTTPResponse{
@@ -59,6 +59,7 @@ func (h *HTTPHandler) Send(req repository.HTTPRequest) (repository.HTTPResponse,
 			},
 			fmt.Errorf("Found error: %+v", err)
 	}
+	request.Close = true
 
 	response, err := ioutil.ReadAll(resp.Body)
 	if val, ok := errorCodes[resp.StatusCode]; ok {
@@ -71,7 +72,7 @@ func (h *HTTPHandler) Send(req repository.HTTPRequest) (repository.HTTPResponse,
 	if err != nil {
 		h.logger.Error("HTTP - %s - Error reading response: %+v", req.GetMethod(), err)
 	}
-
+	resp.Close = true
 	defer resp.Body.Close() // nolint
 	return repository.HTTPResponse{
 			Body:    string(response),

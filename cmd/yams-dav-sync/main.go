@@ -157,7 +157,7 @@ func main() {
 
 	case "list":
 		go func() {
-			if e := cliYams.List(); e != nil {
+			if e := cliYams.List(limit); e != nil {
 				logger.Error("Error listing: %+v", e)
 			}
 			shutdownSequence.Done()
@@ -166,7 +166,7 @@ func main() {
 	case "deleteAll":
 		go func() {
 			if threads > 0 {
-				if e := cliYams.DeleteAll(threads); e != nil {
+				if e := cliYams.DeleteAll(threads, limit); e != nil {
 					logger.Error("Error deleting: %+v ", e)
 				}
 			} else {

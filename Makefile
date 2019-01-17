@@ -36,10 +36,10 @@ runsync:
 	@./${APPNAME}_${OS}_${GOARCH}  -command=sync -dumpfile=${YAMS_IMAGES_LIST_FILE} -threads=$(YAMS_MAX_CONCURRENT_CONN) -limit=$(YAMS_UPLOAD_LIMIT)
 
 runlist:
-	@./${APPNAME}_${OS}_${GOARCH}  -command=list
+	@./${APPNAME}_${OS}_${GOARCH}  -command=list -limit=$(YAMS_LISTING_LIMIT)
 
 rundeleteall:
-	@./${APPNAME}_${OS}_${GOARCH}  -command=deleteAll -threads=$(YAMS_MAX_CONCURRENT_CONN)
+	@./${APPNAME}_${OS}_${GOARCH}  -command=deleteAll -threads=$(YAMS_MAX_CONCURRENT_CONN)  -limit=$(YAMS_DELETING_LIMIT)
 
 
 # Build bandwidth proxy limit script
