@@ -13,6 +13,7 @@ func TestNewStats(t *testing.T) {
 	sent := make(chan int, 1)
 	duplicated := make(chan int, 1)
 	errors := make(chan int, 1)
+	recovered := make(chan int, 1)
 
 	processed <- 0
 	skipped <- 0
@@ -20,6 +21,7 @@ func TestNewStats(t *testing.T) {
 	sent <- 0
 	errors <- 0
 	duplicated <- 0
+	recovered <- 0
 
 	expected := Stats{
 		Sent:       sent,
@@ -28,6 +30,7 @@ func TestNewStats(t *testing.T) {
 		Duplicated: duplicated,
 		Skipped:    skipped,
 		NotFound:   notFound,
+		Recovered:  recovered,
 	}
 
 	result := NewStats()
@@ -52,4 +55,5 @@ func TestCloseChannels(t *testing.T) {
 	assert.True(t, isClosed(stats.Duplicated))
 	assert.True(t, isClosed(stats.Skipped))
 	assert.True(t, isClosed(stats.NotFound))
+	assert.True(t, isClosed(stats.Recovered))
 }

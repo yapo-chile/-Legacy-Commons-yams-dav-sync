@@ -27,9 +27,9 @@ func (m *mockImageService) Send(image domain.Image) (string, *usecases.YamsRepos
 	return args.String(0), args.Get(1).(*usecases.YamsRepositoryError)
 }
 
-func (m *mockImageService) List() ([]usecases.YamsObject, *usecases.YamsRepositoryError) {
-	args := m.Called()
-	return args.Get(0).([]usecases.YamsObject), args.Get(1).(*usecases.YamsRepositoryError)
+func (m *mockImageService) List(continuationToken string, limit int) ([]usecases.YamsObject, string, *usecases.YamsRepositoryError) {
+	args := m.Called(continuationToken, limit)
+	return args.Get(0).([]usecases.YamsObject), args.String(1), args.Get(2).(*usecases.YamsRepositoryError)
 }
 
 func (m *mockImageService) RemoteDelete(imageName string, force bool) *usecases.YamsRepositoryError {
@@ -684,12 +684,47 @@ func TestList(t *testing.T) {
 	yamsErrResponse := (*usecases.YamsRepositoryError)(nil)
 	yamsObjectResponse := []usecases.YamsObject{{ID: "12"}}
 	cli := CLIYams{imageService: mImageService, logger: mLogger}
-	mImageService.On("List").Return(yamsObjectResponse, yamsErrResponse)
+	mImageService.On("List", mock.AnythingOfType("string"), mock.AnythingOfType("int")).
+		Return(yamsObjectResponse, "", yamsErrResponse)
+
 	mLogger.On("LogImage",
 		mock.AnythingOfType("int"),
 		mock.AnythingOfType("usecases.YamsObject"))
-	err := cli.List()
-	assert.Nil(t, err)
+	err := cli.List(10)
+	assert.NoError(t, err)
+	mImageService.AssertExpectations(t)
+	mLogger.AssertExpectations(t)
+}
+
+func TestListError(t *testing.T) {
+	t.Parallel()
+	mImageService := &mockImageService{}
+	mLogger := &mockLogger{}
+	yamsObjectResponse := []usecases.YamsObject{{ID: "12"}}
+	cli := CLIYams{imageService: mImageService, logger: mLogger}
+	mImageService.On("List", mock.AnythingOfType("string"), mock.AnythingOfType("int")).
+		Return(yamsObjectResponse, "", usecases.ErrYamsInternal)
+
+	err := cli.List(10)
+	assert.Error(t, err)
+	mImageService.AssertExpectations(t)
+	mLogger.AssertExpectations(t)
+}
+
+func TestListOverTheLimit(t *testing.T) {
+	t.Parallel()
+	mImageService := &mockImageService{}
+	mLogger := &mockLogger{}
+	yamsErrResponse := (*usecases.YamsRepositoryError)(nil)
+	yamsObjectResponse := []usecases.YamsObject{{ID: "1"}, {ID: "2"}} // two objects
+	cli := CLIYams{imageService: mImageService, logger: mLogger}
+	mImageService.On("List", mock.AnythingOfType("string"), mock.AnythingOfType("int")).
+		Return(yamsObjectResponse, "", yamsErrResponse)
+	mLogger.On("LogImage",
+		mock.AnythingOfType("int"),
+		mock.AnythingOfType("usecases.YamsObject")).Once() // Log once
+	err := cli.List(1) // request only one image
+	assert.NoError(t, err)
 	mImageService.AssertExpectations(t)
 	mLogger.AssertExpectations(t)
 }
@@ -715,12 +750,12 @@ func TestDeleteAll(t *testing.T) {
 	yamsObjectResponse := []usecases.YamsObject{{ID: "12"}, {ID: "12"}}
 	yamsErrResponse := (*usecases.YamsRepositoryError)(nil)
 
-	mImageService.On("List").Return(yamsObjectResponse, yamsErrResponse)
+	mImageService.On("List", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(yamsObjectResponse, "abc123", yamsErrResponse)
 	mImageService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(yamsErrResponse).Once()
 	mImageService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(usecases.ErrYamsInternal).Once()
 	mLogger.On("LogStats", mock.AnythingOfType("int"), mock.AnythingOfType("*interfaces.Stats"))
 	mLogger.On("LogErrorRemoteDelete", mock.AnythingOfType("string"), mock.AnythingOfType("*usecases.YamsRepositoryError"))
-	err := cli.DeleteAll(100)
+	err := cli.DeleteAll(2, 2)
 	assert.Nil(t, err)
 	mImageService.AssertExpectations(t)
 	mLogger.AssertExpectations(t)
@@ -732,12 +767,13 @@ func TestDeleteAllListError(t *testing.T) {
 	mLogger := &mockLogger{}
 
 	yamsObjectResponse := []usecases.YamsObject{{ID: "12"}, {ID: "12"}}
-	mImageService.On("List").Return(yamsObjectResponse, usecases.ErrYamsInternal)
+	mImageService.On("List", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(yamsObjectResponse, "abc123", usecases.ErrYamsInternal)
+
 	layout := "20060102T150405"
 	cli := NewCLIYams(mImageService, nil, nil, nil, mLogger, time.Now(), NewStats(), layout)
 	quit := <-cli.quit
 	cli.quit <- !quit
-	err := cli.DeleteAll(100)
+	err := cli.DeleteAll(1, 100)
 	assert.Equal(t, usecases.ErrYamsInternal, err)
 	mImageService.AssertExpectations(t)
 	mLogger.AssertExpectations(t)
