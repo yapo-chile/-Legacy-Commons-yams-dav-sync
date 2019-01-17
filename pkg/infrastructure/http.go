@@ -40,46 +40,54 @@ func NewHTTPHandler(dialer interface{}, logger loggers.Logger) repository.HTTPHa
 func (h *HTTPHandler) Send(req repository.HTTPRequest) (repository.HTTPResponse, error) {
 	h.logger.Debug("HTTP - %s - Sending HTTP request to: %+v", req.GetMethod(), req.GetPath())
 
-	httpTransport := &http.Transport{}
+	response, err := circuitBreaker.Execute(func() (interface{}, error) {
+		httpTransport := &http.Transport{}
 
-	// this makes a custom http client with a timeout in secs for each request
-	var httpClient = &http.Client{
-		Timeout:   time.Second * req.(*request).timeOut,
-		Transport: httpTransport,
-	}
-	if h.dialer != nil {
-		httpTransport.Dial = h.dialer.Dial // nolint
-	}
-	request := &req.(*request).innerRequest
-	resp, err := httpClient.Do(request)
-	if err != nil {
-		h.logger.Error("HTTP - %s - Error sending HTTP request: %+v", req.GetMethod(), err)
-		return repository.HTTPResponse{
-				Code: http.StatusBadRequest,
-			},
-			fmt.Errorf("Found error: %+v", err)
-	}
-	request.Close = true
+		// this makes a custom http client with a timeout in secs for each request
+		var httpClient = &http.Client{
+			Timeout:   time.Second * req.(*request).timeOut,
+			Transport: httpTransport,
+		}
+		if h.dialer != nil {
+			httpTransport.Dial = h.dialer.Dial // nolint
+		}
+		request := &req.(*request).innerRequest
+		resp, err := httpClient.Do(request)
+		if err != nil {
+			h.logger.Error("HTTP - %s - Error sending HTTP request: %+v", req.GetMethod(), err)
+			return repository.HTTPResponse{
+					Code: http.StatusBadRequest,
+				},
+				fmt.Errorf("Found error: %+v", err)
+		}
+		request.Close = true
 
-	response, err := ioutil.ReadAll(resp.Body)
-	if val, ok := errorCodes[resp.StatusCode]; ok {
-		h.logger.Error("HTTP - %s - Received an error response: %+v", req.GetMethod(), val)
+		response, err := ioutil.ReadAll(resp.Body)
+		if val, ok := errorCodes[resp.StatusCode]; ok {
+			h.logger.Error("HTTP - %s - Received an error response: %+v", req.GetMethod(), val)
+			return repository.HTTPResponse{
+					Code: resp.StatusCode,
+				},
+				fmt.Errorf("%s", response)
+		}
+		if err != nil {
+			h.logger.Error("HTTP - %s - Error reading response: %+v", req.GetMethod(), err)
+		}
+
+		defer resp.Body.Close() // nolint
+		resp.Close = true
+
 		return repository.HTTPResponse{
-				Code: resp.StatusCode,
+				Body:    string(response),
+				Code:    resp.StatusCode,
+				Headers: resp.Header,
 			},
 			fmt.Errorf("%s", response)
+	})
+	if resp, ok := response.(repository.HTTPResponse); ok {
+		return resp, err
 	}
-	if err != nil {
-		h.logger.Error("HTTP - %s - Error reading response: %+v", req.GetMethod(), err)
-	}
-	resp.Close = true
-	defer resp.Body.Close() // nolint
-	return repository.HTTPResponse{
-			Body:    string(response),
-			Code:    resp.StatusCode,
-			Headers: resp.Header,
-		},
-		nil
+	return repository.HTTPResponse{}, err
 }
 
 // request is a custom golang http.Request
