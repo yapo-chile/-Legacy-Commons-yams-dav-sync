@@ -253,11 +253,15 @@ func (cli *CLIYams) List(limit int) (err error) {
 	yamsErrNil := (*usecases.YamsRepositoryError)(nil)
 	var list []usecases.YamsObject
 	var continuationToken string
+	var backupToken string
 	// do while
 	for ok := true; ok; ok = (continuationToken != "" && (counter < limit || limit <= 0)) {
 		list, continuationToken, err = cli.imageService.List(continuationToken, 0)
 		if err != yamsErrNil {
-			return err
+			if err == usecases.ErrYamsInternal {
+				continuationToken = backupToken
+			}
+			continue
 		}
 		for _, image := range list {
 			cli.logger.LogImage(counter+1, image)
@@ -266,6 +270,7 @@ func (cli *CLIYams) List(limit int) (err error) {
 				return nil
 			}
 		}
+		backupToken = continuationToken
 	}
 	return nil
 }
