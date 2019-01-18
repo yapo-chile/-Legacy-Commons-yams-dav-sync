@@ -23,15 +23,17 @@ var errorCodes = map[int]string{
 
 // HTTPHandler struct to implements http repository operations
 type HTTPHandler struct {
-	dialer proxy.Dialer
-	logger loggers.Logger
+	dialer         proxy.Dialer
+	circuitBreaker CircuitBreaker
+	logger         loggers.Logger
 }
 
 // NewHTTPHandler will create a new instance of a custom http request handler
-func NewHTTPHandler(dialer interface{}, logger loggers.Logger) repository.HTTPHandler {
+func NewHTTPHandler(dialer interface{}, circuitBreaker CircuitBreaker, logger loggers.Logger) repository.HTTPHandler {
 	return &HTTPHandler{
-		dialer: dialer.(proxy.Dialer),
-		logger: logger,
+		dialer:         dialer.(proxy.Dialer),
+		circuitBreaker: circuitBreaker,
+		logger:         logger,
 	}
 }
 
@@ -40,54 +42,57 @@ func NewHTTPHandler(dialer interface{}, logger loggers.Logger) repository.HTTPHa
 func (h *HTTPHandler) Send(req repository.HTTPRequest) (repository.HTTPResponse, error) {
 	h.logger.Debug("HTTP - %s - Sending HTTP request to: %+v", req.GetMethod(), req.GetPath())
 
-	response, err := circuitBreaker.Execute(func() (interface{}, error) {
-		httpTransport := &http.Transport{}
-
-		// this makes a custom http client with a timeout in secs for each request
-		var httpClient = &http.Client{
-			Timeout:   time.Second * req.(*request).timeOut,
-			Transport: httpTransport,
-		}
-		if h.dialer != nil {
-			httpTransport.Dial = h.dialer.Dial // nolint
-		}
-		request := &req.(*request).innerRequest
-		resp, err := httpClient.Do(request)
-		if err != nil {
-			h.logger.Error("HTTP - %s - Error sending HTTP request: %+v", req.GetMethod(), err)
-			return repository.HTTPResponse{
-					Code: http.StatusBadRequest,
-				},
-				fmt.Errorf("Found error: %+v", err)
-		}
-		request.Close = true
-
-		response, err := ioutil.ReadAll(resp.Body)
-		if val, ok := errorCodes[resp.StatusCode]; ok {
-			h.logger.Error("HTTP - %s - Received an error response: %+v", req.GetMethod(), val)
-			return repository.HTTPResponse{
-					Code: resp.StatusCode,
-				},
-				fmt.Errorf("%s", response)
-		}
-		if err != nil {
-			h.logger.Error("HTTP - %s - Error reading response: %+v", req.GetMethod(), err)
-		}
-
-		defer resp.Body.Close() // nolint
-		resp.Close = true
-
-		return repository.HTTPResponse{
-				Body:    string(response),
-				Code:    resp.StatusCode,
-				Headers: resp.Header,
-			},
-			fmt.Errorf("%s", response)
-	})
-	if resp, ok := response.(repository.HTTPResponse); ok {
-		return resp, err
+	httpTransport := &http.Transport{}
+	// this makes a custom http client with a timeout in secs for each request
+	var httpClient = &http.Client{
+		Timeout:   time.Second * req.(*request).timeOut,
+		Transport: httpTransport,
 	}
-	return repository.HTTPResponse{}, err
+	if h.dialer != nil {
+		httpTransport.Dial = h.dialer.Dial // nolint
+	}
+	request := &req.(*request).innerRequest
+
+	var response interface{}
+	var err error
+	// do-while: try once or retry until circuit breaker closes
+	for ok := true; ok; ok = (err == ErrOpenState || err == ErrTooManyRequests) {
+		response, err = h.circuitBreaker.Execute(func() (interface{}, error) {
+			return httpClient.Do(request)
+		})
+	}
+	if err != nil {
+		h.logger.Error("HTTP - %s - Error sending HTTP request: %+v", req.GetMethod(), err)
+		return repository.HTTPResponse{
+				Code: http.StatusBadRequest,
+			},
+			err
+	}
+
+	resp := response.(*http.Response)
+	request.Close = true
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if val, ok := errorCodes[resp.StatusCode]; ok {
+		h.logger.Error("HTTP - %s - Received an error response: %+v", req.GetMethod(), val)
+		return repository.HTTPResponse{
+				Code: resp.StatusCode,
+			},
+			fmt.Errorf("%s", body)
+	}
+	if err != nil {
+		h.logger.Error("HTTP - %s - Error reading response: %+v", req.GetMethod(), err)
+	}
+
+	defer resp.Body.Close() // nolint
+	resp.Close = true
+
+	return repository.HTTPResponse{
+		Body:    string(body),
+		Code:    resp.StatusCode,
+		Headers: resp.Header,
+	}, nil
+
 }
 
 // request is a custom golang http.Request

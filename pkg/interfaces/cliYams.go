@@ -290,13 +290,17 @@ func (cli *CLIYams) DeleteAll(threads, limit int) (err error) {
 	yamsErrNil := (*usecases.YamsRepositoryError)(nil)
 	var list []usecases.YamsObject
 	var continuationToken string
+	var backupToken string
 	var counter int
 
 	// do while
 	for ok := true; ok; ok = (continuationToken != "" && (counter < limit || limit <= 0)) {
 		list, continuationToken, err = cli.imageService.List(continuationToken, threads)
 		if err != yamsErrNil {
-			return err
+			if err == usecases.ErrYamsInternal {
+				continuationToken = backupToken
+			}
+			continue
 		}
 		for _, image := range list {
 			cli.stats.Processed <- inc(<-cli.stats.Processed)
@@ -306,6 +310,7 @@ func (cli *CLIYams) DeleteAll(threads, limit int) (err error) {
 				break
 			}
 		}
+		backupToken = continuationToken
 	}
 
 	close(jobs)
@@ -357,8 +362,8 @@ func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed in
 		cli.stats.Sent <- inc(<-cli.stats.Sent)
 		return
 	case usecases.ErrYamsDuplicate:
+		cli.stats.Duplicated <- inc(<-cli.stats.Duplicated)
 		if remoteChecksum != localImageChecksum {
-			cli.stats.Duplicated <- inc(<-cli.stats.Duplicated)
 			if e := cli.imageService.RemoteDelete(imageName, domain.YAMSForceRemoval); e != yamsErrNil {
 				cli.logger.LogErrorRemoteDelete(imageName, e)
 				// recursive increase error counter
