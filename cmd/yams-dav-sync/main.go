@@ -69,7 +69,16 @@ func main() {
 		logger.Error("%s\n", err)
 		os.Exit(2)
 	}
-	HTTPHandler := infrastructure.NewHTTPHandler(dialer, logger)
+
+	circuitBreaker := infrastructure.NewCircuitBreaker(
+		conf.CircuitBreakerConf.Name,
+		conf.CircuitBreakerConf.ConsecutiveFailure,
+		conf.CircuitBreakerConf.FailureRatio,
+		conf.CircuitBreakerConf.Timeout,
+		conf.CircuitBreakerConf.Interval,
+	)
+
+	HTTPHandler := infrastructure.NewHTTPHandler(dialer, circuitBreaker, logger)
 
 	signer := infrastructure.NewJWTSigner(conf.YamsConf.PrivateKeyFile, logger)
 

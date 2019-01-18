@@ -58,8 +58,14 @@ export YAMS_TIMEOUT=120
 export YAMS_LISTING_LIMIT=0
 export YAMS_DELETING_LIMIT=0
 
+# Circuit breaker variables
+export CIRCUIT_BREAKER_NAME=HTTP_HANDLER
+export CIRCUIT_BREAKER_CONSECUTIVE_FAILURE=10
+export CIRCUIT_BREAKER_FAILURE_RATIO=0.6
+export CIRCUIT_BREAKER_TIMEOUT=10
+export CIRCUIT_BREAKER_INTERVAL=5
 
-#Bandwidth proxy limiter variables
+# Bandwidth proxy limiter variables
 export BANDWIDTH_PROXY_LIMIT=20000# kbps
 export BANDWIDTH_PROXY_HOST=localhost:9999
 export BANDWIDTH_PROXY_CONN_TYPE=tcp

@@ -31,6 +31,7 @@ type Config struct {
 	Database           DatabaseConf       `env:"DATABASE_"`
 	ErrorControl       ErrorControlConf   `env:"ERRORS_"`
 	LastSync           LastSyncConf       `env:"LAST_SYNC_"`
+	CircuitBreakerConf CircuitBreakerConf `env:"CIRCUIT_BREAKER_"`
 	BandwidthProxyConf BandwidthProxyConf `env:"BANDWIDTH_PROXY_"`
 }
 
@@ -79,6 +80,15 @@ type DatabaseConf struct {
 	MgFolder    string `env:"MIGRATIONS_FOLDER" envDefault:"migrations"`
 	MgDriver    string `env:"MIGRATIONS_DRIVER" envDefault:"postgres"`
 	ConnRetries int    `env:"CONN_RETRIES" envDefault:"3"`
+}
+
+// CircuitBreakerConf holds all configurations for circuit breaker
+type CircuitBreakerConf struct {
+	Name               string  `env:"NAME" envDefault:"HTTP_SEND"`
+	ConsecutiveFailure uint32  `env:"CONSECUTIVE_FAILURE" envDefault:"10"`
+	FailureRatio       float64 `env:"FAILURE_RATIO" envDefault:"0.5"`
+	Timeout            int     `env:"TIMEOUT" envDefault:"30"`
+	Interval           int     `env:"INTERVAL" envDefault:"30"`
 }
 
 // BandwidthProxyConf holds all configurations to connect with bandwidth limiter proxy
@@ -149,6 +159,14 @@ func load(conf reflect.Value, envTag, envDefault string) {
 			case reflect.Int:
 				if value, err := strconv.Atoi(value); err == nil {
 					reflectedConf.Set(reflect.ValueOf(value))
+				}
+			case reflect.Float64:
+				if value, err := strconv.ParseFloat(value, 64); err == nil {
+					reflectedConf.Set(reflect.ValueOf(value))
+				}
+			case reflect.Uint32:
+				if value, err := strconv.ParseUint(value, 10, 32); err == nil {
+					reflectedConf.Set(reflect.ValueOf(uint32(value)))
 				}
 			case reflect.Bool:
 				if value, err := strconv.ParseBool(value); err == nil {

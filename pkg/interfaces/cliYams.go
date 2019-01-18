@@ -251,13 +251,16 @@ func validateTuple(tuple []string, date time.Time, dateLayout string) bool {
 func (cli *CLIYams) List(limit int) (err error) {
 	counter := 0
 	yamsErrNil := (*usecases.YamsRepositoryError)(nil)
-	var continuationToken string
+	var continuationToken, backupToken string
 	var list []usecases.YamsObject
 	// While images Service has images, list all of them,
 	for {
 		list, continuationToken, err = cli.imageService.List(continuationToken, 0)
 		if err != yamsErrNil {
-			return err
+			if err == usecases.ErrYamsInternal {
+				continuationToken = backupToken
+			}
+			continue
 		}
 		for _, image := range list {
 			cli.logger.LogImage(counter+1, image)
@@ -270,6 +273,7 @@ func (cli *CLIYams) List(limit int) (err error) {
 		if continuationToken == "" {
 			return nil
 		}
+		backupToken = continuationToken
 	}
 }
 
@@ -293,13 +297,17 @@ func (cli *CLIYams) DeleteAll(threads, limit int) (err error) {
 	yamsErrNil := (*usecases.YamsRepositoryError)(nil)
 	var list []usecases.YamsObject
 	var continuationToken string
+	var backupToken string
 	var counter int
 
 	// While images Service has images, delete all of them,
 	for {
 		list, continuationToken, err = cli.imageService.List(continuationToken, threads)
 		if err != yamsErrNil {
-			break
+			if err == usecases.ErrYamsInternal {
+				continuationToken = backupToken
+			}
+			continue
 		}
 		for _, image := range list {
 			cli.stats.Processed <- inc(<-cli.stats.Processed)
@@ -313,6 +321,7 @@ func (cli *CLIYams) DeleteAll(threads, limit int) (err error) {
 		if continuationToken == "" {
 			break
 		}
+		backupToken = continuationToken
 	}
 	close(jobs)
 	waitGroup.Wait()
