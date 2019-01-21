@@ -763,6 +763,7 @@ func TestDeleteAll(t *testing.T) {
 }
 
 func TestDeleteAllListError(t *testing.T) {
+	t.Parallel()
 	mImageService := &mockImageService{}
 	mLogger := &mockLogger{}
 

@@ -348,7 +348,8 @@ func (repo *YamsRepository) GetRemoteChecksum(imageName string) (string, *usecas
 }
 
 // List gets a list of available images in yams repository
-func (repo *YamsRepository) List(continuationToken string, step int) ([]usecases.YamsObject, string, *usecases.YamsRepositoryError) {
+func (repo *YamsRepository) List(continuationToken string, step int) (
+	[]usecases.YamsObject, string, *usecases.YamsRepositoryError) {
 	type InfoClaims struct {
 		jwt.StandardClaims
 		Rqs string `json:"rqs"`
