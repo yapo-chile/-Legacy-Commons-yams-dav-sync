@@ -251,10 +251,10 @@ func validateTuple(tuple []string, date time.Time, dateLayout string) bool {
 func (cli *CLIYams) List(limit int) (err error) {
 	counter := 0
 	yamsErrNil := (*usecases.YamsRepositoryError)(nil)
-	var list []usecases.YamsObject
 	var continuationToken string
-	// do while
-	for ok := true; ok; ok = (continuationToken != "" && (counter < limit || limit <= 0)) {
+	var list []usecases.YamsObject
+	// While images Service has images, list all of them,
+	for {
 		list, continuationToken, err = cli.imageService.List(continuationToken, 0)
 		if err != yamsErrNil {
 			return err
@@ -266,8 +266,11 @@ func (cli *CLIYams) List(limit int) (err error) {
 				return nil
 			}
 		}
+		// Empty continuationToken means no more pagination
+		if continuationToken == "" {
+			return nil
+		}
 	}
-	return nil
 }
 
 // Delete deletes an object in yams repository
@@ -292,11 +295,11 @@ func (cli *CLIYams) DeleteAll(threads, limit int) (err error) {
 	var continuationToken string
 	var counter int
 
-	// do while
-	for ok := true; ok; ok = (continuationToken != "" && (counter < limit || limit <= 0)) {
+	// While images Service has images, delete all of them,
+	for {
 		list, continuationToken, err = cli.imageService.List(continuationToken, threads)
 		if err != yamsErrNil {
-			return err
+			break
 		}
 		for _, image := range list {
 			cli.stats.Processed <- inc(<-cli.stats.Processed)
@@ -306,28 +309,32 @@ func (cli *CLIYams) DeleteAll(threads, limit int) (err error) {
 				break
 			}
 		}
+		// Empty continuationToken means no more pagination
+		if continuationToken == "" {
+			break
+		}
 	}
-
 	close(jobs)
 	waitGroup.Wait()
-	return nil
+	return err
 }
 
 // sendWorker sends every image to yams repository
 func (cli *CLIYams) sendWorker(id int, jobs <-chan domain.Image, wg *sync.WaitGroup, previousUploadFailed int) {
 	defer wg.Done()
+	yamsNilResponse := (*usecases.YamsRepositoryError)(nil)
 	for image := range jobs {
 		remoteChecksum, err := cli.imageService.Send(image)
 		cli.sendErrorControl(image, previousUploadFailed, remoteChecksum, err)
-		updateSyncMark := (err == (*usecases.YamsRepositoryError)(nil) ||
-			err == nil || err == usecases.ErrYamsDuplicate)
-		if updateSyncMark {
+		// Update latest sync mark only if yams returns no error
+		if err == yamsNilResponse || err == nil || err == usecases.ErrYamsDuplicate {
 			date := <-cli.lastSyncDate
 			if image.Metadata.ModTime.After(date) {
 				date = image.Metadata.ModTime
 			}
 			cli.lastSyncDate <- date
 		}
+		// determine if the worker should finish
 		if quit, ok := <-cli.quit; ok {
 			cli.quit <- quit
 			if quit {
@@ -357,8 +364,8 @@ func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed in
 		cli.stats.Sent <- inc(<-cli.stats.Sent)
 		return
 	case usecases.ErrYamsDuplicate:
+		cli.stats.Duplicated <- inc(<-cli.stats.Duplicated)
 		if remoteChecksum != localImageChecksum {
-			cli.stats.Duplicated <- inc(<-cli.stats.Duplicated)
 			if e := cli.imageService.RemoteDelete(imageName, domain.YAMSForceRemoval); e != yamsErrNil {
 				cli.logger.LogErrorRemoteDelete(imageName, e)
 				// recursive increase error counter
@@ -432,7 +439,7 @@ func (cli *CLIYams) showStats() {
 				cli.quit <- quit
 			}
 		}
-
+		cli.logger.LogStats(timer, &cli.stats)
 		cli.stats.Close() // nolint
 		close(cli.quit)
 		ticker.Stop()

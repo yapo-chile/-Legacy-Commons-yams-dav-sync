@@ -750,9 +750,10 @@ func TestDeleteAll(t *testing.T) {
 	yamsObjectResponse := []usecases.YamsObject{{ID: "12"}, {ID: "12"}}
 	yamsErrResponse := (*usecases.YamsRepositoryError)(nil)
 
-	mImageService.On("List", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(yamsObjectResponse, "abc123", yamsErrResponse)
-	mImageService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(yamsErrResponse).Once()
+	mImageService.On("List", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(yamsObjectResponse, "", yamsErrResponse)
 	mImageService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(usecases.ErrYamsInternal).Once()
+	mImageService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(yamsErrResponse)
+
 	mLogger.On("LogStats", mock.AnythingOfType("int"), mock.AnythingOfType("*interfaces.Stats"))
 	mLogger.On("LogErrorRemoteDelete", mock.AnythingOfType("string"), mock.AnythingOfType("*usecases.YamsRepositoryError"))
 	err := cli.DeleteAll(2, 2)
@@ -762,12 +763,12 @@ func TestDeleteAll(t *testing.T) {
 }
 
 func TestDeleteAllListError(t *testing.T) {
-	t.Parallel()
 	mImageService := &mockImageService{}
 	mLogger := &mockLogger{}
 
 	yamsObjectResponse := []usecases.YamsObject{{ID: "12"}, {ID: "12"}}
 	mImageService.On("List", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(yamsObjectResponse, "abc123", usecases.ErrYamsInternal)
+	mLogger.On("LogStats", mock.AnythingOfType("int"), mock.AnythingOfType("*interfaces.Stats"))
 
 	layout := "20060102T150405"
 	cli := NewCLIYams(mImageService, nil, nil, nil, mLogger, time.Now(), NewStats(), layout)
@@ -909,24 +910,16 @@ func TestDeleteWorker(t *testing.T) {
 	mImageService.AssertExpectations(t)
 }
 
-func TestShowStats(t *testing.T) {
+func TestShowStatsWithInterrumption(t *testing.T) {
 	t.Parallel()
 	mLogger := &mockLogger{}
 	layout := "20060102T150405"
-	cli := NewCLIYams(nil, nil, nil, nil, mLogger, time.Now(), NewStats(), layout)
-
 	mLogger.On("LogStats", mock.AnythingOfType("int"), mock.AnythingOfType("*interfaces.Stats"))
-
+	cli := NewCLIYams(nil, nil, nil, nil, mLogger, time.Now(), NewStats(), layout)
 	cli.showStats()
-
-	ticker := time.Tick(time.Second)
-
-	for i := 0; i <= 1; i++ {
-		<-ticker
-		if i > 1 { // close the channel after 1 sec
-			close(cli.quit)
-		}
-		i++
-	}
+	ticker := time.Tick(time.Second + time.Millisecond*500)
+	<-cli.quit
+	cli.quit <- true
+	<-ticker
 	mLogger.AssertExpectations(t)
 }
