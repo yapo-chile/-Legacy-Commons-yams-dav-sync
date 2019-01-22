@@ -69,7 +69,17 @@ func main() {
 		logger.Error("%s\n", err)
 		os.Exit(2)
 	}
-	HTTPHandler := infrastructure.NewHTTPHandler(dialer, logger)
+
+	circuitBreaker := infrastructure.NewCircuitBreaker(
+		conf.CircuitBreakerConf.Name,
+		conf.CircuitBreakerConf.ConsecutiveFailure,
+		conf.CircuitBreakerConf.FailureRatio,
+		conf.CircuitBreakerConf.Timeout,
+		conf.CircuitBreakerConf.Interval,
+		logger,
+	)
+
+	HTTPHandler := infrastructure.NewHTTPHandler(dialer, circuitBreaker, logger)
 
 	signer := infrastructure.NewJWTSigner(conf.YamsConf.PrivateKeyFile, logger)
 
@@ -157,7 +167,7 @@ func main() {
 
 	case "list":
 		go func() {
-			if e := cliYams.List(); e != nil {
+			if e := cliYams.List(limit); e != nil {
 				logger.Error("Error listing: %+v", e)
 			}
 			shutdownSequence.Done()
@@ -166,7 +176,7 @@ func main() {
 	case "deleteAll":
 		go func() {
 			if threads > 0 {
-				if e := cliYams.DeleteAll(threads); e != nil {
+				if e := cliYams.DeleteAll(threads, limit); e != nil {
 					logger.Error("Error deleting: %+v ", e)
 				}
 			} else {

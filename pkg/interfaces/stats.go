@@ -8,6 +8,7 @@ type Stats struct {
 	Processed  chan int
 	Skipped    chan int
 	NotFound   chan int
+	Recovered  chan int
 }
 
 // NewStats returns a new instance of Stats
@@ -18,6 +19,7 @@ func NewStats() Stats {
 	sent := make(chan int, 1)
 	duplicated := make(chan int, 1)
 	errors := make(chan int, 1)
+	recovered := make(chan int, 1)
 
 	processed <- 0
 	skipped <- 0
@@ -25,6 +27,7 @@ func NewStats() Stats {
 	sent <- 0
 	errors <- 0
 	duplicated <- 0
+	recovered <- 0
 
 	return Stats{
 		Sent:       sent,
@@ -33,6 +36,7 @@ func NewStats() Stats {
 		Duplicated: duplicated,
 		Skipped:    skipped,
 		NotFound:   notFound,
+		Recovered:  recovered,
 	}
 }
 
@@ -47,5 +51,6 @@ func (s *Stats) Close() error {
 	close(s.Duplicated)
 	close(s.Skipped)
 	close(s.NotFound)
+	close(s.Recovered)
 	return nil
 }

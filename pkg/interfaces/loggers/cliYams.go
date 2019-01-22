@@ -13,7 +13,7 @@ type cliYamsLogger struct {
 }
 
 func (l *cliYamsLogger) LogImage(position int, img usecases.YamsObject) {
-	fmt.Printf("\n%v ) Name: %+v  MD5: %+v Size: %+v LasModified: %+v",
+	fmt.Printf("\n%v ) Name: %+v  MD5: %+v Size: %+v LastModified: %+v",
 		position,
 		img.ID,
 		img.Md5,
@@ -76,6 +76,7 @@ func (l *cliYamsLogger) LogStats(timer int, stats *interfaces.Stats) {
 	duplicated := <-stats.Duplicated
 	skipped := <-stats.Skipped
 	notFound := <-stats.NotFound
+	recovered := <-stats.Recovered
 
 	stats.Sent <- sent
 	stats.Errors <- errors
@@ -83,12 +84,15 @@ func (l *cliYamsLogger) LogStats(timer int, stats *interfaces.Stats) {
 	stats.Processed <- processed
 	stats.Skipped <- skipped
 	stats.NotFound <- notFound
+	stats.Recovered <- recovered
 
 	fmt.Printf("\r[ Timer: %ds ] ( \033[32mSent images: %d \033[0m "+
 		"\033[31m Errors: %d \033[0m "+
 		"\033[31m Duplicated: %d \033[0m "+
 		"\033[33m Processed: %d \033[0m "+
 		"\033[33m Skipped: %d \033[0m "+
-		"\033[33m Not Found: %d \033[0m ) ", timer,
-		sent, errors, duplicated, processed, skipped, notFound)
+		"\033[33m Not Found: %d \033[0m "+
+		"\033[33m Recovered: %d \033[0m ) ",
+		timer, sent, errors, duplicated, processed,
+		skipped, notFound, recovered)
 }

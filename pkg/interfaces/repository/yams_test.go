@@ -522,7 +522,7 @@ func TestGetLocalImages(t *testing.T) {
 
 	body := []byte(`{"objects":[{"object_id":"123","md5":"algo en md5",` +
 		`"size":1, "last_modified":1}], "continuation_token":""}`)
-
+	expToken := ""
 	for cases := 0; cases < 6; cases++ {
 		switch cases {
 		case 0: // everything OK
@@ -539,8 +539,9 @@ func TestGetLocalImages(t *testing.T) {
 				Body: body,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			resp, err := yamsRepo.List()
+			resp, continuationToken, err := yamsRepo.List("", 1)
 			assert.Nil(t, err)
+			assert.Equal(t, expToken, continuationToken)
 			assert.Equal(t, expected, resp)
 		case 1: // 404 yams objects not found
 			response := HTTPResponse{
@@ -548,7 +549,8 @@ func TestGetLocalImages(t *testing.T) {
 				Body: body,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			_, err := yamsRepo.List()
+			_, continuationToken, err := yamsRepo.List("", 1)
+			assert.Equal(t, expToken, continuationToken)
 			assert.Equal(t, usecases.ErrYamsObjectNotFound, err)
 
 		case 2: // 500 object not found error
@@ -557,7 +559,8 @@ func TestGetLocalImages(t *testing.T) {
 				Body: body,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			_, err := yamsRepo.List()
+			_, continuationToken, err := yamsRepo.List("123", 1)
+			assert.Equal(t, expToken, continuationToken)
 			assert.Equal(t, usecases.ErrYamsInternal, err)
 		case 3: // 503 Service temporarily unavailable
 			response := HTTPResponse{
@@ -565,14 +568,16 @@ func TestGetLocalImages(t *testing.T) {
 				Body: body,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			_, err := yamsRepo.List()
+			_, continuationToken, err := yamsRepo.List("123", 1)
+			assert.Equal(t, expToken, continuationToken)
 			assert.Equal(t, usecases.ErrYamsInternal, err)
 		case 4: // Unmarshal error
 			response := HTTPResponse{
 				Body: "+++++++",
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			_, err := yamsRepo.List()
+			_, continuationToken, err := yamsRepo.List("123", 1)
+			assert.Equal(t, expToken, continuationToken)
 			assert.Equal(t, usecases.ErrYamsInternal, err)
 		default: // Unknown error
 			response := HTTPResponse{
@@ -580,7 +585,8 @@ func TestGetLocalImages(t *testing.T) {
 				Body: body,
 			}
 			mHandler.On("Send", &mRequest).Return(response, nil).Once()
-			_, err := yamsRepo.List()
+			_, continuationToken, err := yamsRepo.List("123", 1)
+			assert.Equal(t, expToken, continuationToken)
 			assert.Equal(t, usecases.ErrYamsInternal, err)
 		}
 	}

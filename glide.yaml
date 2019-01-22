@@ -12,9 +12,11 @@ import:
   subpackages:
   - database/postgres
   - source/file
+- package: github.com/sony/gobreaker
 - package: github.com/stretchr/testify
   subpackages:
   - mock
 - package: golang.org/x/net
   subpackages:
   - context
+  - proxy
