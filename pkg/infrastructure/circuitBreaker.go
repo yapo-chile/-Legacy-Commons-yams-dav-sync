@@ -48,16 +48,13 @@ func NewCircuitBreaker(name string, consecutiveFailures uint32, failureRatioTole
 			return errorRatio >= failureRatioTolerance || counts.ConsecutiveFailures > consecutiveFailures
 		},
 		OnStateChange: func(name string, from gobreaker.State, to gobreaker.State) {
-			logger.Error("\nCircuitBreaker: Changing status %+v to %+v\n", from.String(), to.String())
+			logger.Error("CircuitBreaker: Changing status %+v to %+v", from.String(), to.String())
 			if from == StateClosed {
-				logger.Error("\nCircuitBreaker: Waiting for open state...\n")
+				logger.Error("CircuitBreaker: Waiting for open state...")
 			}
 		},
 	}
-
-	cb := gobreaker.NewCircuitBreaker(settings)
-
-	return cb
+	return gobreaker.NewCircuitBreaker(settings)
 }
 
 // CircuitBreaker allows circuit breaker operations

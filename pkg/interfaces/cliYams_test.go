@@ -624,7 +624,6 @@ func TestList(t *testing.T) {
 		Return(yamsObjectResponse, "123", yamsErrResponse).Once()
 	mImageService.On("List", mock.AnythingOfType("string"), mock.AnythingOfType("int")).
 		Return(yamsObjectResponse, "123", usecases.ErrYamsInternal).Once()
-
 	mImageService.On("List", mock.AnythingOfType("string"), mock.AnythingOfType("int")).
 		Return(yamsObjectResponse, "", yamsErrResponse).Once()
 
