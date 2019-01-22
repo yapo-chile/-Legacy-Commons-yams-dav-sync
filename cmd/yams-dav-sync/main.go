@@ -76,6 +76,7 @@ func main() {
 		conf.CircuitBreakerConf.FailureRatio,
 		conf.CircuitBreakerConf.Timeout,
 		conf.CircuitBreakerConf.Interval,
+		logger,
 	)
 
 	HTTPHandler := infrastructure.NewHTTPHandler(dialer, circuitBreaker, logger)
