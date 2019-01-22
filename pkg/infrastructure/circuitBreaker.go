@@ -6,8 +6,9 @@ import (
 	"github.com/sony/gobreaker"
 )
 
-// CircuitBreaker common variables
-var (
+// Circuit breaker common constants & variables
+
+const (
 	// StateClosed represents Circuit breaker closed state
 	StateClosed = gobreaker.StateClosed
 
@@ -16,7 +17,9 @@ var (
 
 	// StateOpen represents Circuit breaker open state
 	StateOpen = gobreaker.StateOpen
+)
 
+var (
 	// ErrTooManyRequests is returned when the CB state is half open and the requests count is over the cb maxRequests
 	ErrTooManyRequests = gobreaker.ErrTooManyRequests
 
@@ -27,11 +30,11 @@ var (
 // NewCircuitBreaker initializes circuit breaker wrapper
 // name is the circuit breaker
 // consecutiveFailures is the maximum of consecutive errors allowed before open state
-// failureRatio is the maximum error ratio (errors vs requests qty) allowed before open state
+// failureRatioTolerance is the maximum error ratio (errors vs requests qty) allowed before open state
 // Interval is the cyclic period of the closed state for the CircuitBreaker to clear the internal Counts.
 // If Interval is 0, the CircuitBreaker doesn't clear internal Counts during the closed state.
 // Timeout is the period of the open state, after which the state of the CircuitBreaker becomes half-open.
-func NewCircuitBreaker(name string, consecutiveFailures uint32, failureRatio float64, timeout, interval int) CircuitBreaker {
+func NewCircuitBreaker(name string, consecutiveFailures uint32, failureRatioTolerance float64, timeout, interval int) CircuitBreaker {
 	settings := gobreaker.Settings{
 		Name:     name,
 		Timeout:  time.Duration(timeout) * (time.Second),
@@ -40,7 +43,7 @@ func NewCircuitBreaker(name string, consecutiveFailures uint32, failureRatio flo
 		// If ReadyToTrip returns true, the CircuitBreaker will be placed into the open state
 		ReadyToTrip: func(counts gobreaker.Counts) bool {
 			errorRatio := float64(counts.TotalFailures) / float64(counts.Requests)
-			return errorRatio >= failureRatio || counts.ConsecutiveFailures > consecutiveFailures
+			return errorRatio >= failureRatioTolerance || counts.ConsecutiveFailures > consecutiveFailures
 		},
 	}
 
