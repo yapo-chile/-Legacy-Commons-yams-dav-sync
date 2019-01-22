@@ -300,7 +300,7 @@ func (cli *CLIYams) DeleteAll(threads, limit int) (err error) {
 	var backupToken string
 	var counter int
 
-	// While images Service has images, delete all of them,
+	// While images Service has images, delete all of them
 	for {
 		list, continuationToken, err = cli.imageService.List(continuationToken, threads)
 		if err != yamsErrNil {
@@ -318,7 +318,7 @@ func (cli *CLIYams) DeleteAll(threads, limit int) (err error) {
 			}
 		}
 		// Empty continuationToken means no more pagination
-		if continuationToken == "" {
+		if continuationToken == "" || (counter >= limit && limit > 0) {
 			break
 		}
 		backupToken = continuationToken

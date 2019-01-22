@@ -687,8 +687,6 @@ func TestDeleteAll(t *testing.T) {
 	mImageService.On("List", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(yamsObjectResponse, "abc123", yamsNilResponse).Once()
 	mImageService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(yamsNilResponse)
 
-	mImageService.On("List", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return([]usecases.YamsObject{}, "", usecases.ErrYamsInternal)
-
 	mLogger.On("LogStats", mock.AnythingOfType("int"), mock.AnythingOfType("*interfaces.Stats"))
 	mLogger.On("LogErrorRemoteDelete", mock.AnythingOfType("string"), mock.AnythingOfType("*usecases.YamsRepositoryError"))
 
