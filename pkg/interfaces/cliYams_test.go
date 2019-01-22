@@ -690,7 +690,7 @@ func TestDeleteAll(t *testing.T) {
 	mLogger.On("LogStats", mock.AnythingOfType("int"), mock.AnythingOfType("*interfaces.Stats"))
 	mLogger.On("LogErrorRemoteDelete", mock.AnythingOfType("string"), mock.AnythingOfType("*usecases.YamsRepositoryError"))
 
-	err := cli.DeleteAll(1, 3)
+	err := cli.DeleteAll(1, 4)
 	assert.Nil(t, err)
 	mImageService.AssertExpectations(t)
 	mLogger.AssertExpectations(t)
@@ -827,7 +827,6 @@ func TestDeleteWorker(t *testing.T) {
 }
 
 func TestShowStatsWithInterrumption(t *testing.T) {
-	t.Parallel()
 	mLogger := &mockLogger{}
 	layout := "20060102T150405"
 	mLogger.On("LogStats", mock.AnythingOfType("int"), mock.AnythingOfType("*interfaces.Stats"))
