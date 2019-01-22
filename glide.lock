@@ -1,5 +1,5 @@
-hash: 79f739e673334fa52e75255f47a1930fdece78f46cffb54689a204d588c2dabf
-updated: 2018-12-20T14:38:36.456117003-03:00
+hash: 3bfa174363e34fec807e2c9957ad0aa6307a4b9918f3c756edf9d2d8f1188dee
+updated: 2019-01-17T16:00:16.495791084-03:00
 imports:
 - name: github.com/armon/go-socks5
   version: e75332964ef517daa070d7c38a9466a0d687e0a5
@@ -33,6 +33,8 @@ imports:
   version: 792786c7400a136282c1664665ae0a8db921c6c2
   subpackages:
   - difflib
+- name: github.com/sony/gobreaker
+  version: d928aaea92e15a2c8ab59efdfbb362844d8524e1
 - name: github.com/stretchr/objx
   version: ef50b0de28773081167c97fc27cf29a0bf8b8c71
 - name: github.com/stretchr/testify
@@ -46,4 +48,6 @@ imports:
   version: e147a9138326bc0e9d4e179541ffd8af41cff8a9
   subpackages:
   - context
+  - internal/socks
+  - proxy
 testImports: []
