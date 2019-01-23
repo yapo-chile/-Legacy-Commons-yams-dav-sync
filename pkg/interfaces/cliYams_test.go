@@ -193,11 +193,29 @@ func (m *mockLogger) LogStats(timer int, s *Stats) {
 	m.Called(timer, s)
 }
 
+type mockMetricsExposer struct {
+	mock.Mock
+}
+
+func (m *mockMetricsExposer) IncrementCounter(metric int) {
+	m.Called(metric)
+}
+
+func (m *mockMetricsExposer) SetGauge(metric int, value float64) {
+	m.Called(metric, value)
+}
+
+func (m *mockMetricsExposer) Close() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
 func TestNewSync(t *testing.T) {
 	now := time.Now()
 	date := make(chan time.Time, 1)
 	date <- now
 	expected := &CLIYams{}
+	var metricsExposer MetricsExposer
 	expected.lastSyncDate = date
 	result := NewCLIYams(
 		expected.imageService,
@@ -206,7 +224,7 @@ func TestNewSync(t *testing.T) {
 		expected.localImage,
 		expected.logger,
 		now,
-		NewStats(),
+		NewStats(metricsExposer),
 		expected.dateLayout,
 	)
 	assert.ObjectsAreEqualValues(expected, result)
@@ -220,10 +238,12 @@ func TestSyncProcess(t *testing.T) {
 	mLocalImage := &mockLocalImage{}
 	mFile := &mockFile{}
 	mScanner := &mockScanner{}
+	mMetricsExposer := &mockMetricsExposer{}
 	mLogger := &mockLogger{}
 	// images to send
 	mImageService.On("GetMaxConcurrency").Return(1)
 	mErrorControl.On("GetErrorsPagesQty", mock.AnythingOfType("int")).Return(1)
+	mMetricsExposer.On("IncrementCounter", mock.AnythingOfType("int"))
 
 	imagesToRetrySend := []string{}
 
@@ -280,7 +300,7 @@ func TestSyncProcess(t *testing.T) {
 		mLocalImage,
 		mLogger,
 		newDate,
-		NewStats(),
+		NewStats(mMetricsExposer),
 		layout,
 	)
 
@@ -293,6 +313,7 @@ func TestSyncProcess(t *testing.T) {
 	mLogger.AssertExpectations(t)
 	mFile.AssertExpectations(t)
 	mScanner.AssertExpectations(t)
+	mMetricsExposer.AssertExpectations(t)
 }
 
 func TestSyncProcessErrorScanning(t *testing.T) {
@@ -302,6 +323,7 @@ func TestSyncProcessErrorScanning(t *testing.T) {
 	mLastSync := &mockLastSync{}
 	mLocalImage := &mockLocalImage{}
 	mScanner := &mockScanner{}
+	mMetricsExposer := &mockMetricsExposer{}
 	mFile := &mockFile{}
 	mLogger := &mockLogger{}
 	mImageService.On("GetMaxConcurrency").Return(1)
@@ -335,7 +357,7 @@ func TestSyncProcessErrorScanning(t *testing.T) {
 		mLocalImage,
 		mLogger,
 		newDate,
-		NewStats(),
+		NewStats(mMetricsExposer),
 		layout,
 	)
 
@@ -348,6 +370,7 @@ func TestSyncProcessErrorScanning(t *testing.T) {
 	mScanner.AssertExpectations(t)
 	mLogger.AssertExpectations(t)
 	mFile.AssertExpectations(t)
+	mMetricsExposer.AssertExpectations(t)
 }
 
 func TestSyncErrorOpeningFile(t *testing.T) {
@@ -356,6 +379,7 @@ func TestSyncErrorOpeningFile(t *testing.T) {
 	mErrorControl := &mockErrorControl{}
 	mLastSync := &mockLastSync{}
 	mLocalImage := &mockLocalImage{}
+	mMetricsExposer := &mockMetricsExposer{}
 	mFile := &mockFile{}
 	mLogger := &mockLogger{}
 	// images to send
@@ -385,7 +409,7 @@ func TestSyncErrorOpeningFile(t *testing.T) {
 		mLocalImage,
 		mLogger,
 		newDate,
-		NewStats(),
+		NewStats(mMetricsExposer),
 		layout,
 	)
 
@@ -398,6 +422,7 @@ func TestSyncErrorOpeningFile(t *testing.T) {
 	mLastSync.AssertExpectations(t)
 	mLogger.AssertExpectations(t)
 	mFile.AssertExpectations(t)
+	mMetricsExposer.AssertExpectations(t)
 }
 
 func TestRetryPreviousFailedUploads(t *testing.T) {
@@ -406,9 +431,11 @@ func TestRetryPreviousFailedUploads(t *testing.T) {
 	mErrorControl := &mockErrorControl{}
 	mLastSync := &mockLastSync{}
 	mLocalImage := &mockLocalImage{}
+	mMetricsExposer := &mockMetricsExposer{}
 	mLogger := &mockLogger{}
 	mImageService.On("GetMaxConcurrency").Return(1)
 	mErrorControl.On("GetErrorsPagesQty", mock.AnythingOfType("int")).Return(1)
+	mMetricsExposer.On("IncrementCounter", mock.AnythingOfType("int"))
 
 	imagesToRetrySend := []string{"0.jpg", "1.jpg", "2.jpg"}
 	mErrorControl.On("GetPreviousErrors",
@@ -451,7 +478,7 @@ func TestRetryPreviousFailedUploads(t *testing.T) {
 		mLocalImage,
 		mLogger,
 		newDate,
-		NewStats(),
+		NewStats(mMetricsExposer),
 		layout,
 	)
 	cli.retryPreviousFailedUploads(3, 1, newDate)
@@ -461,12 +488,14 @@ func TestRetryPreviousFailedUploads(t *testing.T) {
 	mLogger.AssertExpectations(t)
 	mLocalImage.AssertExpectations(t)
 	mLastSync.AssertExpectations(t)
+	mMetricsExposer.AssertExpectations(t)
 }
 
 func TestRetryPreviousFailedUploadsErrorGettingErrors(t *testing.T) {
 	t.Parallel()
 	mImageService := &mockImageService{}
 	mErrorControl := &mockErrorControl{}
+	mMetricsExposer := &mockMetricsExposer{}
 
 	mImageService.On("GetMaxConcurrency").Return(1)
 	mErrorControl.On("GetErrorsPagesQty", mock.AnythingOfType("int")).Return(1)
@@ -484,12 +513,13 @@ func TestRetryPreviousFailedUploadsErrorGettingErrors(t *testing.T) {
 		nil,
 		nil,
 		newDate,
-		NewStats(),
+		NewStats(mMetricsExposer),
 		layout,
 	)
 	cli.retryPreviousFailedUploads(3, 1, newDate.Add(time.Second-1))
 	mImageService.AssertExpectations(t)
 	mErrorControl.AssertExpectations(t)
+	mMetricsExposer.AssertExpectations(t)
 }
 
 func TestErrorControl(t *testing.T) {
@@ -498,6 +528,7 @@ func TestErrorControl(t *testing.T) {
 	mErrorControl := &mockErrorControl{}
 	mLastSync := &mockLastSync{}
 	mLocalImage := &mockLocalImage{}
+	mMetricsExposer := &mockMetricsExposer{}
 	mLogger := &mockLogger{}
 
 	layout := "20060102T150405"
@@ -509,9 +540,10 @@ func TestErrorControl(t *testing.T) {
 		mLocalImage,
 		mLogger,
 		newDate,
-		NewStats(),
+		NewStats(mMetricsExposer),
 		layout,
 	)
+	mMetricsExposer.On("IncrementCounter", mock.AnythingOfType("int"))
 
 	yamsErrNil := (*usecases.YamsRepositoryError)(nil)
 	for i, testcases := 0, 7; i < testcases; i++ {
@@ -573,6 +605,7 @@ func TestErrorControl(t *testing.T) {
 	mErrorControl.AssertExpectations(t)
 	mLocalImage.AssertExpectations(t)
 	mLastSync.AssertExpectations(t)
+	mMetricsExposer.AssertExpectations(t)
 	mLogger.AssertExpectations(t)
 }
 
@@ -667,13 +700,16 @@ func TestDelete(t *testing.T) {
 func TestDeleteAll(t *testing.T) {
 	t.Parallel()
 	mImageService := &mockImageService{}
+	mMetricsExposer := &mockMetricsExposer{}
 	mLogger := &mockLogger{}
 
 	layout := "20060102T150405"
 	newDate, _ := time.Parse(layout, "20170102T150405")
-	cli := NewCLIYams(mImageService, nil, nil, nil, mLogger, newDate, NewStats(), layout)
+	cli := NewCLIYams(mImageService, nil, nil, nil, mLogger, newDate, NewStats(mMetricsExposer), layout)
 	yamsObjectResponse := []usecases.YamsObject{{ID: "12"}, {ID: "12"}, {ID: "12"}}
 	yamsNilResponse := (*usecases.YamsRepositoryError)(nil)
+
+	mMetricsExposer.On("IncrementCounter", mock.AnythingOfType("int"))
 
 	// Get the list of images to delete
 	mImageService.On("List", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(yamsObjectResponse, "abc123", yamsNilResponse).Once()
@@ -692,16 +728,18 @@ func TestDeleteAll(t *testing.T) {
 	err := cli.DeleteAll(1, 4)
 	assert.Nil(t, err)
 	mImageService.AssertExpectations(t)
+	mMetricsExposer.AssertExpectations(t)
 	mLogger.AssertExpectations(t)
 }
 
 func TestClose(t *testing.T) {
 	t.Parallel()
 	mLastSync := &mockLastSync{}
+	mMetricsExposer := &mockMetricsExposer{}
 	mLogger := &mockLogger{}
 
 	layout := "20060102T150405"
-	cli := NewCLIYams(nil, nil, mLastSync, nil, mLogger, time.Now(), NewStats(), layout)
+	cli := NewCLIYams(nil, nil, mLastSync, nil, mLogger, time.Now(), NewStats(mMetricsExposer), layout)
 	quit := <-cli.quit
 	cli.quit <- !quit
 
@@ -717,11 +755,13 @@ func TestClose(t *testing.T) {
 	assert.Error(t, err)
 	mLogger.AssertExpectations(t)
 	mLastSync.AssertExpectations(t)
+	mMetricsExposer.AssertExpectations(t)
 }
 
 func TestSendWorker(t *testing.T) {
 	t.Parallel()
 	mImageService := &mockImageService{}
+	mMetricsExposer := &mockMetricsExposer{}
 
 	mLastSync := &mockLastSync{}
 	var waitGroup sync.WaitGroup
@@ -732,10 +772,11 @@ func TestSendWorker(t *testing.T) {
 	sent := make(chan int, 1)
 	sent <- 0
 	mImageService.On("Send", mock.AnythingOfType("domain.Image")).Return("", yamsErrNil)
+	mMetricsExposer.On("IncrementCounter", mock.AnythingOfType("int"))
 
 	layout := "20060102T150405"
 
-	cli := NewCLIYams(mImageService, nil, mLastSync, nil, nil, time.Now(), NewStats(), layout)
+	cli := NewCLIYams(mImageService, nil, mLastSync, nil, nil, time.Now(), NewStats(mMetricsExposer), layout)
 
 	for w := 0; w < 1; w++ {
 		waitGroup.Add(1)
@@ -754,11 +795,13 @@ func TestSendWorker(t *testing.T) {
 		cli.quit <- quit
 	}
 	mImageService.AssertExpectations(t)
+	mMetricsExposer.AssertExpectations(t)
 }
 
 func TestSendWorkerWithClosedChannel(t *testing.T) {
 	t.Parallel()
 	mImageService := &mockImageService{}
+	mMetricsExposer := &mockMetricsExposer{}
 
 	var waitGroup sync.WaitGroup
 
@@ -768,10 +811,10 @@ func TestSendWorkerWithClosedChannel(t *testing.T) {
 	sent := make(chan int, 1)
 	sent <- 0
 	mImageService.On("Send", mock.AnythingOfType("domain.Image")).Return("", yamsErrNil)
-
+	mMetricsExposer.On("IncrementCounter", mock.AnythingOfType("int"))
 	layout := "20060102T150405"
 
-	cli := NewCLIYams(mImageService, nil, nil, nil, nil, time.Now(), NewStats(), layout)
+	cli := NewCLIYams(mImageService, nil, nil, nil, nil, time.Now(), NewStats(mMetricsExposer), layout)
 
 	for w := 0; w < 1; w++ {
 		waitGroup.Add(1)
@@ -791,11 +834,14 @@ func TestSendWorkerWithClosedChannel(t *testing.T) {
 		}
 	}
 	mImageService.AssertExpectations(t)
+	mMetricsExposer.AssertExpectations(t)
 }
 
 func TestDeleteWorker(t *testing.T) {
 	t.Parallel()
 	mImageService := &mockImageService{}
+	mMetricsExposer := &mockMetricsExposer{}
+
 	mLogger := &mockLogger{}
 
 	var waitGroup sync.WaitGroup
@@ -806,7 +852,7 @@ func TestDeleteWorker(t *testing.T) {
 	mImageService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(yamsErrNil)
 
 	layout := "20060102T150405"
-	cli := NewCLIYams(mImageService, nil, nil, nil, mLogger, time.Now(), NewStats(), layout)
+	cli := NewCLIYams(mImageService, nil, nil, nil, mLogger, time.Now(), NewStats(mMetricsExposer), layout)
 	for w := 0; w < 1; w++ {
 		waitGroup.Add(1)
 		go cli.deleteWorker(w, jobs, &waitGroup)
@@ -823,13 +869,15 @@ func TestDeleteWorker(t *testing.T) {
 	}
 	mLogger.AssertExpectations(t)
 	mImageService.AssertExpectations(t)
+	mMetricsExposer.AssertExpectations(t)
 }
 
 func TestShowStatsWithInterrumption(t *testing.T) {
 	mLogger := &mockLogger{}
+	mMetricsExposer := &mockMetricsExposer{}
 	layout := "20060102T150405"
 	mLogger.On("LogStats", mock.AnythingOfType("int"), mock.AnythingOfType("*interfaces.Stats"))
-	cli := NewCLIYams(nil, nil, nil, nil, mLogger, time.Now(), NewStats(), layout)
+	cli := NewCLIYams(nil, nil, nil, nil, mLogger, time.Now(), NewStats(mMetricsExposer), layout)
 	cli.showStats()
 	ticker := time.Tick(time.Second + time.Millisecond*500)
 	<-ticker
@@ -840,18 +888,21 @@ func TestShowStatsWithInterrumption(t *testing.T) {
 	cli.quit <- true
 	<-ticker
 	mLogger.AssertExpectations(t)
+	mMetricsExposer.AssertExpectations(t)
 }
 
 func TestShowStats(t *testing.T) {
 	t.Parallel()
+	mMetricsExposer := &mockMetricsExposer{}
 	mLogger := &mockLogger{}
 	layout := "20060102T150405"
 	mLogger.On("LogStats", mock.AnythingOfType("int"), mock.AnythingOfType("*interfaces.Stats"))
-	cli := NewCLIYams(nil, nil, nil, nil, mLogger, time.Now(), NewStats(), layout)
+	cli := NewCLIYams(nil, nil, nil, nil, mLogger, time.Now(), NewStats(mMetricsExposer), layout)
 	cli.showStats()
 	ticker := time.Tick(time.Second + time.Millisecond*500)
 	<-cli.quit
 	cli.quit <- true
 	<-ticker
 	mLogger.AssertExpectations(t)
+	mMetricsExposer.AssertExpectations(t)
 }

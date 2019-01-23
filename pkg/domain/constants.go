@@ -13,3 +13,23 @@ const (
 	// YAMSSoftRemoval soft image removal from yams bucket
 	YAMSSoftRemoval = false
 )
+
+// Metrics exposer constants
+const (
+	// SentImage represents sent images stat
+	SentImages = iota
+	// ProcessedImages represents processed images stat
+	ProcessedImages
+	// Skipeed represents skipped images stat
+	SkippedImages
+	// NotFoundImages represents not found images stat
+	NotFoundImages
+	// FailedUploads represents failed uploads  stat
+	FailedUploads
+	// DuplicatedImages represents duplicated images stat
+	DuplicatedImages
+	// RecoveredImages represents recovered images stat
+	RecoveredImages
+	// Total represents total images stat
+	TotalImages
+)

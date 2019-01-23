@@ -72,6 +72,15 @@ export BANDWIDTH_PROXY_CONN_TYPE=tcp
 export BANDWIDTH_PROXY_LATENCY=0
 export BANDWIDTH_PROXY_PROCESS_NAME=floodgate
 
+# File descriptors needed
+# By default yams-dav-sync uses arround of 2000 open file descriptors
+# and floodgate requires open an http connection for each one.
+export MAX_FILE_DESCRIPTORS=5000
+export CURRENT_MAX_FILE_DESCRIPTORS=$(shell ulimit -n)
+
+# Metrics exporter variables
+export METRICS_PORT=8877
+
 export LAST_SYNC_DEFAULT_DATE=30-12-2015# First execution: skip older images than this date
 
 export ERRORS_MAX_RETRIES_PER_ERROR=3# Skip if the error counter is bigger than this number

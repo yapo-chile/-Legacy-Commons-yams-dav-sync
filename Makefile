@@ -28,12 +28,15 @@ checkstyle:
 sort:
 	@scripts/commands/sort.sh
 
+setMaxFiles:
+	@scripts/commands/set_max_file_descriptors.sh
+
 ## Execute the service
 run:
 	@./${APPNAME}_${OS}_${GOARCH}  -command=$(command)  -object=$(object) -threads=$(threads)
 
 runsync:
-	@./${APPNAME}_${OS}_${GOARCH}  -command=sync -dumpfile=${YAMS_IMAGES_LIST_FILE} -threads=$(YAMS_MAX_CONCURRENT_CONN) -limit=$(YAMS_UPLOAD_LIMIT)
+	@./${APPNAME}_${OS}_${GOARCH}  -command=sync -dumpfile=${YAMS_IMAGES_LIST_FILE} -threads=$(YAMS_MAX_CONCURRENT_CONN) -limit=$(YAMS_UPLOAD_LIMIT) -total=${shell wc -l dump_images_list.yams | awk '{print $$1}'}
 
 runlist:
 	@./${APPNAME}_${OS}_${GOARCH}  -command=list -limit=$(YAMS_LISTING_LIMIT)
