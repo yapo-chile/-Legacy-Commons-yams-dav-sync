@@ -7,6 +7,8 @@ import (
 )
 
 func TestNewStats(t *testing.T) {
+	mMetricsExposer := &mockMetricsExposer{}
+
 	processed := make(chan int, 1)
 	skipped := make(chan int, 1)
 	notFound := make(chan int, 1)
@@ -33,12 +35,15 @@ func TestNewStats(t *testing.T) {
 		Recovered:  recovered,
 	}
 
-	result := NewStats()
+	result := NewStats(mMetricsExposer)
 	assert.ObjectsAreEqualValues(expected, result)
+	mMetricsExposer.AssertExpectations(t)
+
 }
 
 func TestCloseChannels(t *testing.T) {
-	stats := NewStats()
+	mMetricsExposer := &mockMetricsExposer{}
+	stats := NewStats(mMetricsExposer)
 	stats.Close()
 	isClosed := func(ch <-chan int) bool {
 		select {
@@ -56,4 +61,5 @@ func TestCloseChannels(t *testing.T) {
 	assert.True(t, isClosed(stats.Skipped))
 	assert.True(t, isClosed(stats.NotFound))
 	assert.True(t, isClosed(stats.Recovered))
+	mMetricsExposer.AssertExpectations(t)
 }
