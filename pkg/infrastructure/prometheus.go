@@ -13,28 +13,46 @@ import (
 // Prometheus exposes application metrics, and profile runtime performance in
 // /metrics path
 type Prometheus struct {
-	Server *http.Server
 	// common  metrics for handlers
-	requestDuration   *prometheus.HistogramVec
+	// requestDuration metric of latency for http request
+	requestDuration *prometheus.HistogramVec
+	// requestCounterVec metric of HTTP request qty
 	requestCounterVec *prometheus.CounterVec
-	requestSize       *prometheus.HistogramVec
-	responseSize      *prometheus.HistogramVec
+	// requestCounterVec metric of HTTP response size
+	requestSize *prometheus.HistogramVec
+	// requestCounterVec metric of HTTP response size
+	responseSize *prometheus.HistogramVec
+
 	// custom metrics
-	processedImages  prometheus.Counter
-	skippedImages    prometheus.Counter
-	notFoundImages   prometheus.Counter
-	sentImages       prometheus.Counter
-	failedUploads    prometheus.Counter
+	// processedImages counter of processed images by script
+	processedImages prometheus.Counter
+	// skippedImages counter of  not sent images to yams
+	skippedImages prometheus.Counter
+	// notFoundImages counter of  not found images in local storage
+	notFoundImages prometheus.Counter
+	// sentImages counter of sent images to yams
+	sentImages prometheus.Counter
+	// failedUploads counter of failed uploads
+	failedUploads prometheus.Counter
+	// duplicatedImages counter of images already uploaded to yams
 	duplicatedImages prometheus.Counter
-	recoveredImages  prometheus.Counter
-	totalImages      prometheus.Gauge
-	logger           loggers.Logger
+	// recoveredImages counter of previous failed uploads and recovered in this
+	// script execution
+	recoveredImages prometheus.Counter
+	// totalImages the total of images that should be uploaded to yams
+	totalImages prometheus.Gauge
+
+	// server exposes the metrics on /metrics endopoint
+	server *http.Server
+	// logger logs runtime messages
+	logger loggers.Logger
 }
 
 // NewPrometheusExporter generate a new prometheus instance
 func NewPrometheusExporter(port string) interfaces.MetricsExposer {
 	// Initialize exposed metrics
 	p := Prometheus{
+		// Initialize handler histograms, counters & gauges
 		requestDuration: prometheus.NewHistogramVec(
 			prometheus.HistogramOpts{
 				Name:    "http_request_duration_seconds",
@@ -66,6 +84,8 @@ func NewPrometheusExporter(port string) interfaces.MetricsExposer {
 			},
 			[]string{"handler", "method"},
 		),
+
+		// Initialize custom histograms, counters & gauges
 		sentImages: prometheus.NewCounter(
 			prometheus.CounterOpts{
 				Name: "yams_sent_images_total",
@@ -115,6 +135,7 @@ func NewPrometheusExporter(port string) interfaces.MetricsExposer {
 			},
 		),
 	}
+	// start to listen each m
 	prometheus.MustRegister(p.requestSize)
 	prometheus.MustRegister(p.requestDuration)
 	prometheus.MustRegister(p.responseSize)
@@ -128,37 +149,31 @@ func NewPrometheusExporter(port string) interfaces.MetricsExposer {
 	prometheus.MustRegister(p.recoveredImages)
 	prometheus.MustRegister(p.totalImages)
 
+	// start prometheus exposer server in /metrics endopoint
 	p.expose(port)
 	return &p
 }
 
 // InstrumentHandler wraps a HandlerFunc exposing metrics of request duration & size in prometheus
 func (p Prometheus) InstrumentHandler(handlerName string, handler http.HandlerFunc) http.HandlerFunc {
-	handler =
-		// first metric: RequestDuration, this will be stored in requestDuration var
-		promhttp.InstrumentHandlerDuration(
-			p.requestDuration.MustCurryWith(prometheus.Labels{"handler": handlerName}),
+	// instrument request counter
+	handler = promhttp.InstrumentHandlerCounter(
+		p.requestCounterVec.MustCurryWith(prometheus.Labels{"handler": handlerName}),
+		handler,
+	)
+	// instrument request size
+	handler = promhttp.InstrumentHandlerRequestSize(
+		p.requestSize.MustCurryWith(prometheus.Labels{"handler": handlerName}),
+		handler)
+	// instrument request duration
+	handler = promhttp.InstrumentHandlerDuration(
+		p.requestSize.MustCurryWith(prometheus.Labels{"handler": handlerName}),
+		handler)
+	// instrument response size
+	handler = promhttp.InstrumentHandlerResponseSize(
+		p.requestSize.MustCurryWith(prometheus.Labels{"handler": handlerName}),
+		handler).(http.HandlerFunc)
 
-			// Next metrics: Response size, this will be stored in responseSize var
-			promhttp.InstrumentHandlerResponseSize(
-				p.responseSize.MustCurryWith(prometheus.Labels{"handler": handlerName}),
-
-				// Next metric: Request size, this will be stored in requestSize var
-				promhttp.InstrumentHandlerRequestSize(
-					p.requestSize.MustCurryWith(prometheus.Labels{"handler": handlerName}),
-
-					// Next metric: Handler counter, this will be stored in requestCounterVec var
-					promhttp.InstrumentHandlerCounter(
-						p.requestCounterVec.MustCurryWith(prometheus.Labels{"handler": handlerName}),
-
-						// Replace this handler to add new metrics
-						handler,
-					),
-				),
-			),
-		)
-
-	// return tracked handler
 	return handler
 }
 
@@ -192,10 +207,10 @@ func (p *Prometheus) SetGauge(metric int, value float64) {
 
 // expose starts prometheus exporter metrics server exposing metrics in "/metrics" path
 func (p *Prometheus) expose(port string) {
-	p.Server = &http.Server{Addr: ":" + port}
+	p.server = &http.Server{Addr: ":" + port}
 	http.Handle("/metrics", promhttp.Handler())
 	go func() {
-		if err := p.Server.ListenAndServe(); err != http.ErrServerClosed {
+		if err := p.server.ListenAndServe(); err != http.ErrServerClosed {
 			p.logger.Error("Prometheus: %s", err)
 		}
 	}()
@@ -204,5 +219,5 @@ func (p *Prometheus) expose(port string) {
 
 // Close closes prometheus server
 func (p *Prometheus) Close() error {
-	return p.Server.Close()
+	return p.server.Close()
 }
