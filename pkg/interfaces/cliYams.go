@@ -153,6 +153,7 @@ func (cli *CLIYams) retryPreviousFailedUploads(threads, maxErrorTolerance int, l
 			if imageDate.Equal(latestSynchronizedImageDate) ||
 				imageDate.After(latestSynchronizedImageDate) {
 				cli.stats.Recovered <- inc(<-cli.stats.Recovered)
+				cli.stats.exposer.IncrementCounter(domain.RecoveredImages)
 				if e := cli.errorControl.CleanErrorMarks(image.Metadata.ImageName); e != nil {
 					cli.logger.LogErrorCleaningMarks(image.Metadata.ImageName, e)
 				}
@@ -204,6 +205,7 @@ func (cli *CLIYams) Sync(threads, syncLimit, maxErrorTolerance int, imagesDumpYa
 	// for each element read from file
 	for scanner.Scan() {
 		cli.stats.Processed <- inc(<-cli.stats.Processed)
+		cli.stats.exposer.IncrementCounter(domain.ProcessedImages)
 		sentImages := <-cli.stats.Sent
 		cli.stats.Sent <- sentImages
 		if sentImages > syncLimit && syncLimit > 0 {
@@ -212,12 +214,14 @@ func (cli *CLIYams) Sync(threads, syncLimit, maxErrorTolerance int, imagesDumpYa
 		tuple := strings.Split(scanner.Text(), " ")
 		if !validateTuple(tuple, latestSynchronizedImageDate, cli.dateLayout) {
 			cli.stats.Skipped <- inc(<-cli.stats.Skipped)
+			cli.stats.exposer.IncrementCounter(domain.SkippedImages)
 			continue
 		}
 		_, imagePath := tuple[0], tuple[1]
 		image, err := cli.localImage.GetLocalImage(imagePath)
 		if err != nil {
 			cli.stats.NotFound <- inc(<-cli.stats.NotFound)
+			cli.stats.exposer.IncrementCounter(domain.NotFoundImages)
 			continue
 		}
 		jobs <- image
@@ -311,6 +315,7 @@ func (cli *CLIYams) DeleteAll(threads, limit int) (err error) {
 		}
 		for _, image := range list {
 			cli.stats.Processed <- inc(<-cli.stats.Processed)
+			cli.stats.exposer.IncrementCounter(domain.ProcessedImages)
 			jobs <- image.ID
 			counter++
 			if counter >= limit && limit > 0 {
@@ -371,9 +376,11 @@ func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed in
 			return
 		}
 		cli.stats.Sent <- inc(<-cli.stats.Sent)
+		cli.stats.exposer.IncrementCounter(domain.SentImages)
 		return
 	case usecases.ErrYamsDuplicate:
 		cli.stats.Duplicated <- inc(<-cli.stats.Duplicated)
+		cli.stats.exposer.IncrementCounter(domain.DuplicatedImages)
 		if remoteChecksum != localImageChecksum {
 			if e := cli.imageService.RemoteDelete(imageName, domain.YAMSForceRemoval); e != yamsErrNil {
 				cli.logger.LogErrorRemoteDelete(imageName, e)
@@ -386,11 +393,12 @@ func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed in
 				cli.logger.LogErrorResetingErrorCounter(imageName, e)
 			}
 		} else {
-			// recursive clean up marks with nil error in case of previousUploadFailed true
+			// recursive clean up marks with nil error in case of presviousUploadFailed true
 			cli.sendErrorControl(image, previousUploadFailed, remoteChecksum, nil)
 		}
 	default: // any other kind of error increase error counter
 		cli.stats.Errors <- inc(<-cli.stats.Errors)
+		cli.stats.exposer.IncrementCounter(domain.FailedUploads)
 		if e := cli.errorControl.IncreaseErrorCounter(imageName); e != nil {
 			cli.logger.LogErrorIncreasingErrorCounter(imageName, e)
 		}

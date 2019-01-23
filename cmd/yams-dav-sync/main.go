@@ -12,6 +12,7 @@ import (
 	mpgsql "github.com/mattes/migrate/database/postgres"
 	_ "github.com/mattes/migrate/source/file"
 
+	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/infrastructure"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces"
 	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/loggers"
@@ -47,6 +48,7 @@ func main() {
 	dumpFile := flag.String("dumpfile", "", "dump file with the list of images to upload")
 	threadsStr := flag.String("threads", "5", "threads limit to make sync with yams")
 	limitStr := flag.String("limit", "0", "images qty. limit to upload to yams")
+	totalStr := flag.String("total", "0", "images qty. total to upload to yams")
 
 	object := flag.String("object", "", "image name to be deleted in yams")
 	flag.Parse()
@@ -59,6 +61,10 @@ func main() {
 	if e != nil {
 		logger.Error("Error: %+v. Limit set as %+v", e, limit)
 	}
+	total, e := strconv.Atoi(*totalStr)
+	if e != nil {
+		logger.Error("Error: %+v. total set as %+v", e, total)
+	}
 	// Setting up insfrastructure
 
 	dialer, err := infrastructure.NewProxyDialerHandler(
@@ -69,6 +75,12 @@ func main() {
 		logger.Error("%s\n", err)
 		os.Exit(2)
 	}
+
+	// Metrics exporter
+	prometheus := infrastructure.NewPrometheusExporter(conf.MetricsConf.Port)
+
+	// Set the first metric: Total of images to send using the syncher
+	prometheus.SetGauge(domain.TotalImages, float64(total))
 
 	circuitBreaker := infrastructure.NewCircuitBreaker(
 		conf.CircuitBreakerConf.Name,
@@ -144,7 +156,7 @@ func main() {
 		localImageRepo,
 		loggers.MakeCLIYamsLogger(logger),
 		defaultLastSyncDate,
-		interfaces.NewStats(),
+		interfaces.NewStats(prometheus),
 		conf.LocalStorageConf.DefaultFilesDateLayout,
 	)
 

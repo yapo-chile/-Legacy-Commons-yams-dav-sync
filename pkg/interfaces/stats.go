@@ -1,5 +1,7 @@
 package interfaces
 
+import "io"
+
 // Stats holds sync process stats
 type Stats struct {
 	Sent       chan int
@@ -9,10 +11,11 @@ type Stats struct {
 	Skipped    chan int
 	NotFound   chan int
 	Recovered  chan int
+	exposer    MetricsExposer
 }
 
 // NewStats returns a new instance of Stats
-func NewStats() Stats {
+func NewStats(exposer MetricsExposer) Stats {
 	processed := make(chan int, 1)
 	skipped := make(chan int, 1)
 	notFound := make(chan int, 1)
@@ -37,6 +40,7 @@ func NewStats() Stats {
 		Skipped:    skipped,
 		NotFound:   notFound,
 		Recovered:  recovered,
+		exposer:    exposer,
 	}
 }
 
@@ -53,4 +57,11 @@ func (s *Stats) Close() error {
 	close(s.NotFound)
 	close(s.Recovered)
 	return nil
+}
+
+// MetricsExposer allows operations to expose stats
+type MetricsExposer interface {
+	IncrementCounter(metric int)
+	SetGauge(metric int, value float64)
+	io.Closer
 }

@@ -33,6 +33,7 @@ type Config struct {
 	LastSync           LastSyncConf       `env:"LAST_SYNC_"`
 	CircuitBreakerConf CircuitBreakerConf `env:"CIRCUIT_BREAKER_"`
 	BandwidthProxyConf BandwidthProxyConf `env:"BANDWIDTH_PROXY_"`
+	MetricsConf        MetricsConf        `env:"METRICS_"`
 }
 
 // LocalStorage hols all configuration for local storage
@@ -95,6 +96,11 @@ type CircuitBreakerConf struct {
 type BandwidthProxyConf struct {
 	ConnType string `env:"CONN_TYPE" envDefault:"tcp"`
 	Host     string `env:"HOST" envDefault:"localhost:9999"`
+}
+
+// MetricsConf holds all configurations to export metrics using prometheus
+type MetricsConf struct {
+	Port string `env:"PORT" envDefault:"8877"`
 }
 
 // LoadFromEnv loads the config data from the environment variables
