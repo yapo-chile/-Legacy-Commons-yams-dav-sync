@@ -21,6 +21,7 @@ type CLIYams struct {
 	stats        Stats
 	quit         chan bool
 	isSync       bool
+	IsDelete     bool
 }
 
 // NewCLIYams creates a new instance of CLIYams
@@ -143,13 +144,7 @@ func (cli *CLIYams) retryPreviousFailedUploads(threads, maxErrorTolerance int, l
 				continue
 			}
 
-			// removing difference between image timezone and synchronization mark
-			_, diff := image.Metadata.ModTime.Zone()
-			imageDate := image.Metadata.ModTime.
-				UTC().
-				Add(time.Duration(float64(diff)) * time.Second).
-				Truncate(time.Second)
-
+			imageDate := removeTimezoneDiff(image.Metadata.ModTime)
 			if imageDate.Equal(latestSynchronizedImageDate) ||
 				imageDate.After(latestSynchronizedImageDate) {
 				cli.stats.Recovered <- inc(<-cli.stats.Recovered)
@@ -180,6 +175,8 @@ func (cli *CLIYams) Sync(threads, syncLimit, maxErrorTolerance int, imagesDumpYa
 
 	// prepare to upload using concurrent workers
 	latestSynchronizedImageDate := cli.lastSync.GetLastSynchronizationMark()
+	<-cli.lastSyncDate
+	cli.lastSyncDate <- latestSynchronizedImageDate
 
 	cli.retryPreviousFailedUploads(threads, maxErrorTolerance, latestSynchronizedImageDate)
 	jobs := make(chan domain.Image)
@@ -288,15 +285,20 @@ func (cli *CLIYams) Delete(imageName string) error {
 
 // DeleteAll deletes every imagen in yams repository and redis using concurency
 func (cli *CLIYams) DeleteAll(threads, limit int) (err error) {
+	cli.IsDelete = true
 	cli.showStats()
-
-	jobs := make(chan string)
+	jobs := make(chan domain.Image)
 	var waitGroup sync.WaitGroup
 
 	for w := 0; w < threads; w++ {
 		waitGroup.Add(1)
 		go cli.deleteWorker(w, jobs, &waitGroup)
 	}
+
+	// prepare to upload using concurrent workers
+	latestSynchronizedImageDate := cli.lastSync.GetLastSynchronizationMark()
+	<-cli.lastSyncDate
+	cli.lastSyncDate <- latestSynchronizedImageDate
 
 	yamsErrNil := (*usecases.YamsRepositoryError)(nil)
 	var list []usecases.YamsObject
@@ -313,10 +315,16 @@ func (cli *CLIYams) DeleteAll(threads, limit int) (err error) {
 			}
 			continue
 		}
-		for _, image := range list {
+		for _, yamsObject := range list {
 			cli.stats.Processed <- inc(<-cli.stats.Processed)
 			cli.stats.exposer.IncrementCounter(domain.ProcessedImages)
-			jobs <- image.ID
+			image, err := cli.localImage.GetLocalImage(yamsObject.ID)
+			if err != nil {
+				image.Metadata.ImageName = yamsObject.ID
+				image.Metadata.ModTime = time.Now()
+			}
+			image.Metadata.ModTime = removeTimezoneDiff(image.Metadata.ModTime)
+			jobs <- image
 			counter++
 			if counter >= limit && limit > 0 {
 				break
@@ -330,7 +338,10 @@ func (cli *CLIYams) DeleteAll(threads, limit int) (err error) {
 	}
 	close(jobs)
 	waitGroup.Wait()
-	return err
+	if err == yamsErrNil || err == nil {
+		return nil
+	}
+	return
 }
 
 // sendWorker sends every image to yams repository
@@ -406,10 +417,17 @@ func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed in
 }
 
 // deleteWorker deletes every image to yams repository
-func (cli *CLIYams) deleteWorker(id int, jobs <-chan string, wg *sync.WaitGroup) {
-	for j := range jobs {
-		if e := cli.imageService.RemoteDelete(j, domain.YAMSForceRemoval); e != nil {
-			cli.logger.LogErrorRemoteDelete(j, e)
+func (cli *CLIYams) deleteWorker(id int, jobs <-chan domain.Image, wg *sync.WaitGroup) {
+	yamsErrNil := (*usecases.YamsRepositoryError)(nil)
+	for image := range jobs {
+		if e := cli.imageService.RemoteDelete(image.Metadata.ImageName, domain.YAMSForceRemoval); e != yamsErrNil {
+			cli.logger.LogErrorRemoteDelete(image.Metadata.ImageName, e)
+		} else {
+			date := <-cli.lastSyncDate
+			if image.Metadata.ModTime.Before(date) {
+				date = image.Metadata.ModTime
+			}
+			cli.lastSyncDate <- date
 		}
 		quit := <-cli.quit
 		cli.quit <- quit
@@ -422,11 +440,17 @@ func (cli *CLIYams) deleteWorker(id int, jobs <-chan string, wg *sync.WaitGroup)
 
 // Close closes cliYams execution
 func (cli *CLIYams) Close() (err error) {
-	if cli.isSync {
+	if cli.isSync || cli.IsDelete {
 		close(cli.lastSyncDate)
 		newMark := <-cli.lastSyncDate
 		oldMark := cli.lastSync.GetLastSynchronizationMark()
-		if newMark.After(oldMark) {
+		var condition bool
+		if cli.isSync {
+			condition = newMark.After(oldMark)
+		} else {
+			condition = newMark.Before(oldMark)
+		}
+		if condition {
 			err = cli.lastSync.SetLastSynchronizationMark(newMark)
 			if err != nil {
 				cli.logger.LogErrorSettingSyncMark(newMark, err)
@@ -461,4 +485,13 @@ func (cli *CLIYams) showStats() {
 		close(cli.quit)
 		ticker.Stop()
 	}()
+}
+
+// removeTimezoneDiff removes difference between image timezone and synchronization mark
+func removeTimezoneDiff(imageDate time.Time) time.Time {
+	_, diff := imageDate.Zone()
+	return imageDate.
+		UTC().
+		Add(time.Duration(float64(diff)) * time.Second).
+		Truncate(time.Second)
 }
