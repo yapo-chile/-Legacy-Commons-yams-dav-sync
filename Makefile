@@ -83,7 +83,7 @@ list&:
 deleteall&:
 	nohup bash -c "trap 'trap - SIGINT SIGTERM ERR;${MAKE} killbandwidthlimiter; exit 1' SIGINT SIGTERM ERR;${MAKE} trapped-deleteall&" &
 
-trapped-list&:  build buildbandwidthlimiter runbandwidthlimiter runlist& killbandwidthlimiter 
+trapped-list&: nohup build buildbandwidthlimiter runbandwidthlimiter runlist& killbandwidthlimiter &
 trapped-sync&: nohup build buildbandwidthlimiter runbandwidthlimiter sort runsync& killbandwidthlimiter removedump &
 trapped-deleteall&: nohup build buildbandwidthlimiter runbandwidthlimiter rundeleteall& killbandwidthlimiter &
 
