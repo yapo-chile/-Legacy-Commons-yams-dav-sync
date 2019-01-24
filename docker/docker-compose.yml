@@ -1,11 +1,11 @@
 version: '2'
 services:
   postgres:
-    image: postgres
+    image: postgres:10.3-alpine
     environment:
-      POSTGRES_DB: postgres
+      POSTGRES_DB: pgdb
       POSTGRES_PASSWORD: postgres
-      POSTGRES_USER: pgdb
+      POSTGRES_USER: postgres
     stdin_open: true
     tty: true
     ports:
