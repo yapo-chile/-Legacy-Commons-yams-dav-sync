@@ -1,0 +1,14 @@
+version: '2'
+services:
+  postgres:
+    image: postgres
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: pgdb
+    stdin_open: true
+    tty: true
+    ports:
+    - 7722:5432/tcp
+    labels:
+      io.rancher.container.pull_image: always
