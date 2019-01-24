@@ -701,26 +701,33 @@ func TestDeleteAll(t *testing.T) {
 	t.Parallel()
 	mImageService := &mockImageService{}
 	mMetricsExposer := &mockMetricsExposer{}
+	mLastSync := &mockLastSync{}
+	mLocalImage := &mockLocalImage{}
 	mLogger := &mockLogger{}
 
 	layout := "20060102T150405"
 	newDate, _ := time.Parse(layout, "20170102T150405")
-	cli := NewCLIYams(mImageService, nil, nil, nil, mLogger, newDate, NewStats(mMetricsExposer), layout)
+	cli := NewCLIYams(mImageService, nil, mLastSync, mLocalImage, mLogger, newDate, NewStats(mMetricsExposer), layout)
 	yamsObjectResponse := []usecases.YamsObject{{ID: "12"}, {ID: "12"}, {ID: "12"}}
 	yamsNilResponse := (*usecases.YamsRepositoryError)(nil)
 
 	mMetricsExposer.On("IncrementCounter", mock.AnythingOfType("int"))
-
+	mLastSync.On("GetLastSynchronizationMark").Return(time.Now())
 	// Get the list of images to delete
 	mImageService.On("List", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(yamsObjectResponse, "abc123", yamsNilResponse).Once()
+	mLocalImage.On("GetLocalImage", mock.AnythingOfType("string")).Return(domain.Image{}, nil).Once()
 	mImageService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(yamsNilResponse).Once()
+	mLocalImage.On("GetLocalImage", mock.AnythingOfType("string")).Return(domain.Image{}, fmt.Errorf("err")).Once()
 	mImageService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(usecases.ErrYamsInternal).Once()
 	// Get list page two but with error, keep the continuation token.
 	mImageService.On("List", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return([]usecases.YamsObject{}, "", usecases.ErrYamsInternal).Once()
 
 	// Get the list using continuation token and delete 4 images
 	mImageService.On("List", mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(yamsObjectResponse, "abc123", yamsNilResponse).Once()
-	mImageService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(yamsNilResponse)
+	mLocalImage.On("GetLocalImage", mock.AnythingOfType("string")).Return(domain.Image{}, nil).Once()
+	mImageService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(yamsNilResponse).Once()
+	mLocalImage.On("GetLocalImage", mock.AnythingOfType("string")).Return(domain.Image{}, nil).Once()
+	mImageService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(yamsNilResponse).Once()
 
 	mLogger.On("LogStats", mock.AnythingOfType("int"), mock.AnythingOfType("*interfaces.Stats"))
 	mLogger.On("LogErrorRemoteDelete", mock.AnythingOfType("string"), mock.AnythingOfType("*usecases.YamsRepositoryError"))
@@ -728,11 +735,13 @@ func TestDeleteAll(t *testing.T) {
 	err := cli.DeleteAll(1, 4)
 	assert.Nil(t, err)
 	mImageService.AssertExpectations(t)
+	mLastSync.AssertExpectations(t)
+	mLocalImage.AssertExpectations(t)
 	mMetricsExposer.AssertExpectations(t)
 	mLogger.AssertExpectations(t)
 }
 
-func TestClose(t *testing.T) {
+func TestCloseSync(t *testing.T) {
 	t.Parallel()
 	mLastSync := &mockLastSync{}
 	mMetricsExposer := &mockMetricsExposer{}
@@ -751,6 +760,32 @@ func TestClose(t *testing.T) {
 		mock.AnythingOfType("time.Time"),
 		mock.AnythingOfType("*errors.errorString"))
 	cli.isSync = true
+	err := cli.Close()
+	assert.Error(t, err)
+	mLogger.AssertExpectations(t)
+	mLastSync.AssertExpectations(t)
+	mMetricsExposer.AssertExpectations(t)
+}
+
+func TestCloseDeleteAll(t *testing.T) {
+	t.Parallel()
+	mLastSync := &mockLastSync{}
+	mMetricsExposer := &mockMetricsExposer{}
+	mLogger := &mockLogger{}
+
+	layout := "20060102T150405"
+	cli := NewCLIYams(nil, nil, mLastSync, nil, mLogger, time.Now(), NewStats(mMetricsExposer), layout)
+	quit := <-cli.quit
+	cli.quit <- !quit
+
+	mLastSync.On("GetLastSynchronizationMark").Return(time.Now().Add(2 * time.Hour))
+
+	mLastSync.On("SetLastSynchronizationMark", mock.AnythingOfType("time.Time")).
+		Return(fmt.Errorf("err"))
+	mLogger.On("LogErrorSettingSyncMark",
+		mock.AnythingOfType("time.Time"),
+		mock.AnythingOfType("*errors.errorString"))
+	cli.IsDelete = true
 	err := cli.Close()
 	assert.Error(t, err)
 	mLogger.AssertExpectations(t)
@@ -846,7 +881,7 @@ func TestDeleteWorker(t *testing.T) {
 
 	var waitGroup sync.WaitGroup
 
-	jobs := make(chan string)
+	jobs := make(chan domain.Image)
 	yamsErrNil := (*usecases.YamsRepositoryError)(nil)
 
 	mImageService.On("RemoteDelete", mock.AnythingOfType("string"), true).Return(yamsErrNil)
@@ -860,7 +895,11 @@ func TestDeleteWorker(t *testing.T) {
 
 	testImages := []string{"1.jpg", "2.j:g"}
 	for i, imageName := range testImages {
-		jobs <- imageName
+		jobs <- domain.Image{
+			Metadata: domain.ImageMetadata{
+				ImageName: imageName,
+			},
+		}
 		quit := <-cli.quit
 		if i > 0 { // in case of sys interrumption
 			quit = true

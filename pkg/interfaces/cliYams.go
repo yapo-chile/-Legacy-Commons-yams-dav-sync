@@ -338,10 +338,10 @@ func (cli *CLIYams) DeleteAll(threads, limit int) (err error) {
 	}
 	close(jobs)
 	waitGroup.Wait()
-	if err == yamsErrNil || err == nil {
-		return nil
+	if err == yamsErrNil {
+		err = nil
 	}
-	return
+	return err
 }
 
 // sendWorker sends every image to yams repository
