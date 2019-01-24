@@ -4,7 +4,7 @@ Script to upload images from yapo's DAV server to yams.
 
 ##### Requirements
 - PostgresDB [9.0 >]
-- The Maximum Number Of Open Files / File Descriptors > 5000 (availables)
+- The maximum number of open riles / rile rescriptors > 5000 (availables)
 ```
  ulimit -n 
  
@@ -62,7 +62,7 @@ NOTE: Make deleteall & make list use yams pagination to work
 
 ###### Monitoring
 
-By default when the process starts prometheus metrics are exposed in `http://HOST:8877/metrics`
+By default, when the process starts prometheus metrics are exposed in `http://HOST:8877/metrics`
 
 ###### Main Process
 
