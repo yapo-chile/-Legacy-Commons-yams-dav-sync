@@ -4,6 +4,12 @@ Script to upload images from yapo's DAV server to yams.
 
 ##### Requirements
 - PostgresDB [9.0 >]
+- The Maximum Number Of Open Files / File Descriptors > 5000 (availables)
+```
+ ulimit -n 
+ 
+ ulimit -n 5000
+```
 
 ##### how to use
 
@@ -35,7 +41,7 @@ export IMAGES_PATH=/images/uploads/
 
  - `make compress` to generate the ready-to-deploy binaries compressed in `./output/`
  -  Upload the tar.gz file and decompress it in your dav server
- -  You can edit `script/commands/vars.mk` set config vars
+ -  In dav server you can edit `script/commands/vars.mk` modify config vars
  -  type `make sync` or `make sync&` (detached mode) to do:
     1) Generate a file sorted-list with images of `IMAGES_PATH` sorted by date 
     2) Upload each image of the list using concurrency
