@@ -4,6 +4,12 @@ Script to upload images from yapo's DAV server to yams.
 
 ##### Requirements
 - PostgresDB [9.0 >]
+- The maximum number of open files / rile rescriptors > 5000 (availables)
+```
+ ulimit -n 
+ 
+ ulimit -n 5000
+```
 
 ##### how to use
 
@@ -34,7 +40,9 @@ export IMAGES_PATH=/images/uploads/
 ```
 
  - `make compress` to generate the ready-to-deploy binaries compressed in `./output/`
- - `cd ./output/yams-dav-syncher/` and type `make sync` to do:
+ -  Upload the tar.gz file and decompress it in your dav server
+ -  In dav server you can edit `script/commands/vars.mk` modify config vars
+ -  type `make sync` or `make sync&` (detached mode) to do:
     1) Generate a file sorted-list with images of `IMAGES_PATH` sorted by date 
     2) Upload each image of the list using concurrency
     3) In case of error then mark in DB the retry to upload in the next script execution
@@ -46,8 +54,15 @@ export IMAGES_PATH=/images/uploads/
 - `make list` to list the images in yams bucket
 - `make deleteall` to delete everything stored in yams bucket
 
-NOTE: Do not use this commnads when you have too many images in yams bucket. They are only for test purpose.
+- `make sync&` to execute sync process in detached mode
+- `make deleteall&` to delete everything stored in yams bucket in detached mode
+- `make list&` to list the images in yams bucket in detached mode
 
+NOTE: Make deleteall & make list use yams pagination to work
+
+###### Monitoring
+
+By default, when the process starts prometheus metrics are exposed in `http://HOST:8877/metrics`
 
 ###### Main Process
 
