@@ -318,8 +318,8 @@ func (cli *CLIYams) DeleteAll(threads, limit int) (err error) {
 		for _, yamsObject := range list {
 			cli.stats.Processed <- inc(<-cli.stats.Processed)
 			cli.stats.exposer.IncrementCounter(domain.ProcessedImages)
-			image, err := cli.localImage.GetLocalImage(yamsObject.ID)
-			if err != nil {
+			image, e := cli.localImage.GetLocalImage(yamsObject.ID)
+			if e != nil {
 				image.Metadata.ImageName = yamsObject.ID
 				image.Metadata.ModTime = time.Now()
 			}
