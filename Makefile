@@ -71,6 +71,35 @@ list:
 deleteall:
 	bash -c "trap 'trap - SIGINT SIGTERM ERR;${MAKE} killbandwidthlimiter; exit 1' SIGINT SIGTERM ERR;${MAKE} trapped-deleteall"
 
+# Execution in detached mode
+## sync& starts dav-yams synchronization in detached mode
+sync&:
+	 nohup bash -c "trap 'trap - SIGINT SIGTERM ERR;${MAKE} killbandwidthlimiter removedump; exit 1' SIGINT SIGTERM ERR;${MAKE} trapped-sync&" &
+## list& prints objects in yams bucket in detached mode
+list&:
+	 nohup bash -c "trap 'trap - SIGINT SIGTERM ERR;${MAKE} killbandwidthlimiter; exit 1' SIGINT SIGTERM ERR;${MAKE} trapped-list&" &
+
+## deleteall& deletes everything stored in yams bucket in detached mode
+deleteall&:
+	nohup bash -c "trap 'trap - SIGINT SIGTERM ERR;${MAKE} killbandwidthlimiter; exit 1' SIGINT SIGTERM ERR;${MAKE} trapped-deleteall&" &
+
+trapped-list&:  build buildbandwidthlimiter runbandwidthlimiter runlist& killbandwidthlimiter 
+trapped-sync&: nohup build buildbandwidthlimiter runbandwidthlimiter sort runsync& killbandwidthlimiter removedump &
+trapped-deleteall&: nohup build buildbandwidthlimiter runbandwidthlimiter rundeleteall& killbandwidthlimiter &
+
+
+runlist&:
+	nohup @./${APPNAME}_${OS}_${GOARCH}  -command=list -limit=$(YAMS_LISTING_LIMIT) &
+
+runsync&:
+	nohup @./${APPNAME}_${OS}_${GOARCH}  -command=sync -dumpfile=${YAMS_IMAGES_LIST_FILE} -threads=$(YAMS_MAX_CONCURRENT_CONN) -limit=$(YAMS_UPLOAD_LIMIT) -total=${shell wc -l dump_images_list.yams | awk '{print $$1}'}  &
+
+rundeleteall&:
+	nohup @./${APPNAME}_${OS}_${GOARCH}  -command=deleteAll -threads=$(YAMS_MAX_CONCURRENT_CONN)  -limit=$(YAMS_DELETING_LIMIT) &
+
+stop:
+	pkill ${APPNAME}_${OS}_${GOARCH}
+	
 trapped-sync: build buildbandwidthlimiter runbandwidthlimiter sort runsync killbandwidthlimiter removedump
 
 trapped-list: build buildbandwidthlimiter runbandwidthlimiter runlist killbandwidthlimiter
