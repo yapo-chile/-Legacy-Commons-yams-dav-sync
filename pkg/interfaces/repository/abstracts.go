@@ -14,9 +14,9 @@ import (
 // after its use, the connection with the database must be closed
 type DbHandler interface {
 	io.Closer
-	Insert(statement string) error
-	Update(statement string) error
-	Query(statement string) (DbResult, error)
+	Insert(statement string, params ...interface{}) error
+	Update(statement string, params ...interface{}) error
+	Query(statement string, params ...interface{}) (DbResult, error)
 }
 
 // DbRepo contains an instance of a DBHandler

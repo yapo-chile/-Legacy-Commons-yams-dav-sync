@@ -27,7 +27,7 @@ func elapsed(process string) func() {
 	}
 }
 
-func main() {
+func main() { // nolint: gocyclo
 	defer elapsed("exec")()
 
 	shutdownSequence := infrastructure.NewShutdownSequence()
@@ -198,12 +198,22 @@ func main() {
 		}()
 
 	case "delete":
-		go func() {
-			if e := cliYams.Delete(*object); e != nil {
-				logger.Error("Error deleting: %+v", e)
-			}
-			shutdownSequence.Done()
-		}()
+		if e := cliYams.Delete(*object); e != nil {
+			logger.Error("Error deleting: %+v", e)
+		}
+		shutdownSequence.Done()
+
+	case "reset":
+		if e := cliYams.Reset(); e != nil {
+			logger.Error("Error reseting: %+v", e)
+		}
+		shutdownSequence.Done()
+
+	case "marks":
+		if e := cliYams.GetMarks(); e != nil {
+			logger.Error("Error getting sync marks: %+v", e)
+		}
+		shutdownSequence.Done()
 
 	default:
 		logger.Error("Make start command=[commmand]\nCommand list:\n- sync \n- list\n- deleteAll\n")

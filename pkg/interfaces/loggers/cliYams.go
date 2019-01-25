@@ -96,3 +96,9 @@ func (l *cliYamsLogger) LogStats(timer int, stats *interfaces.Stats) {
 		timer, sent, errors, duplicated, processed,
 		skipped, notFound, recovered)
 }
+
+func (l *cliYamsLogger) LogMarksList(list []string) {
+	for i, element := range list {
+		fmt.Printf("%d) %+v\n", len(list)-i, element)
+	}
+}

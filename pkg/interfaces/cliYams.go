@@ -21,7 +21,7 @@ type CLIYams struct {
 	stats        Stats
 	quit         chan bool
 	isSync       bool
-	IsDelete     bool
+	isDelete     bool
 }
 
 // NewCLIYams creates a new instance of CLIYams
@@ -83,6 +83,10 @@ type LastSync interface {
 	GetLastSynchronizationMark() time.Time
 	// SetLastSynchronizationMark sets the date of latest synchronizated image
 	SetLastSynchronizationMark(date time.Time) error
+	// Reset resets every synchronization mark
+	Reset() error
+	// Get gets list of synchronization marks
+	Get() ([]string, error)
 }
 
 // LocalImage allows operations over local storage
@@ -116,6 +120,7 @@ type CLIYamsLogger interface {
 	LogReadingNewImages()
 	LogUploadingNewImages()
 	LogStats(timer int, stats *Stats)
+	LogMarksList(list []string)
 }
 
 // retryPreviousFailedUploads gets images from errorControlRepository and try
@@ -285,7 +290,7 @@ func (cli *CLIYams) Delete(imageName string) error {
 
 // DeleteAll deletes every imagen in yams repository and redis using concurency
 func (cli *CLIYams) DeleteAll(threads, limit int) (err error) {
-	cli.IsDelete = true
+	cli.isDelete = true
 	cli.showStats()
 	jobs := make(chan domain.Image)
 	var waitGroup sync.WaitGroup
@@ -438,16 +443,32 @@ func (cli *CLIYams) deleteWorker(id int, jobs <-chan domain.Image, wg *sync.Wait
 	defer wg.Done()
 }
 
+// Reset cleans the last synchronization date mark to return to the previous
+// synchronization status
+func (cli *CLIYams) Reset() (err error) {
+	return cli.lastSync.Reset()
+}
+
+// GetMarks gets list of synchronization marks ordered by newer to older
+func (cli *CLIYams) GetMarks() error {
+	list, err := cli.lastSync.Get()
+	if err != nil {
+		return err
+	}
+	cli.logger.LogMarksList(list)
+	return nil
+}
+
 // Close closes cliYams execution
 func (cli *CLIYams) Close() (err error) {
-	if cli.isSync || cli.IsDelete {
+	if cli.isSync || cli.isDelete {
 		close(cli.lastSyncDate)
 		newMark := <-cli.lastSyncDate
 		oldMark := cli.lastSync.GetLastSynchronizationMark()
 		var condition bool
 		if cli.isSync {
 			condition = newMark.After(oldMark)
-		} else {
+		} else if cli.isDelete {
 			condition = newMark.Before(oldMark)
 		}
 		if condition {
