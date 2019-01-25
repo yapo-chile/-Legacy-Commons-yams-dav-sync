@@ -128,6 +128,16 @@ func (m *mockLastSync) SetLastSynchronizationMark(imageDate time.Time) error {
 	return args.Error(0)
 }
 
+func (m *mockLastSync) Get() ([]string, error) {
+	args := m.Called()
+	return args.Get(0).([]string), args.Error(1)
+}
+
+func (m *mockLastSync) Reset() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
 type mockFile struct {
 	mock.Mock
 }
@@ -191,6 +201,10 @@ func (m *mockLogger) LogUploadingNewImages() {
 
 func (m *mockLogger) LogStats(timer int, s *Stats) {
 	m.Called(timer, s)
+}
+
+func (m *mockLogger) LogMarksList(list []string) {
+	m.Called(list)
 }
 
 type mockMetricsExposer struct {
@@ -785,7 +799,7 @@ func TestCloseDeleteAll(t *testing.T) {
 	mLogger.On("LogErrorSettingSyncMark",
 		mock.AnythingOfType("time.Time"),
 		mock.AnythingOfType("*errors.errorString"))
-	cli.IsDelete = true
+	cli.isDelete = true
 	err := cli.Close()
 	assert.Error(t, err)
 	mLogger.AssertExpectations(t)
@@ -944,4 +958,46 @@ func TestShowStats(t *testing.T) {
 	<-ticker
 	mLogger.AssertExpectations(t)
 	mMetricsExposer.AssertExpectations(t)
+}
+
+func TestReset(t *testing.T) {
+	mMetricsExposer := &mockMetricsExposer{}
+	mLastSync := &mockLastSync{}
+	mLogger := &mockLogger{}
+	layout := "20060102T150405"
+	mLastSync.On("Reset").Return(nil)
+	cli := NewCLIYams(nil, nil, mLastSync, nil, mLogger, time.Now(), NewStats(mMetricsExposer), layout)
+	cli.Reset()
+	mLogger.AssertExpectations(t)
+	mMetricsExposer.AssertExpectations(t)
+	mLastSync.AssertExpectations(t)
+}
+
+func TestGetMarks(t *testing.T) {
+	mMetricsExposer := &mockMetricsExposer{}
+	mLastSync := &mockLastSync{}
+	mLogger := &mockLogger{}
+	layout := "20060102T150405"
+	mLastSync.On("Get").Return([]string{}, nil)
+	mLogger.On("LogMarksList", mock.AnythingOfType("[]string"))
+	cli := NewCLIYams(nil, nil, mLastSync, nil, mLogger, time.Now(), NewStats(mMetricsExposer), layout)
+	err := cli.GetMarks()
+	assert.NoError(t, err)
+	mLogger.AssertExpectations(t)
+	mMetricsExposer.AssertExpectations(t)
+	mLastSync.AssertExpectations(t)
+}
+
+func TestGetMarksError(t *testing.T) {
+	mMetricsExposer := &mockMetricsExposer{}
+	mLastSync := &mockLastSync{}
+	mLogger := &mockLogger{}
+	layout := "20060102T150405"
+	mLastSync.On("Get").Return([]string{}, fmt.Errorf("err"))
+	cli := NewCLIYams(nil, nil, mLastSync, nil, mLogger, time.Now(), NewStats(mMetricsExposer), layout)
+	err := cli.GetMarks()
+	assert.Error(t, err)
+	mLogger.AssertExpectations(t)
+	mMetricsExposer.AssertExpectations(t)
+	mLastSync.AssertExpectations(t)
 }
