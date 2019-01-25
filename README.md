@@ -4,7 +4,7 @@ Script to upload images from yapo's DAV server to yams.
 
 ##### Requirements
 - PostgresDB [9.0 >]
-- The maximum number of open files / rile rescriptors:
+- The maximum number of open files / file descriptors:
 
 ```
  > 5000  - availables for sync process

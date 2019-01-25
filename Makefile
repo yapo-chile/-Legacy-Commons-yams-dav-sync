@@ -70,7 +70,7 @@ list:
 deleteall:
 	bash -c "trap 'trap - SIGINT SIGTERM ERR;${MAKE} killbandwidthlimiter; exit 1' SIGINT SIGTERM ERR;${MAKE} trapped-deleteall"
 
-## deleteall resets every synchronization mark
+## reset resets to the last synchronization mark
 reset: build runreset
 
 ## markslist gets lastest synchronization marks
