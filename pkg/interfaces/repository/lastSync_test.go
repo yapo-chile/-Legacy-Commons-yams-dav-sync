@@ -149,6 +149,25 @@ func TestGetError(t *testing.T) {
 	mResult.AssertExpectations(t)
 }
 
+func TestGetQueryError(t *testing.T) {
+	mDbHandler := &mockDbHandler{}
+	mResult := &mockResult{}
+	lastSyncRepo := &lastSyncRepo{
+		db:          mDbHandler,
+		defaultDate: time.Time{},
+	}
+
+	mDbHandler.On("Query", mock.AnythingOfType("string"),
+		mock.AnythingOfType("[]interface {}")).Return(mResult, fmt.Errorf("err"))
+
+	expected := []string{}
+	result, err := lastSyncRepo.Get()
+	assert.Error(t, err)
+	assert.Equal(t, expected, result)
+	mDbHandler.AssertExpectations(t)
+	mResult.AssertExpectations(t)
+}
+
 func TestReset(t *testing.T) {
 	mDbHandler := &mockDbHandler{}
 	mResult := &mockResult{}

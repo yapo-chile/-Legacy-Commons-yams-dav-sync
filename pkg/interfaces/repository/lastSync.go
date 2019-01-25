@@ -71,7 +71,10 @@ func (repo *lastSyncRepo) Get() (marks []string, err error) {
 		SELECT last_sync_date
 		FROM last_sync
 		ORDER BY last_sync_id DESC`)
-	defer result.Close() // nolint
+	if err != nil {
+		return []string{}, err
+	}
+	defer result.Close()
 	for result.Next() {
 		var temp string
 		err := result.Scan(&temp)
