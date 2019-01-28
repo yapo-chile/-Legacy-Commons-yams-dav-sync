@@ -31,20 +31,20 @@ func (handler *PgsqlHandler) Close() error {
 }
 
 // Insert implements the incorporation of new data into an specific table of DB
-func (handler *PgsqlHandler) Insert(statement string) error {
-	_, err := handler.Conn.Exec(statement)
+func (handler *PgsqlHandler) Insert(statement string, params ...interface{}) error {
+	_, err := handler.Conn.Exec(statement, params...)
 	return err
 }
 
 // Update implements the actualization of a register from an specific table of DB
-func (handler *PgsqlHandler) Update(statement string) error {
-	_, err := handler.Conn.Exec(statement)
+func (handler *PgsqlHandler) Update(statement string, params ...interface{}) error {
+	_, err := handler.Conn.Exec(statement, params...)
 	return err
 }
 
 // Query send statement to db returning rows
-func (handler *PgsqlHandler) Query(statement string) (repository.DbResult, error) {
-	rows, err := handler.Conn.Query(statement)
+func (handler *PgsqlHandler) Query(statement string, params ...interface{}) (repository.DbResult, error) {
+	rows, err := handler.Conn.Query(statement, params...)
 	if err != nil {
 		handler.Logger.Error("Query error: %+v", err)
 		return new(PgsqlRow), err

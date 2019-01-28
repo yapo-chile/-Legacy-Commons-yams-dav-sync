@@ -4,7 +4,14 @@ Script to upload images from yapo's DAV server to yams.
 
 ##### Requirements
 - PostgresDB [9.0 >]
-- The maximum number of open files / rile rescriptors > 5000 (availables)
+- The maximum number of open files / file descriptors:
+
+```
+ > 5000  - availables for sync process
+ > 10000 - availables for deleteall process
+ ```
+
+ In accord to your requirement use:
 ```
  ulimit -n 
  
@@ -53,6 +60,8 @@ export IMAGES_PATH=/images/uploads/
 
 - `make list` to list the images in yams bucket
 - `make deleteall` to delete everything stored in yams bucket
+- `make markslist` to get a list with all synchronization mark ordered by newer to older
+- `make reset` deletes the last synchronization mark
 
 - `make sync&` to execute sync process in detached mode
 - `make deleteall&` to delete everything stored in yams bucket in detached mode

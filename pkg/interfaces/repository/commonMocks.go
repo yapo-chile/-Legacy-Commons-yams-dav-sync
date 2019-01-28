@@ -100,18 +100,18 @@ func (m *mockDbHandler) Close() error {
 	return args.Error(0)
 }
 
-func (m *mockDbHandler) Query(statement string) (DbResult, error) {
-	args := m.Called(statement)
+func (m *mockDbHandler) Query(statement string, params ...interface{}) (DbResult, error) {
+	args := m.Called(statement, params)
 	return args.Get(0).(DbResult), args.Error(1)
 }
 
-func (m *mockDbHandler) Insert(statement string) error {
-	args := m.Called(statement)
+func (m *mockDbHandler) Insert(statement string, params ...interface{}) error {
+	args := m.Called(statement, params)
 	return args.Error(0)
 }
 
-func (m *mockDbHandler) Update(statement string) error {
-	args := m.Called(statement)
+func (m *mockDbHandler) Update(statement string, params ...interface{}) error {
+	args := m.Called(statement, params)
 	return args.Error(0)
 }
 

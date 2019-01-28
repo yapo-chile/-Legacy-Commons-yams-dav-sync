@@ -44,7 +44,6 @@ runlist:
 rundeleteall:
 	@./${APPNAME}_${OS}_${GOARCH}  -command=deleteAll -threads=$(YAMS_MAX_CONCURRENT_CONN)  -limit=$(YAMS_DELETING_LIMIT)
 
-
 # Build bandwidth proxy limit script
 buildbandwidthlimiter:
 	@scripts/commands/build_bandwidth_proxy.sh
@@ -70,6 +69,18 @@ list:
 ## deleteall deletes everything stored in yams bucket
 deleteall:
 	bash -c "trap 'trap - SIGINT SIGTERM ERR;${MAKE} killbandwidthlimiter; exit 1' SIGINT SIGTERM ERR;${MAKE} trapped-deleteall"
+
+## reset resets to the last synchronization mark
+reset: build runreset
+
+## markslist gets lastest synchronization marks
+markslist: build runmarkslist
+
+runreset:
+	@./${APPNAME}_${OS}_${GOARCH}  -command=reset
+
+runmarkslist:
+	@./${APPNAME}_${OS}_${GOARCH}  -command=marks
 
 # Execution in detached mode
 ## sync& starts dav-yams synchronization in detached mode

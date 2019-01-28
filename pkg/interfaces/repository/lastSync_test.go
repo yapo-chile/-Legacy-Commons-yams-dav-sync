@@ -27,7 +27,7 @@ func TestGetLastSynchronizationMark(t *testing.T) {
 		defaultDate: time.Time{},
 	}
 
-	mDbHandler.On("Query", mock.AnythingOfType("string")).Return(mResult, nil)
+	mDbHandler.On("Query", mock.AnythingOfType("string"), []interface{}(nil)).Return(mResult, nil)
 	mResult.On("Close").Return(nil)
 	mResult.On("Next").Return(true).Once()
 
@@ -51,7 +51,7 @@ func TestGetLastSynchronizationMarkErrQuery(t *testing.T) {
 		defaultDate: date,
 	}
 
-	mDbHandler.On("Query", mock.AnythingOfType("string")).Return(mResult, fmt.Errorf("err"))
+	mDbHandler.On("Query", mock.AnythingOfType("string"), []interface{}(nil)).Return(mResult, fmt.Errorf("err"))
 	mResult.On("Close").Return(nil)
 
 	expected := lastSyncRepo.defaultDate
@@ -72,7 +72,8 @@ func TestGetLastSynchronizationMarkErrScan(t *testing.T) {
 		defaultDate: date,
 	}
 
-	mDbHandler.On("Query", mock.AnythingOfType("string")).Return(mResult, nil)
+	mDbHandler.On("Query", mock.AnythingOfType("string"),
+		mock.AnythingOfType("[]interface {}")).Return(mResult, nil)
 	mResult.On("Close").Return(nil)
 	mResult.On("Next").Return(true).Once()
 
@@ -92,10 +93,95 @@ func TestSetLastSynchronizationMark(t *testing.T) {
 		db: mDbHandler,
 	}
 
-	mDbHandler.On("Insert", mock.AnythingOfType("string")).Return(nil)
+	mDbHandler.On("Insert", mock.AnythingOfType("string"),
+		mock.AnythingOfType("[]interface {}")).Return(nil)
 
 	err := lastSyncRepo.SetLastSynchronizationMark(time.Now())
 
 	assert.NoError(t, err)
 	mDbHandler.AssertExpectations(t)
+}
+
+func TestGet(t *testing.T) {
+	mDbHandler := &mockDbHandler{}
+	mResult := &mockResult{}
+	lastSyncRepo := &lastSyncRepo{
+		db:          mDbHandler,
+		defaultDate: time.Time{},
+	}
+
+	mDbHandler.On("Query", mock.AnythingOfType("string"),
+		mock.AnythingOfType("[]interface {}")).Return(mResult, nil)
+	mResult.On("Close").Return(nil)
+	mResult.On("Next").Return(true).Once()
+	mResult.On("Next").Return(false).Once()
+
+	mResult.On("Scan", mock.AnythingOfType("string")).Return(nil)
+
+	expected := []string{""}
+	result, err := lastSyncRepo.Get()
+	assert.NoError(t, err)
+	assert.Equal(t, expected, result)
+	mDbHandler.AssertExpectations(t)
+	mResult.AssertExpectations(t)
+}
+
+func TestGetError(t *testing.T) {
+	mDbHandler := &mockDbHandler{}
+	mResult := &mockResult{}
+	lastSyncRepo := &lastSyncRepo{
+		db:          mDbHandler,
+		defaultDate: time.Time{},
+	}
+
+	mDbHandler.On("Query", mock.AnythingOfType("string"),
+		mock.AnythingOfType("[]interface {}")).Return(mResult, nil)
+	mResult.On("Close").Return(nil)
+	mResult.On("Next").Return(true).Once()
+
+	mResult.On("Scan", mock.AnythingOfType("string")).Return(fmt.Errorf("err"))
+
+	expected := []string{}
+	result, err := lastSyncRepo.Get()
+	assert.Error(t, err)
+	assert.Equal(t, expected, result)
+	mDbHandler.AssertExpectations(t)
+	mResult.AssertExpectations(t)
+}
+
+func TestGetQueryError(t *testing.T) {
+	mDbHandler := &mockDbHandler{}
+	mResult := &mockResult{}
+	lastSyncRepo := &lastSyncRepo{
+		db:          mDbHandler,
+		defaultDate: time.Time{},
+	}
+
+	mDbHandler.On("Query", mock.AnythingOfType("string"),
+		mock.AnythingOfType("[]interface {}")).Return(mResult, fmt.Errorf("err"))
+
+	expected := []string{}
+	result, err := lastSyncRepo.Get()
+	assert.Error(t, err)
+	assert.Equal(t, expected, result)
+	mDbHandler.AssertExpectations(t)
+	mResult.AssertExpectations(t)
+}
+
+func TestReset(t *testing.T) {
+	mDbHandler := &mockDbHandler{}
+	mResult := &mockResult{}
+	lastSyncRepo := &lastSyncRepo{
+		db:          mDbHandler,
+		defaultDate: time.Time{},
+	}
+
+	mDbHandler.On("Query", mock.AnythingOfType("string"),
+		mock.AnythingOfType("[]interface {}")).Return(mResult, nil)
+	mResult.On("Close").Return(nil)
+
+	err := lastSyncRepo.Reset()
+	assert.NoError(t, err)
+	mDbHandler.AssertExpectations(t)
+	mResult.AssertExpectations(t)
 }

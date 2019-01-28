@@ -195,6 +195,8 @@ func (repo *YamsRepository) Send(image domain.Image) (checksum string, e *usecas
 	switch resp.Code {
 	case 400: // Bad Request
 		return "", usecases.ErrYamsInternal
+	case 401:
+		fallthrough
 	case 403:
 		return "", usecases.ErrYamsUnauthorized
 	case 404:
@@ -274,6 +276,8 @@ func (repo *YamsRepository) RemoteDelete(imageName string, immediateRemoval bool
 		return nil
 	case 400: // Bad Request
 		return usecases.ErrYamsInternal
+	case 401:
+		fallthrough
 	case 403:
 		return usecases.ErrYamsUnauthorized
 	case 404:
@@ -336,6 +340,10 @@ func (repo *YamsRepository) GetRemoteChecksum(imageName string) (string, *usecas
 	switch resp.Code {
 	case 200: // Headers are set and returned
 		return hashResponse, nil
+	case 401:
+		fallthrough
+	case 403:
+		return hashResponse, usecases.ErrYamsUnauthorized
 	case 404:
 		return hashResponse, usecases.ErrYamsObjectNotFound
 	case 500: // Server error
@@ -406,6 +414,10 @@ func (repo *YamsRepository) List(continuationToken string, step int) (
 	switch resp.Code {
 	case 200: // Headers are set and returned
 		return response.Images, response.ContinuationToken, nil
+	case 401:
+		fallthrough
+	case 403:
+		return nil, "", usecases.ErrYamsUnauthorized
 	case 404:
 		return nil, "", usecases.ErrYamsObjectNotFound
 	case 500: // Server error

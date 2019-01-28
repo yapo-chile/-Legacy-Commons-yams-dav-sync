@@ -27,7 +27,7 @@ func elapsed(process string) func() {
 	}
 }
 
-func main() {
+func main() { // nolint: gocyclo
 	defer elapsed("exec")()
 
 	shutdownSequence := infrastructure.NewShutdownSequence()
@@ -163,10 +163,9 @@ func main() {
 	shutdownSequence.Push(cliYams)
 
 	maxErrorTolerance := conf.ErrorControl.MaxRetriesPerError
-
-	switch *opt {
-	case "sync":
-		go func() {
+	go func() {
+		switch *opt {
+		case "sync":
 			if *dumpFile != "" && threads > 0 {
 				if e := cliYams.Sync(threads, limit, maxErrorTolerance, *dumpFile); e != nil {
 					logger.Error("Error with synchornization: %+v", e)
@@ -174,19 +173,13 @@ func main() {
 			} else {
 				logger.Error("make start command=sync threads=[number] limit=[limit] dump-file=[path]")
 			}
-			shutdownSequence.Done()
-		}()
 
-	case "list":
-		go func() {
+		case "list":
 			if e := cliYams.List(limit); e != nil {
 				logger.Error("Error listing: %+v", e)
 			}
-			shutdownSequence.Done()
-		}()
 
-	case "deleteAll":
-		go func() {
+		case "deleteAll":
 			if threads > 0 {
 				if e := cliYams.DeleteAll(threads, limit); e != nil {
 					logger.Error("Error deleting: %+v ", e)
@@ -194,21 +187,28 @@ func main() {
 			} else {
 				logger.Error("make start command=deleteAll threads=[number]")
 			}
-			shutdownSequence.Done()
-		}()
 
-	case "delete":
-		go func() {
+		case "delete":
 			if e := cliYams.Delete(*object); e != nil {
 				logger.Error("Error deleting: %+v", e)
 			}
-			shutdownSequence.Done()
-		}()
 
-	default:
-		logger.Error("Make start command=[commmand]\nCommand list:\n- sync \n- list\n- deleteAll\n")
+		case "reset":
+			if e := cliYams.Reset(); e != nil {
+				logger.Error("Error reseting: %+v", e)
+			}
+
+		case "marks":
+			if e := cliYams.GetMarks(); e != nil {
+				logger.Error("Error getting sync marks: %+v", e)
+			}
+
+		default:
+			logger.Error("Make start command=[commmand]\nCommand list:\n- sync \n- list\n- deleteAll\n")
+		}
 		shutdownSequence.Done()
-	}
+	}()
+
 	shutdownSequence.Wait()
 }
 
