@@ -22,7 +22,7 @@ mkdir -p ./output/${APPNAME}/third-party/ && cp -r ./third-party/* ./output/${AP
 mkdir -p ./output/${APPNAME}/migrations/ && cp -r ./migrations/* ./output/${APPNAME}/migrations/
 cp ./README.md ./output/${APPNAME}/
 cp ./*.rsa ./output/${APPNAME}/
-sed "s/ build buildbandwidthlimiter/buildbandwidthlimiter/g" Makefile > ./output/${APPNAME}/Makefile
+sed "s/build buildbandwidthlimiter/buildbandwidthlimiter/g;s/build run/run/g" Makefile > ./output/${APPNAME}/Makefile
 
 echoTitle "Compressing"
 
