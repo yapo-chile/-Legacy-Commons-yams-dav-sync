@@ -26,11 +26,11 @@ export LOGGER_STDLOG_ENABLED=true
 export LOGGER_LOG_LEVEL=3
 
 #DATABASE variables
-export DATABASE_NAME=postgres
+export DATABASE_NAME=
 export DATABASE_HOST=localhost
 export DATABASE_PORT=5432
-export DATABASE_USER=pgdb
-export DATABASE_PASSWORD=postgres
+export DATABASE_USER=
+export DATABASE_PASSWORD=
 export DATABASE_SSL_MODE=disable
 export DATABASE_MAX_IDLE=10
 export DATABASE_MAX_OPEN=100
@@ -50,7 +50,7 @@ export YAMS_TENTAND_ID=f502a79d-9ec7-4778-a580-205223e4d620
 export YAMS_DOMAIN_ID=d2b88e84-d868-43b2-af96-456464ba9f5f
 export YAMS_BUCKET_ID=8c2ab775-a9a5-48fb-966f-b1a1b154af13
 export YAMS_ACCESS_KEY_ID=b73145eec0bd48a2
-export YAMS_PRIVATE_KEY=${PWD}/writer-dev.rsa# Your RSA key filepath
+export YAMS_PRIVATE_KEY=${PWD}/private-key.rsa# Your RSA key filepath
 export YAMS_IMAGES_LIST_FILE:=dump_images_list.yams# Temp file used to list images to upload
 export YAMS_UPLOAD_LIMIT=0
 export YAMS_MAX_CONCURRENT_CONN=100# Threads qty used to upload images
@@ -66,7 +66,7 @@ export CIRCUIT_BREAKER_TIMEOUT=10
 export CIRCUIT_BREAKER_INTERVAL=5
 
 # Bandwidth proxy limiter variables
-export BANDWIDTH_PROXY_LIMIT=20000# kbps
+export BANDWIDTH_PROXY_LIMIT=25000# kbps
 export BANDWIDTH_PROXY_HOST=localhost:9999
 export BANDWIDTH_PROXY_CONN_TYPE=tcp
 export BANDWIDTH_PROXY_LATENCY=0
