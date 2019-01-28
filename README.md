@@ -21,7 +21,7 @@ Script to upload images from yapo's DAV server to yams.
 ##### how to use
 
  - Clone the repository
- - Get your .rsa key and set the location ajusting the config in `./scripts/commands/vars.mk`
+ - Get your rsa key and include that in `./private-key.rsa`
  - Use `./scripts/commands/vars.mk` to configurate the following params:
 
 ```
