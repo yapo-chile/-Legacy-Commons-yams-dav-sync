@@ -357,22 +357,27 @@ func (cli *CLIYams) sendWorker(id int, jobs <-chan domain.Image, wg *sync.WaitGr
 	defer wg.Done()
 	yamsNilResponse := (*usecases.YamsRepositoryError)(nil)
 	for image := range jobs {
+		// get images in progress & add new in progress image
 		inProgress := <-cli.inProgressSlice
 		inProgress = append(inProgress, image)
 		cli.inProgressSlice <- inProgress
+
+		// send new image to Image Service
 		remoteChecksum, err := cli.imageService.Send(image)
 		cli.sendErrorControl(image, previousUploadFailed, remoteChecksum, err)
+
+		// remove sent image of inProgress list
+		inProgress = <-cli.inProgressSlice
+		for i, imageInProgress := range inProgress {
+			if imageInProgress == image {
+				inProgress[i] = inProgress[len(inProgress)-1]
+				inProgress = inProgress[:len(inProgress)-1]
+			}
+		}
+		cli.inProgressSlice <- inProgress
+
 		// Update latest sync mark only if yams returns no error
 		if err == yamsNilResponse || err == nil || err == usecases.ErrYamsDuplicate {
-			inProgress := <-cli.inProgressSlice
-			// remove sent image of inProgressSlice
-			for i, imageInProgress := range inProgress {
-				if imageInProgress == image {
-					inProgress[i] = inProgress[len(inProgress)-1]
-					inProgress = inProgress[:len(inProgress)-1]
-				}
-			}
-			cli.inProgressSlice <- inProgress
 			date := <-cli.lastSyncDate
 			if image.Metadata.ModTime.After(date) {
 				date = image.Metadata.ModTime
