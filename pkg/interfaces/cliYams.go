@@ -11,17 +11,18 @@ import (
 
 // CLIYams is a yams client that executes operation on yams repository
 type CLIYams struct {
-	imageService ImageService
-	errorControl ErrorControl
-	lastSync     LastSync
-	localImage   LocalImage
-	logger       CLIYamsLogger
-	dateLayout   string
-	lastSyncDate chan time.Time
-	stats        Stats
-	quit         chan bool
-	isSync       bool
-	isDelete     bool
+	imageService         ImageService
+	errorControl         ErrorControl
+	lastSync             LastSync
+	localImage           LocalImage
+	logger               CLIYamsLogger
+	dateLayout           string
+	lastSyncDate         chan time.Time
+	inProgressTimestamps chan []time.Time
+	stats                Stats
+	quit                 chan bool
+	isSync               bool
+	isDelete             bool
 }
 
 // NewCLIYams creates a new instance of CLIYams
@@ -30,20 +31,22 @@ func NewCLIYams(imageService ImageService, errorControl ErrorControl, lastSync L
 
 	lastSyncDate := make(chan time.Time, 1)
 	lastSyncDate <- defaultLastSyncDate
-
 	quit := make(chan bool, 1)
 	quit <- false
+	inProgressTimestamps := make(chan []time.Time, 1)
+	inProgressTimestamps <- []time.Time{}
 
 	return &CLIYams{
-		imageService: imageService,
-		errorControl: errorControl,
-		lastSync:     lastSync,
-		localImage:   localImage,
-		logger:       logger,
-		dateLayout:   dateLayout,
-		lastSyncDate: lastSyncDate,
-		quit:         quit,
-		stats:        stats,
+		imageService:         imageService,
+		errorControl:         errorControl,
+		lastSync:             lastSync,
+		localImage:           localImage,
+		logger:               logger,
+		dateLayout:           dateLayout,
+		lastSyncDate:         lastSyncDate,
+		inProgressTimestamps: inProgressTimestamps,
+		quit:                 quit,
+		stats:                stats,
 	}
 }
 
@@ -313,7 +316,7 @@ func (cli *CLIYams) DeleteAll(threads, limit int) (err error) {
 
 	// While images Service has images, delete all of them
 	for {
-		list, continuationToken, err = cli.imageService.List(continuationToken, threads)
+		list, continuationToken, err = cli.imageService.List(continuationToken, 0)
 		if err != yamsErrNil {
 			if err == usecases.ErrYamsInternal {
 				continuationToken = backupToken
@@ -354,15 +357,33 @@ func (cli *CLIYams) sendWorker(id int, jobs <-chan domain.Image, wg *sync.WaitGr
 	defer wg.Done()
 	yamsNilResponse := (*usecases.YamsRepositoryError)(nil)
 	for image := range jobs {
+		// get images in progress & add new in progress image
+		inProgress := <-cli.inProgressTimestamps
+		inProgress = append(inProgress, image.Metadata.ModTime)
+		cli.inProgressTimestamps <- inProgress
+
+		// send new image to Image Service
 		remoteChecksum, err := cli.imageService.Send(image)
 		cli.sendErrorControl(image, previousUploadFailed, remoteChecksum, err)
-		// Update latest sync mark only if yams returns no error
-		if err == yamsNilResponse || err == nil || err == usecases.ErrYamsDuplicate {
-			date := <-cli.lastSyncDate
-			if image.Metadata.ModTime.After(date) {
-				date = image.Metadata.ModTime
+		if previousUploadFailed != domain.SWRetry {
+			// remove sent timestamp image of inProgress list
+			inProgress = <-cli.inProgressTimestamps
+			for i, timeInProgress := range inProgress {
+				if timeInProgress.Equal(image.Metadata.ModTime) {
+					inProgress[i] = inProgress[len(inProgress)-1]
+					inProgress = inProgress[:len(inProgress)-1]
+				}
 			}
-			cli.lastSyncDate <- date
+			cli.inProgressTimestamps <- inProgress
+
+			// Update latest sync mark only if yams returns no error
+			if err == yamsNilResponse || err == nil || err == usecases.ErrYamsDuplicate {
+				date := <-cli.lastSyncDate
+				if image.Metadata.ModTime.After(date) {
+					date = image.Metadata.ModTime
+				}
+				cli.lastSyncDate <- date
+			}
 		}
 		// determine if the worker should finish
 		if quit, ok := <-cli.quit; ok {
@@ -472,6 +493,14 @@ func (cli *CLIYams) Close() (err error) {
 			condition = newMark.Before(oldMark)
 		}
 		if condition {
+			inProgress := <-cli.inProgressTimestamps
+			// Search if images in progress have an older date mark
+			for _, timestamp := range inProgress {
+				if timestamp.Before(newMark) {
+					newMark = timestamp
+				}
+			}
+			cli.inProgressTimestamps <- inProgress
 			err = cli.lastSync.SetLastSynchronizationMark(newMark)
 			if err != nil {
 				cli.logger.LogErrorSettingSyncMark(newMark, err)
@@ -504,6 +533,7 @@ func (cli *CLIYams) showStats() {
 		cli.logger.LogStats(timer, &cli.stats)
 		cli.stats.Close() // nolint
 		close(cli.quit)
+		close(cli.inProgressTimestamps)
 		ticker.Stop()
 	}()
 }

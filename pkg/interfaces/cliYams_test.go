@@ -765,7 +765,12 @@ func TestCloseSync(t *testing.T) {
 	cli := NewCLIYams(nil, nil, mLastSync, nil, mLogger, time.Now(), NewStats(mMetricsExposer), layout)
 	quit := <-cli.quit
 	cli.quit <- !quit
-
+	inProgress := <-cli.inProgressTimestamps
+	inProgress = append(
+		inProgress,
+		time.Time{}, // Very old date
+	)
+	cli.inProgressTimestamps <- inProgress
 	mLastSync.On("GetLastSynchronizationMark").Return(time.Now().Add(-2 * time.Hour))
 
 	mLastSync.On("SetLastSynchronizationMark", mock.AnythingOfType("time.Time")).
