@@ -483,8 +483,8 @@ func (cli *CLIYams) GetMarks() error {
 // Close closes cliYams execution
 func (cli *CLIYams) Close() (err error) {
 	if cli.isSync || cli.isDelete {
-		close(cli.lastSyncDate)
 		newMark := <-cli.lastSyncDate
+		cli.lastSyncDate <- newMark
 		oldMark := cli.lastSync.GetLastSynchronizationMark()
 		var condition bool
 		if cli.isSync {
@@ -534,6 +534,7 @@ func (cli *CLIYams) showStats() {
 		cli.stats.Close() // nolint
 		close(cli.quit)
 		close(cli.inProgressTimestamps)
+		close(cli.lastSyncDate)
 		ticker.Stop()
 	}()
 }
