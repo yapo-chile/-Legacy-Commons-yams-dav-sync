@@ -368,10 +368,10 @@ func (cli *CLIYams) sendWorker(id int, jobs <-chan domain.Image, wg *sync.WaitGr
 		if previousUploadFailed != domain.SWRetry {
 			// remove sent timestamp image of inProgress list
 			inProgress = <-cli.inProgressTimestamps
-			for i, timeInProgress := range inProgress {
-				if timeInProgress.Equal(image.Metadata.ModTime) {
-					inProgress[i] = inProgress[len(inProgress)-1]
-					inProgress = inProgress[:len(inProgress)-1]
+			for i := 0; i < len(inProgress); i++ {
+				if inProgress[i].Equal(image.Metadata.ModTime) {
+					inProgress = append(inProgress[:i], inProgress[i+1:]...)
+					i--
 				}
 			}
 			cli.inProgressTimestamps <- inProgress
