@@ -780,6 +780,17 @@ func TestCloseSync(t *testing.T) {
 		mock.AnythingOfType("*errors.errorString"))
 	cli.isSync = true
 	err := cli.Close()
+
+	isClosed := func(ch <-chan time.Time) bool { // check if a chan time.Time is closed
+		select {
+		case <-ch:
+			return true
+		default:
+		}
+		return false
+	}
+
+	assert.True(t, isClosed(cli.lastSyncDate))
 	assert.Error(t, err)
 	mLogger.AssertExpectations(t)
 	mLastSync.AssertExpectations(t)
