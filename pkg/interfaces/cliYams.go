@@ -134,25 +134,35 @@ func (cli *CLIYams) retryPreviousFailedUploads(threads, maxErrorTolerance int, l
 	if threads > maxConcurrency {
 		threads = maxConcurrency
 	}
+	// Prepare the jobs using concurrency
 	jobs := make(chan domain.Image)
 	var waitGroup sync.WaitGroup
 	for w := 0; w < threads; w++ {
 		waitGroup.Add(1)
-		go cli.sendWorker(w, jobs, &waitGroup, domain.SWRetry)
+		go cli.retrySendWorker(w, jobs, &waitGroup)
 	}
+	// Get how many pages of failed uploads are in DB
 	nPages := cli.errorControl.GetErrorsPagesQty(maxErrorTolerance)
 	for pagination := 1; pagination <= nPages; pagination++ {
+		// Get a list of failed uploads
 		result, err := cli.errorControl.GetPreviousErrors(pagination, maxErrorTolerance)
 		if err != nil {
 			continue
 		}
+		// For each image in the list of failed uplaods
 		for _, imagePath := range result {
+			cli.stats.Processed <- inc(<-cli.stats.Processed)
+			cli.stats.exposer.IncrementCounter(domain.ProcessedImages)
 			image, err := cli.localImage.GetLocalImage(imagePath)
 			if err != nil {
+				cli.stats.NotFound <- inc(<-cli.stats.NotFound)
+				cli.stats.exposer.IncrementCounter(domain.NotFoundImages)
 				continue
 			}
 
 			imageDate := removeTimezoneDiff(image.Metadata.ModTime)
+			// If the failed image is after of the last sync mark, remove the error mark
+			// because this image will be uploaded when the sync process starts
 			if imageDate.Equal(latestSynchronizedImageDate) ||
 				imageDate.After(latestSynchronizedImageDate) {
 				cli.stats.Recovered <- inc(<-cli.stats.Recovered)
@@ -162,6 +172,7 @@ func (cli *CLIYams) retryPreviousFailedUploads(threads, maxErrorTolerance int, l
 				}
 				continue
 			}
+			// Concurrent upload to imageService
 			jobs <- image
 		}
 	}
@@ -170,7 +181,7 @@ func (cli *CLIYams) retryPreviousFailedUploads(threads, maxErrorTolerance int, l
 	waitGroup.Wait()
 }
 
-// Sync synchronizes images between local repository and yams repository
+// Sync synchronizes images between local repository and image service repository
 // using go concurrency
 func (cli *CLIYams) Sync(threads, syncLimit, maxErrorTolerance int, imagesDumpYamsPath string) error {
 	cli.isSync = true
@@ -181,12 +192,14 @@ func (cli *CLIYams) Sync(threads, syncLimit, maxErrorTolerance int, imagesDumpYa
 	cli.showStats()
 	cli.logger.LogRetryPreviousFailedUploads()
 
-	// prepare to upload using concurrent workers
 	latestSynchronizedImageDate := cli.lastSync.GetLastSynchronizationMark()
 	<-cli.lastSyncDate
 	cli.lastSyncDate <- latestSynchronizedImageDate
 
+	// Retry failed uploads in previous synchronization process
 	cli.retryPreviousFailedUploads(threads, maxErrorTolerance, latestSynchronizedImageDate)
+
+	// prepare to upload using concurrent workers
 	jobs := make(chan domain.Image)
 	var waitGroup sync.WaitGroup
 	for w := 0; w < threads; w++ {
@@ -236,11 +249,19 @@ func (cli *CLIYams) Sync(threads, syncLimit, maxErrorTolerance int, imagesDumpYa
 	waitGroup.Wait()
 
 	// If scanner stopped because error
-	return scanner.Err()
+	if e := scanner.Err(); e != nil {
+		return e
+	}
+
+	// When the process is done, retry failed uploads using the new latestSynchronizedImageDate
+	latestSynchronizedImageDate = <-cli.lastSyncDate
+	cli.lastSyncDate <- latestSynchronizedImageDate
+	cli.retryPreviousFailedUploads(threads, maxErrorTolerance, latestSynchronizedImageDate)
+	return nil
 }
 
 // validateTuple validates a given tuple string is format []string{dateStr,path}
-// and the date after or before of a given date
+// and the date after or equal of a given date
 func validateTuple(tuple []string, date time.Time, dateLayout string) bool {
 	if len(tuple) != 2 {
 		return false
@@ -360,31 +381,46 @@ func (cli *CLIYams) sendWorker(id int, jobs <-chan domain.Image, wg *sync.WaitGr
 		// get images in progress & add new in progress image
 		inProgress := <-cli.inProgressTimestamps
 		inProgress = append(inProgress, image.Metadata.ModTime)
+
 		cli.inProgressTimestamps <- inProgress
 
 		// send new image to Image Service
 		remoteChecksum, err := cli.imageService.Send(image)
 		cli.sendErrorControl(image, previousUploadFailed, remoteChecksum, err)
-		if previousUploadFailed != domain.SWRetry {
-			// remove sent timestamp image of inProgress list
-			inProgress = <-cli.inProgressTimestamps
-			for i := 0; i < len(inProgress); i++ {
-				if inProgress[i].Equal(image.Metadata.ModTime) {
-					inProgress = append(inProgress[:i], inProgress[i+1:]...)
-					i--
-				}
-			}
-			cli.inProgressTimestamps <- inProgress
 
-			// Update latest sync mark only if yams returns no error
-			if err == yamsNilResponse || err == nil || err == usecases.ErrYamsDuplicate {
-				date := <-cli.lastSyncDate
-				if image.Metadata.ModTime.After(date) {
-					date = image.Metadata.ModTime
-				}
-				cli.lastSyncDate <- date
+		// remove sent timestamp image of inProgress list
+		inProgress = <-cli.inProgressTimestamps
+		inProgress = removeElement(image.Metadata.ModTime, inProgress)
+		cli.inProgressTimestamps <- inProgress
+
+		// Update latest sync mark only if yams returns no error
+		if err == yamsNilResponse || err == usecases.ErrYamsDuplicate || err == nil {
+			date := <-cli.lastSyncDate
+			if image.Metadata.ModTime.After(date) {
+				date = image.Metadata.ModTime
 			}
+			cli.lastSyncDate <- date
 		}
+
+		// determine if the worker should finish
+		if quit, ok := <-cli.quit; ok {
+			cli.quit <- quit
+			if quit {
+				return
+			}
+		} else {
+			return
+		}
+	}
+}
+
+// retrySendWorker retry to send failed uploads to yams repository
+func (cli *CLIYams) retrySendWorker(id int, jobs <-chan domain.Image, wg *sync.WaitGroup) {
+	defer wg.Done()
+	for image := range jobs {
+		// Retry to upload image to Image Service
+		remoteChecksum, err := cli.imageService.Send(image)
+		cli.sendErrorControl(image, domain.SWRetry, remoteChecksum, err)
 		// determine if the worker should finish
 		if quit, ok := <-cli.quit; ok {
 			cli.quit <- quit
@@ -410,7 +446,8 @@ func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed in
 			if e := cli.errorControl.CleanErrorMarks(imageName); e != nil {
 				cli.logger.LogErrorCleaningMarks(imageName, e)
 			}
-			return
+			cli.stats.Recovered <- inc(<-cli.stats.Recovered)
+			cli.stats.exposer.IncrementCounter(domain.RecoveredImages)
 		}
 		cli.stats.Sent <- inc(<-cli.stats.Sent)
 		cli.stats.exposer.IncrementCounter(domain.SentImages)
@@ -546,4 +583,15 @@ func removeTimezoneDiff(imageDate time.Time) time.Time {
 		UTC().
 		Add(time.Duration(float64(diff)) * time.Second).
 		Truncate(time.Second)
+}
+
+// removeElement removes a given element from slice
+func removeElement(element time.Time, slice []time.Time) []time.Time {
+	for i := 0; i < len(slice); i++ {
+		if slice[i].Equal(element) {
+			slice = append(slice[:i], slice[i+1:]...)
+			i--
+		}
+	}
+	return slice
 }
