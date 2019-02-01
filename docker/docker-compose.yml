@@ -7,8 +7,16 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
     stdin_open: true
+    volumes:
+    - /srv/yams-dav-sync:/data
     tty: true
     ports:
     - 7722:5432/tcp
+    command:
+    - postgres
+    - -c
+    - shared_buffers=256MB
+    - -c
+    - max_connections=300
     labels:
       io.rancher.container.pull_image: always
