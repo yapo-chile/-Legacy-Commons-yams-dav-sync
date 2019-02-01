@@ -962,6 +962,7 @@ func TestRetrySendWorker(t *testing.T) {
 	mImageService.AssertExpectations(t)
 	mMetricsExposer.AssertExpectations(t)
 	mErrorControl.AssertExpectations(t)
+	mLastSync.AssertExpectations(t)
 }
 
 func TestRetryOnClosedChann(t *testing.T) {
@@ -1001,6 +1002,7 @@ func TestRetryOnClosedChann(t *testing.T) {
 	mImageService.AssertExpectations(t)
 	mMetricsExposer.AssertExpectations(t)
 	mErrorControl.AssertExpectations(t)
+	mLastSync.AssertExpectations(t)
 }
 
 func TestSendWorkerWithClosedChannel(t *testing.T) {
