@@ -454,8 +454,8 @@ func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed in
 		return
 	case usecases.ErrYamsDuplicate:
 		cli.stats.Duplicated <- inc(<-cli.stats.Duplicated)
-		cli.stats.exposer.IncrementCounter(domain.DuplicatedImages)
 		if remoteChecksum != localImageChecksum {
+			cli.stats.exposer.IncrementCounter(domain.ConflictiveImageName)
 			if e := cli.imageService.RemoteDelete(imageName, domain.YAMSForceRemoval); e != yamsErrNil {
 				cli.logger.LogErrorRemoteDelete(imageName, e)
 				// recursive increase error counter
@@ -467,6 +467,7 @@ func (cli *CLIYams) sendErrorControl(image domain.Image, previousUploadFailed in
 				cli.logger.LogErrorResetingErrorCounter(imageName, e)
 			}
 		} else {
+			cli.stats.exposer.IncrementCounter(domain.DuplicatedImages)
 			// recursive clean up marks with nil error in case of presviousUploadFailed true
 			cli.sendErrorControl(image, previousUploadFailed, remoteChecksum, nil)
 		}

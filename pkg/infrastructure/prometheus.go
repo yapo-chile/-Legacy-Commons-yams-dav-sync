@@ -36,6 +36,8 @@ type Prometheus struct {
 	failedUploads prometheus.Counter
 	// duplicatedImages counter of images already uploaded to yams
 	duplicatedImages prometheus.Counter
+	// conflictiveImageName counter of images with conflictive name
+	conflictiveImageName prometheus.Counter
 	// recoveredImages counter of previous failed uploads and recovered in this
 	// script execution
 	recoveredImages prometheus.Counter
@@ -122,6 +124,12 @@ func NewPrometheusExporter(port string) interfaces.MetricsExposer {
 				Help: "Total of images already in yams bucket",
 			},
 		),
+		conflictiveImageName: prometheus.NewCounter(
+			prometheus.CounterOpts{
+				Name: "yams_conflictive_name_total",
+				Help: "Total of images with conflictive name in yams",
+			},
+		),
 		recoveredImages: prometheus.NewCounter(
 			prometheus.CounterOpts{
 				Name: "yams_recovered_images_total",
@@ -148,6 +156,7 @@ func NewPrometheusExporter(port string) interfaces.MetricsExposer {
 	prometheus.MustRegister(p.duplicatedImages)
 	prometheus.MustRegister(p.recoveredImages)
 	prometheus.MustRegister(p.totalImages)
+	prometheus.MustRegister(p.conflictiveImageName)
 
 	// start prometheus exposer server in /metrics endopoint
 	p.expose(port)
@@ -194,6 +203,8 @@ func (p *Prometheus) IncrementCounter(metric int) {
 		p.duplicatedImages.Inc()
 	case domain.RecoveredImages:
 		p.recoveredImages.Inc()
+	case domain.ConflictiveImageName:
+		p.conflictiveImageName.Inc()
 	}
 }
 
@@ -214,7 +225,6 @@ func (p *Prometheus) expose(port string) {
 			p.logger.Error("Prometheus: %s", err)
 		}
 	}()
-
 }
 
 // Close closes prometheus server
