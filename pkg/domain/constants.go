@@ -32,4 +32,6 @@ const (
 	RecoveredImages
 	// Total represents total images stat
 	TotalImages
+	// ConflictiveImageName represents images with conflictive name
+	ConflictiveImageName
 )
