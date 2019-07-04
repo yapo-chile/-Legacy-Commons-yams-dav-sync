@@ -10,9 +10,9 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces"
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/domain"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/interfaces"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/usecases"
 )
 
 type mockSigner struct {

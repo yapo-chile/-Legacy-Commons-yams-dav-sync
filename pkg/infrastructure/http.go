@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/loggers"
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/repository"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/interfaces/loggers"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/interfaces/repository"
 	"golang.org/x/net/proxy"
 )
 

@@ -5,9 +5,9 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces"
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/loggers"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/domain"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/interfaces"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/interfaces/loggers"
 )
 
 // Prometheus exposes application metrics, and profile runtime performance in

@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/domain"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/usecases"
 )
 
 type mockImageService struct {

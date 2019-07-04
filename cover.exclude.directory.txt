@@ -1,1 +1,1 @@
-github.schibsted.io/Yapo/yams-dav-sync/pkg/infrastructure
+github.mpi-internal.com/Yapo/yams-dav-sync/pkg/infrastructure

@@ -3,7 +3,7 @@ package repository
 import (
 	"time"
 
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/interfaces"
 )
 
 // lastSyncRepo repository to save current synchronization date mark

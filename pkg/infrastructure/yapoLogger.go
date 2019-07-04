@@ -2,7 +2,7 @@ package infrastructure
 
 import (
 	"github.com/Yapo/logger"
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/loggers"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/interfaces/loggers"
 )
 
 // yapoLogger struct that implements the Logger interface using the Yapo/logger library

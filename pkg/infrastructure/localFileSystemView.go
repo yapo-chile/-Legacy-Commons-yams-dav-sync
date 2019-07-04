@@ -5,10 +5,10 @@ import (
 	"io"
 	"os"
 
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces"
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/loggers"
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/repository"
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/interfaces"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/interfaces/loggers"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/interfaces/repository"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/usecases"
 )
 
 // LocalFileSystemView implements fileSystem using the local disk.

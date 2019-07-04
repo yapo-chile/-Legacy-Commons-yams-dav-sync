@@ -41,4 +41,4 @@ after_failure:
 
 notifications:
   webhooks:
-    - https://devhose.spt-engprod-pro.schibsted.io/devhose/travis
+    - https://devhose.spt-engprod-pro.mpi-internal.com/devhose/travis

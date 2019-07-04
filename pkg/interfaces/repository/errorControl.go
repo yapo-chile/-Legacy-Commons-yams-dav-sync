@@ -3,7 +3,7 @@ package repository
 import (
 	"fmt"
 
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/interfaces"
 )
 
 // errorControlRepo repository to store error marks in dav-yams synchronization process
