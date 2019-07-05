@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces"
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/interfaces"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/usecases"
 )
 
 type cliYamsLogger struct {

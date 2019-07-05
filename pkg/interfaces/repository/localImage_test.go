@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/domain"
 )
 
 func TestNewLocalImageRepo(t *testing.T) {

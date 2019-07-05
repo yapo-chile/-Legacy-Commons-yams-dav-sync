@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/domain"
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/usecases"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/domain"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/usecases"
 )
 
 // CLIYams is a yams client that executes operation on yams repository

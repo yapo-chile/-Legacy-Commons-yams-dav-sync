@@ -6,8 +6,8 @@ import (
 	"time"
 
 	_ "github.com/jinzhu/gorm/dialects/postgres" // nolint
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/loggers"
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/repository"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/interfaces/loggers"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/interfaces/repository"
 )
 
 // PgsqlHandler holds the connection instance to the DB

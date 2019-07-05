@@ -6,8 +6,8 @@ import (
 	"io/ioutil"
 
 	jwt "github.com/dgrijalva/jwt-go"
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/loggers"
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/repository"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/interfaces/loggers"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/interfaces/repository"
 )
 
 // jwtSSigner generates a digital JWT signature for each request sent to yams

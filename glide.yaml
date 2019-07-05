@@ -1,4 +1,4 @@
-package: github.schibsted.io/Yapo/yams-dav-sync
+package: github.mpi-internal.com/Yapo/yams-dav-sync
 import:
 - package: github.com/Yapo/logger
 - package: github.com/armon/go-socks5

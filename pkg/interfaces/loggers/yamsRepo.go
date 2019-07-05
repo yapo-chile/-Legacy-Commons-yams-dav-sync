@@ -1,7 +1,7 @@
 package loggers
 
 import (
-	"github.schibsted.io/Yapo/yams-dav-sync/pkg/interfaces/repository"
+	"github.mpi-internal.com/Yapo/yams-dav-sync/pkg/interfaces/repository"
 )
 
 type yamsRepoLogger struct {
